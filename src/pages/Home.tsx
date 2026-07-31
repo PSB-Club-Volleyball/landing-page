@@ -6,9 +6,8 @@ function Home() {
       <section className="hero">
         <p className="eyebrow">Penn State Behrend</p>
         <h1>
-          Club
-          <br />
-          Volleyball
+          <span>Club</span>
+          <span>Volleyball</span>
         </h1>
         <p className="tagline">
           Highly competitive, team-based volleyball at Penn State Behrend. We
