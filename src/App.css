@@ -1,0 +1,208 @@
+.hero {
+  position: relative;
+  background: var(--ink);
+  color: var(--chalk);
+  padding: 5.5rem 6vw 4rem;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  right: -8%;
+  width: 60%;
+  height: 160%;
+  background: var(--ace);
+  transform: rotate(-14deg);
+  opacity: 0.9;
+  clip-path: polygon(0 0, 18% 0, 4% 100%, -14% 100%);
+}
+.eyebrow {
+  position: relative;
+  font-size: 0.8rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ace);
+  font-weight: 700;
+  margin: 0 0 1.1rem;
+}
+h1 {
+  position: relative;
+  font-size: clamp(2.8rem, 8vw, 6.2rem);
+  line-height: 0.92;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0 0 1.4rem;
+  text-wrap: balance;
+  max-width: 14ch;
+}
+.tagline {
+  position: relative;
+  font-size: clamp(1.05rem, 1.6vw, 1.3rem);
+  color: #c9d0de;
+  max-width: 42ch;
+  line-height: 1.5;
+  margin: 0 0 2.2rem;
+}
+.cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--ace);
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+  padding: 0.9rem 1.6rem;
+  border-radius: 2px;
+  font-size: 0.95rem;
+  letter-spacing: 0.01em;
+}
+.cta:hover {
+  filter: brightness(1.08);
+}
+
+.scoreboard {
+  background: var(--court);
+  color: var(--chalk);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--hairline);
+}
+.scoreboard div {
+  padding: 1.6rem 6vw;
+  border-left: 1px solid var(--hairline);
+}
+.scoreboard div:first-child {
+  border-left: none;
+}
+.scoreboard .label {
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--line);
+  margin-bottom: 0.4rem;
+}
+.scoreboard .value {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+main {
+  background: var(--page-bg);
+  color: var(--page-fg);
+  flex: 1;
+}
+.split {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 4rem;
+  padding: 5rem 6vw;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.split h2 {
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ace);
+  font-weight: 700;
+  margin: 0 0 1.1rem;
+}
+.split p {
+  font-size: 1.05rem;
+  line-height: 1.65;
+  max-width: 58ch;
+  margin: 0 0 1rem;
+}
+.join-card {
+  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  border-radius: 4px;
+  padding: 2rem;
+}
+.join-card p {
+  margin: 0 0 1.4rem;
+}
+.join-card a.email {
+  display: inline-block;
+  font-weight: 700;
+  border-bottom: 2px solid var(--ace);
+  text-decoration: none;
+  padding-bottom: 2px;
+}
+
+.board {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 6vw 5rem;
+}
+.board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem 2rem;
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+  padding-top: 1.8rem;
+}
+.board-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.board-list .role {
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--line);
+}
+.board-list .name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.board-list a {
+  font-size: 0.9rem;
+  color: var(--line);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.board-list a:hover {
+  border-bottom-color: var(--ace);
+  color: var(--page-fg);
+}
+
+footer {
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+  padding: 2rem 6vw;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--line);
+}
+
+@media (max-width: 760px) {
+  .scoreboard {
+    grid-template-columns: 1fr;
+  }
+  .scoreboard div {
+    border-left: none;
+    border-top: 1px solid var(--hairline);
+    padding: 1.2rem 6vw;
+  }
+  .scoreboard div:first-child {
+    border-top: none;
+  }
+  .split {
+    grid-template-columns: 1fr;
+    padding: 3.5rem 6vw;
+    gap: 2.5rem;
+  }
+  .hero {
+    padding: 4rem 6vw 3rem;
+  }
+}
