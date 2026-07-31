@@ -9,6 +9,9 @@
   flex-wrap: wrap;
 }
 .navbar .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.02em;
@@ -16,12 +19,16 @@
   text-decoration: none;
   color: var(--chalk);
 }
+.navbar .brand svg {
+  flex-shrink: 0;
+}
 .nav-links {
   display: flex;
   gap: 1.5rem;
   flex-wrap: wrap;
 }
 .nav-links a {
+  position: relative;
   font-size: 0.85rem;
   font-weight: 600;
   text-decoration: none;
@@ -29,12 +36,26 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding-bottom: 2px;
-  border-bottom: 2px solid transparent;
 }
-.nav-links a:hover,
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: 0;
+  height: 2px;
+  background: var(--ace);
+  transition: right 0.22s ease;
+}
+.nav-links a:hover {
+  color: var(--chalk);
+}
+.nav-links a:hover::after,
+.nav-links a.active::after {
+  right: 0;
+}
 .nav-links a.active {
   color: var(--chalk);
-  border-bottom-color: var(--ace);
 }
 .instagram-link {
   display: inline-flex;
@@ -50,6 +71,12 @@
 }
 .instagram-link svg {
   flex-shrink: 0;
+}
+.nav-toggle {
+  display: none;
+}
+.nav-panel {
+  display: contents;
 }
 
 .hero {
@@ -67,9 +94,10 @@
   width: 60%;
   height: 160%;
   background: var(--ace);
-  transform: rotate(-14deg);
-  opacity: 0.9;
   clip-path: polygon(0 0, 18% 0, 4% 100%, -14% 100%);
+  transform: rotate(-14deg) translateX(120%);
+  opacity: 0;
+  animation: stripe-in 0.7s cubic-bezier(0.16, 0.8, 0.3, 1) 0.05s forwards;
 }
 .eyebrow {
   position: relative;
@@ -79,6 +107,9 @@
   color: var(--ace);
   font-weight: 700;
   margin: 0 0 1.1rem;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: rise 0.55s ease 0.15s forwards;
 }
 h1 {
   position: relative;
@@ -88,8 +119,20 @@ h1 {
   letter-spacing: -0.02em;
   text-transform: uppercase;
   margin: 0 0 1.4rem;
-  text-wrap: balance;
   max-width: 14ch;
+}
+h1 span {
+  display: block;
+  text-wrap: balance;
+  opacity: 0;
+  transform: translateY(28px);
+  animation: rise 0.6s cubic-bezier(0.16, 0.8, 0.3, 1) forwards;
+}
+h1 span:nth-child(1) {
+  animation-delay: 0.25s;
+}
+h1 span:nth-child(2) {
+  animation-delay: 0.36s;
 }
 .tagline {
   position: relative;
@@ -98,6 +141,9 @@ h1 {
   max-width: 42ch;
   line-height: 1.5;
   margin: 0 0 2.2rem;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: rise 0.55s ease 0.5s forwards;
 }
 .cta {
   position: relative;
@@ -112,9 +158,31 @@ h1 {
   border-radius: 2px;
   font-size: 0.95rem;
   letter-spacing: 0.01em;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: rise 0.55s ease 0.62s forwards;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
 }
 .cta:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(255, 90, 54, 0.35);
   filter: brightness(1.08);
+}
+
+@keyframes rise {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes stripe-in {
+  to {
+    opacity: 0.9;
+    transform: rotate(-14deg) translateX(0);
+  }
 }
 
 .scoreboard {
@@ -127,9 +195,19 @@ h1 {
 .scoreboard div {
   padding: 1.6rem 6vw;
   border-left: 1px solid var(--hairline);
+  opacity: 0;
+  transform: translateY(10px);
+  animation: rise 0.5s ease forwards;
 }
 .scoreboard div:first-child {
   border-left: none;
+  animation-delay: 0.7s;
+}
+.scoreboard div:nth-child(2) {
+  animation-delay: 0.78s;
+}
+.scoreboard div:nth-child(3) {
+  animation-delay: 0.86s;
 }
 .scoreboard .label {
   font-size: 0.7rem;
@@ -175,6 +253,15 @@ main {
   border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
   border-radius: 4px;
   padding: 2rem;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+}
+.join-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--ace);
+  box-shadow: 0 16px 30px rgba(14, 26, 51, 0.12);
 }
 .join-card p {
   margin: 0 0 1.4rem;
@@ -206,6 +293,24 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.15rem;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: rise 0.5s ease forwards;
+}
+.board-list li:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.board-list li:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.board-list li:nth-child(3) {
+  animation-delay: 0.19s;
+}
+.board-list li:nth-child(4) {
+  animation-delay: 0.26s;
+}
+.board-list li:nth-child(5) {
+  animation-delay: 0.33s;
 }
 .board-list .role {
   font-size: 0.7rem;
@@ -218,14 +323,28 @@ main {
   font-size: 1.05rem;
 }
 .board-list a {
+  position: relative;
+  width: fit-content;
   font-size: 0.9rem;
   color: var(--line);
   text-decoration: none;
-  border-bottom: 1px solid transparent;
+  padding-bottom: 2px;
+}
+.board-list a::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 100%;
+  bottom: 0;
+  height: 1px;
+  background: var(--ace);
+  transition: right 0.22s ease;
 }
 .board-list a:hover {
-  border-bottom-color: var(--ace);
   color: var(--page-fg);
+}
+.board-list a:hover::after {
+  right: 0;
 }
 
 .placeholder-note {
@@ -292,5 +411,71 @@ footer {
   }
   .hero {
     padding: 4rem 6vw 3rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .navbar {
+    position: relative;
+  }
+  .nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    background: none;
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    color: var(--chalk);
+    cursor: pointer;
+    font-size: 1.1rem;
+  }
+  .nav-panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    gap: 1rem;
+    background: var(--court);
+    border-top: 1px solid var(--hairline);
+    padding: 1.1rem 6vw 1.3rem;
+    z-index: 10;
+  }
+  .nav-panel.open {
+    display: flex;
+  }
+  .nav-panel .nav-links {
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+  .nav-panel .instagram-link {
+    padding-top: 0.9rem;
+    border-top: 1px solid var(--hairline);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eyebrow,
+  h1 span,
+  .tagline,
+  .cta,
+  .scoreboard div,
+  .board-list li {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .hero::before {
+    animation: none;
+    opacity: 0.9;
+    transform: rotate(-14deg) translateX(0);
+  }
+  .cta,
+  .join-card {
+    transition: none;
   }
 }
