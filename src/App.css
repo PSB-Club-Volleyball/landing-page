@@ -1,3 +1,57 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.2rem 6vw;
+  background: var(--ink);
+  color: var(--chalk);
+  flex-wrap: wrap;
+}
+.navbar .brand {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 0.95rem;
+  text-decoration: none;
+  color: var(--chalk);
+}
+.nav-links {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.nav-links a {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--line);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-bottom: 2px;
+  border-bottom: 2px solid transparent;
+}
+.nav-links a:hover,
+.nav-links a.active {
+  color: var(--chalk);
+  border-bottom-color: var(--ace);
+}
+.instagram-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: inherit;
+}
+.instagram-link:hover {
+  color: var(--ace);
+}
+.instagram-link svg {
+  flex-shrink: 0;
+}
+
 .hero {
   position: relative;
   background: var(--ink);
@@ -172,6 +226,40 @@ main {
 .board-list a:hover {
   border-bottom-color: var(--ace);
   color: var(--page-fg);
+}
+
+.placeholder-note {
+  color: var(--line);
+  font-size: 0.95rem;
+  margin: -0.6rem 0 1.6rem;
+}
+
+.placeholder-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 6rem 6vw;
+  min-height: 50vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  text-align: center;
+  color: var(--page-fg);
+}
+.placeholder-page h1 {
+  max-width: none;
+}
+.placeholder-page p {
+  color: var(--line);
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin: 0 0 1rem;
+}
+.placeholder-page .instagram-link {
+  color: var(--page-fg);
+  border-bottom: 2px solid var(--ace);
+  padding-bottom: 2px;
 }
 
 footer {
