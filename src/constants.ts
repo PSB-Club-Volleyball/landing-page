@@ -1,4 +1,4 @@
-export const CONTACT_EMAIL = 'behrendvolleyholics@gmail.com'
+export const CONTACT_EMAIL = 'hello@behrendclubvolleyball.org'
 
 export const INSTAGRAM_HANDLE = '@psbclubvolleyball'
 export const INSTAGRAM_URL = 'https://www.instagram.com/psbclubvolleyball'
