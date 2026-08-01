@@ -4,7 +4,7 @@ function Events() {
   return (
     <Placeholder
       title="Events"
-      note="Practice times, tournament dates, and other club events for the season are still being finalized."
+      note="There are no practices right now while the board decides on tryouts. In the meantime, we're holding weekly open gyms &mdash; join our GroupMe below for times and details. Tournament dates will be posted here once the season is set."
     />
   )
 }

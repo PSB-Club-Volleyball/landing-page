@@ -10,11 +10,9 @@ function Home() {
           <span>Volleyball</span>
         </h1>
         <p className="tagline">
-          Highly competitive, team-based volleyball at Penn State Behrend. We
-          practice weekly to prepare for tournaments and compete in the
-          Eastern Collegiate Volleyball Association (ECVA), the regional
-          league operating under the National Collegiate Volleyball
-          Federation (NCVF).
+          Highly competitive, team-based volleyball at Penn State Behrend,
+          competing in the ECVA. No practices right now while the board
+          finalizes tryouts &mdash; join us for weekly open gyms.
         </p>
         <a className="cta" href={`mailto:${CONTACT_EMAIL}`}>
           Join the club
@@ -38,33 +36,32 @@ function Home() {
             <h2>About the club</h2>
             <p>
               This club is for anyone who wants to play volleyball in a
-              highly competitive, team-based setting. We meet weekly for
-              practice in preparation for tournaments and to sharpen our
-              skills, and we compete in the Eastern Collegiate Volleyball
-              Association (ECVA), the regional league operating under the
-              National Collegiate Volleyball Federation (NCVF).
+              highly competitive, team-based setting. We compete in the
+              Eastern Collegiate Volleyball Association (ECVA), the regional
+              league operating under the National Collegiate Volleyball
+              Federation (NCVF).
             </p>
             <p>Prior volleyball experience is highly recommended.</p>
           </div>
           <div className="join-card">
             <h2>How to join</h2>
             <p>
-              Details on tryouts and practice times are still being finalized
-              for the season. Email us to get on the list and be notified as
-              soon as they&rsquo;re set.
+              There are no practices right now &mdash; the board is still
+              deciding on tryouts. Until then, we&rsquo;re holding weekly
+              open gyms. Join our GroupMe for times and details.
             </p>
-            <a className="signup-link" href={`mailto:${CONTACT_EMAIL}`}>
-              {CONTACT_EMAIL}
+            <a
+              className="signup-link"
+              href={GROUPME_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Join our GroupMe
             </a>
             <p className="or-note">
-              or{' '}
-              <a
-                className="inline-link"
-                href={GROUPME_URL}
-                target="_blank"
-                rel="noreferrer"
-              >
-                join our GroupMe
+              or email{' '}
+              <a className="inline-link" href={`mailto:${CONTACT_EMAIL}`}>
+                {CONTACT_EMAIL}
               </a>
             </p>
           </div>
