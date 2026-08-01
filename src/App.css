@@ -111,6 +111,20 @@
   transform: translateY(14px);
   animation: rise 0.55s ease 0.15s forwards;
 }
+/* The hero stripe is the same hue as this label and can slide underneath it
+   at narrow widths where the text column leaves no clear margin beside it.
+   A thin ink outline keeps the letterforms legible on either ground. */
+.hero .eyebrow {
+  text-shadow:
+    -1px -1px 0 var(--ink),
+    1px -1px 0 var(--ink),
+    -1px 1px 0 var(--ink),
+    1px 1px 0 var(--ink),
+    0 -1px 0 var(--ink),
+    0 1px 0 var(--ink),
+    -1px 0 0 var(--ink),
+    1px 0 0 var(--ink);
+}
 h1 {
   position: relative;
   font-size: clamp(2.8rem, 8vw, 6.2rem);
@@ -155,7 +169,7 @@ h1 span:nth-child(2) {
   font-weight: 700;
   text-decoration: none;
   padding: 0.9rem 1.6rem;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   font-size: 0.95rem;
   letter-spacing: 0.01em;
   opacity: 0;
@@ -251,7 +265,7 @@ main {
 }
 .join-card {
   border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2rem;
   transition:
     transform 0.22s ease,
@@ -316,7 +330,7 @@ main {
   font-size: 0.7rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--line);
+  color: var(--muted);
 }
 .board-list .name {
   font-weight: 700;
@@ -326,7 +340,7 @@ main {
   position: relative;
   width: fit-content;
   font-size: 0.9rem;
-  color: var(--line);
+  color: var(--muted);
   text-decoration: none;
   padding-bottom: 2px;
 }
@@ -348,7 +362,7 @@ main {
 }
 
 .placeholder-note {
-  color: var(--line);
+  color: var(--muted);
   font-size: 0.95rem;
   margin: -0.6rem 0 1.6rem;
 }
@@ -370,7 +384,7 @@ main {
   max-width: none;
 }
 .placeholder-page p {
-  color: var(--line);
+  color: var(--muted);
   font-size: 1.05rem;
   line-height: 1.6;
   margin: 0 0 1rem;
@@ -389,7 +403,7 @@ footer {
   flex-wrap: wrap;
   gap: 1rem;
   font-size: 0.85rem;
-  color: var(--line);
+  color: var(--muted);
 }
 
 @media (max-width: 760px) {
@@ -412,6 +426,11 @@ footer {
   .hero {
     padding: 4rem 6vw 3rem;
   }
+  .hero::before {
+    /* At this width the text column runs nearly edge to edge, so the
+       stripe has no clear margin to sit in without crossing copy. */
+    display: none;
+  }
 }
 
 @media (max-width: 640px) {
@@ -427,7 +446,7 @@ footer {
     padding: 0;
     background: none;
     border: 1px solid var(--hairline);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     color: var(--chalk);
     cursor: pointer;
     font-size: 1.1rem;

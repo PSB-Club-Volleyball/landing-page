@@ -1,0 +1,662 @@
+<title>PSB Club Volleyball — Design Spec</title>
+<style>
+  @font-face {
+    font-family: 'Big Shoulders Display';
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url(data:font/woff2;base64,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) format('woff2');
+  }
+  @font-face {
+    font-family: 'Big Shoulders Display';
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+    src: url(data:font/woff2;base64,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) format('woff2');
+  }
+
+  :root{
+    --ink-950:#0b1226;
+    --ink-800:#17274a;
+    --ink-500:#6b7794;
+    --ink-100:#dcd6c8;
+    --chalk-50:#f6f2e7;
+
+    --ace-600:#ff5a36;
+    --ace-700:#e14520;
+    --ace-100:#ffe0d3;
+
+    --gold-500:#f2b632;
+    --gold-700:#93690c;
+    --gold-100:#fbe9c8;
+
+    --page-bg: var(--chalk-50);
+    --page-fg: var(--ink-950);
+    --panel-bg: #ffffff;
+    --muted: #5b6274;
+    --hairline: rgba(11,18,38,0.12);
+    --shadow: 0 20px 40px rgba(11,18,38,0.08);
+    --gold-num-bg: var(--gold-100);
+    --gold-num-fg: var(--gold-700);
+    --pill-bg: var(--gold-100);
+    --pill-fg: var(--gold-700);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --page-bg: var(--ink-950);
+      --page-fg: var(--chalk-50);
+      --panel-bg: #111d38;
+      --muted: #9aa3ba;
+      --hairline: rgba(246,242,231,0.12);
+      --shadow: 0 20px 40px rgba(0,0,0,0.35);
+      --gold-num-bg: rgba(242,182,50,0.14);
+      --gold-num-fg: var(--gold-500);
+      --pill-bg: rgba(242,182,50,0.16);
+      --pill-fg: var(--gold-500);
+    }
+  }
+  :root[data-theme="light"]{
+    --page-bg: var(--chalk-50);
+    --page-fg: var(--ink-950);
+    --panel-bg: #ffffff;
+    --muted: #5b6274;
+    --hairline: rgba(11,18,38,0.12);
+    --shadow: 0 20px 40px rgba(11,18,38,0.08);
+    --gold-num-bg: var(--gold-100);
+    --gold-num-fg: var(--gold-700);
+    --pill-bg: var(--gold-100);
+    --pill-fg: var(--gold-700);
+  }
+  :root[data-theme="dark"]{
+    --page-bg: var(--ink-950);
+    --page-fg: var(--chalk-50);
+    --panel-bg: #111d38;
+    --muted: #9aa3ba;
+    --hairline: rgba(246,242,231,0.12);
+    --shadow: 0 20px 40px rgba(0,0,0,0.35);
+    --gold-num-bg: rgba(242,182,50,0.14);
+    --gold-num-fg: var(--gold-500);
+    --pill-bg: rgba(242,182,50,0.16);
+    --pill-fg: var(--gold-500);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{
+    background:var(--page-bg);
+    color:var(--page-fg);
+    font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--ace-600); color:#fff; }
+
+  .display{
+    font-family:'Big Shoulders Display', 'Arial Narrow', sans-serif;
+    text-transform:uppercase;
+    font-weight:900;
+    letter-spacing:0.005em;
+  }
+  .eyebrow{
+    font-family:'Big Shoulders Display','Arial Narrow',sans-serif;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.2em;
+    font-size:0.78rem;
+  }
+  code, .mono{ font-variant-numeric: tabular-nums; }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 6vw; }
+  section{ padding:4.5rem 0; border-bottom:1px solid var(--hairline); }
+  section:last-of-type{ border-bottom:none; }
+  section > .wrap > .head{ max-width:62ch; margin-bottom:2.6rem; }
+  .kicker{
+    display:inline-flex; align-items:center; gap:.5rem;
+    color:var(--ace-600); margin-bottom:.9rem;
+  }
+  .kicker .n{ font-family:'Big Shoulders Display'; font-weight:900; }
+  h2.title{
+    font-size:clamp(1.8rem,3.4vw,2.6rem);
+    margin:0 0 .8rem;
+    text-wrap:balance;
+  }
+  section > .wrap > .head p{
+    color:var(--muted); font-size:1.02rem; line-height:1.65; margin:0;
+  }
+  p.lede{ font-size:1.1rem; line-height:1.7; color:var(--muted); max-width:62ch; }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    position:relative;
+    background:var(--ink-950);
+    color:var(--chalk-50);
+    overflow:hidden;
+    padding:0;
+  }
+  .hero::before{
+    content:'';
+    position:absolute; top:-25%; right:-10%; width:55%; height:170%;
+    background:var(--ace-600);
+    clip-path:polygon(0 0, 20% 0, 4% 100%, -16% 100%);
+    transform:rotate(-14deg);
+    opacity:0.92;
+  }
+  .hero .wrap{ position:relative; padding:5.5rem 6vw 4rem; }
+  .hero .kicker{ color:var(--ace-600); }
+  .hero h1{
+    font-size:clamp(3rem,8.4vw,7.2rem);
+    line-height:0.86;
+    margin:0 0 1.3rem;
+    max-width:16ch;
+  }
+  .hero .sub{
+    font-size:clamp(1rem,1.5vw,1.2rem);
+    color:#c7cede; max-width:46ch; line-height:1.6; margin:0 0 2rem;
+  }
+  .verdict{
+    display:inline-flex; align-items:center; gap:.7rem;
+    background:rgba(246,242,231,0.08);
+    border:1px solid rgba(246,242,231,0.18);
+    padding:.6rem 1rem; border-radius:3px;
+    font-size:.85rem; color:#d8dce8;
+  }
+  .verdict b{ color:var(--chalk-50); }
+
+  /* ---------- SWATCHES ---------- */
+  .scale-group{ margin-bottom:2.2rem; }
+  .scale-group h3{
+    font-size:.72rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--muted); margin:0 0 .8rem; font-weight:700;
+  }
+  .swatches{ display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:1px; background:var(--hairline); border:1px solid var(--hairline); border-radius:4px; overflow:hidden; }
+  .swatch{ background:var(--panel-bg); padding:1.1rem 1rem; min-height:108px; display:flex; flex-direction:column; justify-content:space-between; }
+  .swatch .chip{ width:100%; height:44px; border-radius:2px; margin-bottom:.7rem; border:1px solid var(--hairline); }
+  .swatch .name{ font-weight:700; font-size:.85rem; }
+  .swatch .hex{ font-size:.78rem; color:var(--muted); }
+
+  .rule-box{
+    display:flex; gap:1rem; align-items:flex-start;
+    background:var(--panel-bg); border:1px solid var(--hairline);
+    border-radius:4px; padding:1.2rem 1.4rem; margin-top:1.8rem;
+    box-shadow:var(--shadow);
+  }
+  .rule-box .mark{ font-family:'Big Shoulders Display'; font-weight:900; font-size:1.6rem; color:var(--ace-600); line-height:1; }
+  .rule-box p{ margin:0; font-size:.92rem; line-height:1.6; color:var(--muted); }
+  .rule-box strong{ color:var(--page-fg); }
+
+  /* ---------- TYPE SPECIMEN ---------- */
+  .specimen{ display:flex; flex-direction:column; gap:1.6rem; }
+  .spec-row{ display:flex; align-items:baseline; gap:1.4rem; border-bottom:1px dashed var(--hairline); padding-bottom:1.2rem; flex-wrap:wrap; }
+  .spec-row .tag{ font-size:.72rem; color:var(--muted); width:9rem; flex-shrink:0; text-transform:uppercase; letter-spacing:.1em; }
+  .spec-row .sample{ flex:1; min-width:200px; }
+  .type-table{ width:100%; border-collapse:collapse; font-size:.88rem; margin-top:2rem; }
+  .type-table th, .type-table td{ text-align:left; padding:.6rem .8rem; border-bottom:1px solid var(--hairline); }
+  .type-table th{ color:var(--muted); font-weight:600; font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; }
+
+  /* ---------- SPACING ---------- */
+  .space-scale{ display:flex; align-items:flex-end; gap:1.2rem; flex-wrap:wrap; }
+  .space-item{ display:flex; flex-direction:column; align-items:center; gap:.5rem; }
+  .space-item .bar{ width:28px; background:var(--ink-800); border-radius:2px; }
+  :root[data-theme="dark"] .space-item .bar{ background:var(--chalk-50); }
+  @media (prefers-color-scheme:dark){ .space-item .bar{ background:var(--chalk-50); } }
+  :root[data-theme="light"] .space-item .bar{ background:var(--ink-800); }
+  .space-item span{ font-size:.72rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+
+  /* ---------- RADIUS ---------- */
+  .radius-row{ display:flex; gap:2rem; flex-wrap:wrap; align-items:flex-end; }
+  .radius-item{ display:flex; flex-direction:column; align-items:center; gap:.8rem; }
+  .radius-item .box{
+    width:96px; height:96px; background:var(--ace-600);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Big Shoulders Display'; font-weight:900; color:#160a05; font-size:1.5rem;
+  }
+  .radius-item .cap{ font-size:.78rem; color:var(--muted); text-align:center; line-height:1.5; }
+  .radius-item .cap b{ color:var(--page-fg); font-family:'Big Shoulders Display'; font-weight:700; letter-spacing:.02em; }
+
+  /* ---------- CODE ---------- */
+  .code-block{
+    background:var(--ink-950); color:#d9e0f2; border-radius:6px;
+    padding:1.4rem 1.6rem; overflow-x:auto; font-size:.82rem; line-height:1.65;
+    box-shadow:var(--shadow);
+  }
+  .code-block .c{ color:#6b7794; }
+  .code-block .p{ color:#8fd9c4; }
+  .code-block .v{ color:#ffb08f; }
+
+  /* ---------- COMPONENT GALLERY ---------- */
+  .gallery{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:2rem; }
+  .card{
+    background:var(--panel-bg); border:1px solid var(--hairline); border-radius:4px;
+    padding:1.6rem; box-shadow:var(--shadow);
+  }
+  .card h4{ margin:0 0 .3rem; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .card .demo{ margin-top:1.2rem; padding:1.6rem; border-radius:3px; }
+
+  /* buttons */
+  .btn-row{ display:flex; gap:1rem; flex-wrap:wrap; align-items:center; }
+  .btn{
+    display:inline-flex; align-items:center; gap:.5rem;
+    font-weight:700; text-decoration:none; padding:.85rem 1.5rem;
+    border-radius:2px; font-size:.92rem; border:2px solid transparent;
+    transition:transform .18s ease, box-shadow .18s ease, filter .18s ease;
+    cursor:pointer;
+  }
+  .btn:hover{ transform:translateY(-3px); }
+  .btn-primary{ background:var(--ace-600); color:#160a05; box-shadow:0 10px 20px rgba(255,90,54,.35); }
+  .btn-primary:hover{ filter:brightness(1.07); }
+  .btn-ghost{ background:transparent; border-color:var(--page-fg); color:var(--page-fg); }
+  .btn-gold{ background:var(--gold-500); color:#231703; box-shadow:0 10px 20px rgba(242,182,50,.3); }
+
+  /* nav link sweep */
+  .nav-demo{ display:flex; gap:1.6rem; background:var(--ink-950); padding:1.1rem 1.4rem; border-radius:3px; flex-wrap:wrap; }
+  .nav-demo a{
+    position:relative; color:#9aa3ba; text-decoration:none; font-size:.85rem;
+    font-weight:600; text-transform:uppercase; letter-spacing:.06em; padding-bottom:3px;
+  }
+  .nav-demo a::after{
+    content:''; position:absolute; left:0; right:100%; bottom:0; height:2px;
+    background:var(--ace-600); transition:right .22s ease;
+  }
+  .nav-demo a.active, .nav-demo a:hover{ color:#f6f2e7; }
+  .nav-demo a.active::after, .nav-demo a:hover::after{ right:0; }
+
+  /* stat strip */
+  .stat-strip{ display:grid; grid-template-columns:repeat(3,1fr); background:var(--ink-800); border-radius:3px; overflow:hidden; }
+  .stat-strip div{ padding:1.2rem 1.4rem; border-left:1px solid rgba(246,242,231,.12); }
+  .stat-strip div:first-child{ border-left:none; }
+  .stat-strip .label{ font-size:.65rem; letter-spacing:.14em; text-transform:uppercase; color:#8b95ac; margin-bottom:.3rem; }
+  .stat-strip .value{ font-family:'Big Shoulders Display'; font-weight:900; font-size:1.6rem; color:#f6f2e7; }
+
+  /* jersey / roster tag */
+  .jersey{ display:flex; align-items:center; gap:1rem; }
+  .jersey .num{
+    font-family:'Big Shoulders Display'; font-weight:900; font-size:2.2rem;
+    color:var(--gold-num-fg); background:var(--gold-num-bg); width:64px; height:64px;
+    border-radius:2px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .jersey .who .role{ font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .jersey .who .name{ font-weight:700; font-size:1.05rem; }
+
+  /* schedule row */
+  .sched-row{ display:flex; align-items:center; justify-content:space-between; padding:.9rem 0; border-bottom:1px solid var(--hairline); gap:1rem; flex-wrap:wrap; }
+  .sched-row:last-child{ border-bottom:none; }
+  .sched-row .opp{ font-weight:700; }
+  .sched-row .when{ font-size:.85rem; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .tag-pill{
+    font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+    padding:.3rem .6rem; border-radius:2px; background:var(--pill-bg); color:var(--pill-fg);
+  }
+
+  /* underline link */
+  .link-sweep{ position:relative; font-weight:700; text-decoration:none; color:var(--page-fg); padding-bottom:2px; border-bottom:2px solid var(--ace-600); }
+
+  /* full comps */
+  .comp{ border:1px solid var(--hairline); border-radius:6px; overflow:hidden; box-shadow:var(--shadow); }
+  .comp-label{ display:flex; align-items:center; justify-content:space-between; padding:.9rem 1.4rem; background:var(--panel-bg); border-bottom:1px solid var(--hairline); font-size:.78rem; }
+  .comp-label .who{ font-weight:700; }
+  .comp-label .scales{ color:var(--muted); font-family:'Big Shoulders Display'; letter-spacing:.06em; }
+  .comp-body{ padding:3rem 6vw; }
+  .comp-body.dark{ background:var(--ink-950); color:var(--chalk-50); }
+  .comp-body.light{ background:var(--chalk-50); color:var(--ink-950); }
+  .comp-body h3{ font-size:clamp(2rem,5vw,3.2rem); line-height:.92; margin:0 0 1rem; max-width:14ch; }
+  .comp-body p{ max-width:46ch; line-height:1.6; margin:0 0 1.6rem; }
+  .comp-body.dark p{ color:#c7cede; }
+  .comp-body.light p{ color:#5b6274; }
+
+  footer.spec-footer{ padding:3rem 0 5rem; text-align:center; color:var(--muted); font-size:.85rem; }
+
+  @media (max-width:700px){
+    .spec-row{ flex-direction:column; gap:.4rem; }
+    .spec-row .tag{ width:auto; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .btn{ transition:none; }
+  }
+</style>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="kicker"><span class="n">01</span><span class="eyebrow">Design Spec</span></div>
+    <h1 class="display">Scoreboard<br>&amp; Kit</h1>
+    <p class="sub">A style audit and component spec for the PSB Club Volleyball site — what it is today, and how to push it further without losing discipline.</p>
+    <div class="verdict">Verdict: <b>&nbsp;not brutalist, not flat — Editorial Sports Flat</b>, evolved here into a condensed athletic-signage system.</div>
+  </div>
+</div>
+
+<section id="identity">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">02</span><span class="eyebrow">The Read</span></div>
+      <h2 class="title">Neither brutalist nor flat — it's Editorial Sports Flat</h2>
+      <p>Brutalism means raw, unstyled, high-friction: system-default borders, zero radius, no easing, no depth. This site has soft hover-lifts, staggered fade-ins, 2–4px radii and a drop shadow on the join card — too considered for that label. Flat design usually means no motion cues at all. This site has both: solid color fields <em>and</em> deliberate motion (rise-ins, underline sweeps, hover lift). That combination — flat color, confident type, sport-broadcast conventions — is its own thing.</p>
+    </div>
+    <div class="gallery">
+      <div class="card">
+        <h4>What's already working</h4>
+        <p style="color:var(--muted); font-size:.92rem; line-height:1.6; margin:0;">A disciplined navy + chalk + one hot accent palette. A scoreboard stat-strip. Tabular numerals. A diagonal "attack-line" stripe as the one graphic flourish. This is a real point of view — it just leans on the system font to do the work a display face should be doing.</p>
+      </div>
+      <div class="card">
+        <h4>What this spec changes</h4>
+        <p style="color:var(--muted); font-size:.92rem; line-height:1.6; margin:0;">Give the display role a real condensed athletic face instead of faux-display system type. Name the color scales explicitly and cap what's active. Turn the diagonal stripe from a one-off hero decoration into a recurring structural device.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="color">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">03</span><span class="eyebrow">Color</span></div>
+      <h2 class="title">Three scales, each with a job description</h2>
+      <p>One neutral ramp carries every background and body of text. <b>Ace</b> (kill-shot red-orange) marks anything interactive — links, CTAs, hover states — site-wide. <b>Varsity Gold</b> marks identity — jersey numbers, positions, roles — and only appears on the Roster page. Most pages stay Neutral + Ace. Roster is the one place both run at once, and that's fine: they're doing two different jobs, not competing for the same one.</p>
+    </div>
+
+    <div class="scale-group">
+      <h3>Neutral — Ink (always active)</h3>
+      <div class="swatches">
+        <div class="swatch"><div class="chip" style="background:#0b1226"></div><div class="name">Ink 950</div><div class="hex">#0b1226 · dark ground</div></div>
+        <div class="swatch"><div class="chip" style="background:#17274a"></div><div class="name">Ink 800</div><div class="hex">#17274a · panels on dark</div></div>
+        <div class="swatch"><div class="chip" style="background:#6b7794"></div><div class="name">Ink 500</div><div class="hex">#6b7794 · muted text</div></div>
+        <div class="swatch"><div class="chip" style="background:#dcd6c8"></div><div class="name">Ink 100</div><div class="hex">#dcd6c8 · hairlines on light</div></div>
+        <div class="swatch"><div class="chip" style="background:#f6f2e7;border:1px solid #ddd6c4"></div><div class="name">Chalk 50</div><div class="hex">#f6f2e7 · light ground</div></div>
+      </div>
+    </div>
+
+    <div class="scale-group">
+      <h3>Accent A — Ace (home + primary actions)</h3>
+      <div class="swatches">
+        <div class="swatch"><div class="chip" style="background:#ff5a36"></div><div class="name">Ace 600</div><div class="hex">#ff5a36 · CTA, active state</div></div>
+        <div class="swatch"><div class="chip" style="background:#e14520"></div><div class="name">Ace 700</div><div class="hex">#e14520 · pressed/hover</div></div>
+        <div class="swatch"><div class="chip" style="background:#ffe0d3;border:1px solid #f2c9b8"></div><div class="name">Ace 100</div><div class="hex">#ffe0d3 · light-mode tint</div></div>
+      </div>
+    </div>
+
+    <div class="scale-group">
+      <h3>Accent B — Varsity Gold (roster identity only)</h3>
+      <div class="swatches">
+        <div class="swatch"><div class="chip" style="background:#f2b632"></div><div class="name">Gold 500</div><div class="hex">#f2b632 · numbers, tags</div></div>
+        <div class="swatch"><div class="chip" style="background:#93690c"></div><div class="name">Gold 700</div><div class="hex">#93690c · text-safe on tint</div></div>
+        <div class="swatch"><div class="chip" style="background:#fbe9c8;border:1px solid #f0d9a8"></div><div class="name">Gold 100</div><div class="hex">#fbe9c8 · badge fill</div></div>
+      </div>
+    </div>
+
+    <div class="rule-box">
+      <div class="mark">3</div>
+      <p><strong>Rule:</strong> Neutral is always active. Ace is the site-wide accent for anything you can act on. Gold is scoped to one page and one job — marking who someone is, not what to click. Every page but Roster stays two scales; Roster runs all three because its ace links and gold jerseys never mean the same thing. See the compositions in section&nbsp;08.</p>
+    </div>
+  </div>
+</section>
+
+<section id="type">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">04</span><span class="eyebrow">Typography</span></div>
+      <h2 class="title">One characterful display face, one invisible body face</h2>
+      <p><b>Big Shoulders Display</b> — a condensed face drawn from stadium and transit signage — carries headlines, eyebrows and every stat numeral. Body copy stays on the plain system stack: fast, unpretentious, and a deliberate contrast to the display face's personality rather than competing with it.</p>
+    </div>
+    <div class="specimen">
+      <div class="spec-row">
+        <div class="tag">Display 900</div>
+        <div class="sample display" style="font-size:clamp(2rem,6vw,4.2rem); line-height:.9;">Match Point</div>
+      </div>
+      <div class="spec-row">
+        <div class="tag">Display 700 / eyebrow</div>
+        <div class="sample eyebrow" style="color:var(--ace-600);">Penn State Behrend</div>
+      </div>
+      <div class="spec-row">
+        <div class="tag">Body / system</div>
+        <div class="sample" style="font-size:1.05rem; line-height:1.6; max-width:48ch;">Highly competitive, team-based volleyball. We practice weekly to prepare for tournaments and compete in the ECVA.</div>
+      </div>
+      <div class="spec-row">
+        <div class="tag">Tabular numerals</div>
+        <div class="sample display mono" style="font-size:1.8rem;">25&ndash;21&nbsp;&nbsp;25&ndash;18&nbsp;&nbsp;19&ndash;25</div>
+      </div>
+    </div>
+
+    <table class="type-table">
+      <thead><tr><th>Role</th><th>Face</th><th>Weight</th><th>Size</th><th>Tracking</th></tr></thead>
+      <tbody>
+        <tr><td>Hero H1</td><td>Big Shoulders Display</td><td>900</td><td>clamp(3&ndash;7.2rem)</td><td>0</td></tr>
+        <tr><td>Section H2</td><td>Big Shoulders Display</td><td>900</td><td>clamp(1.8&ndash;2.6rem)</td><td>0</td></tr>
+        <tr><td>Eyebrow / label</td><td>Big Shoulders Display</td><td>700</td><td>0.72&ndash;0.8rem</td><td>0.18&ndash;0.2em</td></tr>
+        <tr><td>Stat / score numeral</td><td>Big Shoulders Display</td><td>900</td><td>1.3&ndash;2.2rem</td><td>0</td></tr>
+        <tr><td>Body</td><td>System sans</td><td>400</td><td>0.95&ndash;1.1rem</td><td>0</td></tr>
+        <tr><td>Nav / button label</td><td>System sans</td><td>600&ndash;700</td><td>0.85&ndash;0.95rem</td><td>0.02&ndash;0.06em</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="spacing">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">05</span><span class="eyebrow">Spacing &amp; Grid</span></div>
+      <h2 class="title">6vw gutters, 1180px cap, an 8px step</h2>
+      <p>Content sits inside 6vw side gutters up to a 1180px cap so the hero type can run edge-to-edge while body copy stays readable. Vertical rhythm steps in multiples of 8px — tight within a component, generous between sections.</p>
+    </div>
+    <div class="space-scale">
+      <div class="space-item"><div class="bar" style="height:8px;"></div><span>8</span></div>
+      <div class="space-item"><div class="bar" style="height:16px;"></div><span>16</span></div>
+      <div class="space-item"><div class="bar" style="height:24px;"></div><span>24</span></div>
+      <div class="space-item"><div class="bar" style="height:32px;"></div><span>32</span></div>
+      <div class="space-item"><div class="bar" style="height:48px;"></div><span>48</span></div>
+      <div class="space-item"><div class="bar" style="height:64px;"></div><span>64</span></div>
+      <div class="space-item"><div class="bar" style="height:88px;"></div><span>88</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="radius">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">06</span><span class="eyebrow">Radius</span></div>
+      <h2 class="title">Three steps, doubling each time — nothing goes fully round</h2>
+      <p>Corners stay tight on purpose: this is a hard-edged kit/scoreboard identity, not a soft rounded-card one. Every container picks from exactly three values — there's no fourth "just this once" radius hiding anywhere.</p>
+    </div>
+    <div class="radius-row">
+      <div class="radius-item">
+        <div class="box" style="border-radius:2px;">2</div>
+        <div class="cap"><b>radius-xs</b><br>buttons, tags,<br>small controls</div>
+      </div>
+      <div class="radius-item">
+        <div class="box" style="border-radius:4px;">4</div>
+        <div class="cap"><b>radius-sm</b><br>cards, panels,<br>the join card, nav toggle</div>
+      </div>
+      <div class="radius-item">
+        <div class="box" style="border-radius:8px;">8</div>
+        <div class="cap"><b>radius-md</b><br>large media tiles<br>— reserved for Photos</div>
+      </div>
+    </div>
+    <div class="rule-box">
+      <div class="mark">2px</div>
+      <p><strong>Audit note:</strong> the live site already lands on exactly these three values by instinct — <code>.cta</code> and <code>.tag-pill</code> at 2px, <code>.join-card</code> and <code>.nav-toggle</code> at 4px. This section just names what was already true and gives it a token, so the next component picks a value on purpose instead of guessing.</p>
+    </div>
+  </div>
+</section>
+
+<section id="components">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">07</span><span class="eyebrow">Components</span></div>
+      <h2 class="title">The building blocks</h2>
+      <p>Every recurring piece, shown against both accent contexts where relevant.</p>
+    </div>
+
+    <div class="gallery">
+      <div class="card">
+        <h4>Buttons</h4>
+        <div class="btn-row demo" style="background:var(--panel-bg); padding:0;">
+          <a class="btn btn-primary" href="#">Join the club</a>
+          <a class="btn btn-ghost" href="#">Read more</a>
+          <a class="btn btn-gold" href="#">See schedule</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Nav links (underline sweep)</h4>
+        <div class="nav-demo">
+          <a href="#" class="active">Home</a>
+          <a href="#">Roster</a>
+          <a href="#">Schedule</a>
+          <a href="#">Photos</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Scoreboard stat strip</h4>
+        <div class="stat-strip">
+          <div><div class="label">Practices</div><div class="value">TBD</div></div>
+          <div><div class="label">Location</div><div class="value">Erie Hall</div></div>
+          <div><div class="label">Season</div><div class="value">Fall+Spr</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Roster jersey tag <span style="color:var(--gold-700); text-transform:none; letter-spacing:0;">— gold context</span></h4>
+        <div class="jersey" style="margin-top:1.2rem;">
+          <div class="num">7</div>
+          <div class="who"><div class="role">Outside Hitter</div><div class="name">Preston Lam</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Schedule row <span style="color:var(--gold-700); text-transform:none; letter-spacing:0;">— gold context</span></h4>
+        <div style="margin-top:1rem;">
+          <div class="sched-row">
+            <div><div class="opp">vs. Pitt&#8209;Bradford</div><div class="when">Sat, Sep&nbsp;12 &middot; 1:00&nbsp;PM</div></div>
+            <span class="tag-pill">Home</span>
+          </div>
+          <div class="sched-row">
+            <div><div class="opp">at Gannon</div><div class="when">Sat, Sep&nbsp;19 &middot; 11:00&nbsp;AM</div></div>
+            <span class="tag-pill" style="background:transparent; color:var(--muted); border:1px solid var(--hairline);">Away</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h4>Join card</h4>
+        <div style="margin-top:1rem; border:1px solid var(--hairline); border-radius:4px; padding:1.4rem;">
+          <p style="margin:0 0 1rem; font-size:.95rem; line-height:1.6;">Tryout details are still being finalized. Email to get on the list.</p>
+          <a class="link-sweep" href="#">hello@behrendclubvolleyball.org</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tokens">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">08</span><span class="eyebrow">Tokens as CSS</span></div>
+      <h2 class="title">One file, checked into <code>src/tokens.css</code></h2>
+      <p>Every color, radius, and theme swap above is a variable in this file — nothing here is a one-off hex or a magic pixel value living in a component. <code>index.css</code> imports it; components read the variables.</p>
+    </div>
+    <pre class="code-block"><code><span class="c">/* Design tokens — single source of truth for color, radius, and spacing.
+   Component CSS should read these variables rather than hardcoding values. */</span>
+
+:root {
+  <span class="c">/* Neutral scale — always active, carries every background and body of text. */</span>
+  <span class="p">--ink</span>: <span class="v">#0e1a33</span>;
+  <span class="p">--court</span>: <span class="v">#16264a</span>;
+  <span class="p">--chalk</span>: <span class="v">#f6f3ec</span>;
+  <span class="p">--line</span>: <span class="v">#8891a3</span>;
+  <span class="p">--hairline</span>: <span class="v">rgba(255, 255, 255, 0.12)</span>;
+
+  <span class="c">/* Accent A — Ace. Site-wide: CTAs, links, active states, the hero stripe. */</span>
+  <span class="p">--ace</span>: <span class="v">#ff5a36</span>;
+
+  <span class="c">/* Accent B — Varsity Gold. Reserved for the Roster page only (roles,
+     jersey numbers), so it marks identity without ever competing with
+     Ace's job of marking what's interactive. */</span>
+  <span class="p">--gold</span>: <span class="v">#f2b632</span>;
+  <span class="p">--gold-dim</span>: <span class="v">#93690c</span>; <span class="c">/* text-safe on --gold-tint */</span>
+  <span class="p">--gold-tint</span>: <span class="v">rgba(242, 182, 50, 0.14)</span>;
+
+  <span class="c">/* Radius scale — three steps, doubling each time. Hard-edged on purpose;
+     nothing in this system goes fully round. */</span>
+  <span class="p">--radius-xs</span>: <span class="v">2px</span>; <span class="c">/* buttons, tags, small controls */</span>
+  <span class="p">--radius-sm</span>: <span class="v">4px</span>; <span class="c">/* cards, panels, inputs */</span>
+  <span class="p">--radius-md</span>: <span class="v">8px</span>; <span class="c">/* large media/photo tiles (reserved) */</span>
+}
+
+<span class="c">/* --muted is the one color that must change value per theme, not just per
+   mode: --line reads at 5.5:1 on --ink but only 2.9:1 on --chalk, which
+   fails AA. Component CSS should always reach for --muted, never --line
+   directly, when the background is the page ground rather than a fixed
+   dark panel. */</span>
+@media (prefers-color-scheme: light) {
+  :root {
+    <span class="p">--page-bg</span>: <span class="v">var(--chalk)</span>;
+    <span class="p">--page-fg</span>: <span class="v">var(--ink)</span>;
+    <span class="p">--muted</span>: <span class="v">#5b6274</span>;
+    <span class="p">--gold-tint</span>: <span class="v">rgba(242, 182, 50, 0.16)</span>;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    <span class="p">--page-bg</span>: <span class="v">var(--ink)</span>;
+    <span class="p">--page-fg</span>: <span class="v">var(--chalk)</span>;
+    <span class="p">--muted</span>: <span class="v">var(--line)</span>;
+  }
+}
+<span class="c">/* :root[data-theme] blocks mirror the two media queries above, so an
+   explicit toggle always wins over the OS preference in either direction. */</span></code></pre>
+  </div>
+</section>
+
+<section id="compositions">
+  <div class="wrap">
+    <div class="head">
+      <div class="kicker"><span class="n">09</span><span class="eyebrow">Compositions</span></div>
+      <h2 class="title">The rule in practice</h2>
+      <p>Same neutral base throughout. Home stays single-accent. Roster runs Ace and Gold together, deliberately — the board's email links are things you act on, so they stay Ace like every other link on the site; the role and jersey labels are identity, so they get Gold instead of borrowing Ace's job.</p>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:2.4rem;">
+      <div class="comp">
+        <div class="comp-label"><span class="who">Home &mdash; Hero</span><span class="scales">NEUTRAL + ACE</span></div>
+        <div class="comp-body dark">
+          <div class="eyebrow" style="color:var(--ace-600); margin-bottom:.8rem;">Penn State Behrend</div>
+          <h3 class="display">Club<br>Volleyball</h3>
+          <p>Highly competitive, team-based volleyball. Weekly practices, ECVA competition.</p>
+          <a class="btn btn-primary" href="#">Join the club</a>
+        </div>
+      </div>
+
+      <div class="comp">
+        <div class="comp-label"><span class="who">Roster &mdash; Board + Team</span><span class="scales">NEUTRAL + ACE + GOLD</span></div>
+        <div class="comp-body light">
+          <div class="eyebrow" style="color:var(--gold-700); margin-bottom:.8rem;">Board</div>
+          <h3 class="display" style="color:var(--ink-950); font-size:clamp(1.6rem,4vw,2.2rem);">Who to email</h3>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:1.6rem 2rem; margin-top:1.6rem; padding-top:1.6rem; border-top:1px solid var(--hairline);">
+            <div>
+              <div style="font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-700); margin-bottom:.15rem;">President</div>
+              <div style="font-weight:700; margin-bottom:.3rem;">Preston Lam</div>
+              <a class="link-sweep" style="font-size:.85rem;" href="#">prl5130@psu.edu</a>
+            </div>
+            <div>
+              <div style="font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-700); margin-bottom:.15rem;">Treasurer</div>
+              <div style="font-weight:700; margin-bottom:.3rem;">Ethan Luh</div>
+              <a class="link-sweep" style="font-size:.85rem;" href="#">ekl5539@psu.edu</a>
+            </div>
+            <div>
+              <div style="font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--gold-700); margin-bottom:.15rem;">Vice President</div>
+              <div style="font-weight:700;">Lucas Mosher</div>
+            </div>
+          </div>
+
+          <div class="eyebrow" style="color:var(--gold-700); margin:2.4rem 0 .8rem;">Once tryouts wrap</div>
+          <h3 class="display" style="color:var(--ink-950); font-size:clamp(1.6rem,4vw,2.2rem);">The lineup</h3>
+          <p style="color:var(--muted); margin-top:.6rem;">Jersey numbers mark a position on the court, not a place to click — Gold, never Ace.</p>
+          <div style="display:flex; gap:1.4rem; flex-wrap:wrap; margin-top:1.2rem;">
+            <div class="jersey"><div class="num">7</div><div class="who"><div class="role">Outside Hitter</div><div class="name">TBD</div></div></div>
+            <div class="jersey"><div class="num">3</div><div class="who"><div class="role">Libero</div><div class="name">TBD</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="spec-footer">
+  Design spec for PSB Club Volleyball &middot; Ink / Chalk / Ace / Gold &middot; Big Shoulders Display + system sans
+</footer>
