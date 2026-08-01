@@ -1,4 +1,4 @@
-import { CONTACT_EMAIL } from '../constants'
+import { CONTACT_EMAIL, GROUPME_URL } from '../constants'
 
 function Home() {
   return (
@@ -57,9 +57,20 @@ function Home() {
               for the season. Email us to get on the list and be notified as
               soon as they&rsquo;re set.
             </p>
-            <a className="email" href={`mailto:${CONTACT_EMAIL}`}>
+            <a className="signup-link" href={`mailto:${CONTACT_EMAIL}`}>
               {CONTACT_EMAIL}
             </a>
+            <p className="or-note">
+              or{' '}
+              <a
+                className="inline-link"
+                href={GROUPME_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                join our GroupMe
+              </a>
+            </p>
           </div>
         </div>
       </main>
