@@ -282,6 +282,11 @@ main {
   text-decoration: none;
   padding-bottom: 2px;
 }
+.join-card .or-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+  color: var(--line);
+}
 
 .board {
   max-width: 1180px;
