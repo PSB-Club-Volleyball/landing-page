@@ -1,31 +1,4 @@
-:root {
-  --ink: #0e1a33;
-  --court: #16264a;
-  --chalk: #f6f3ec;
-  --ace: #ff5a36;
-  --line: #8891a3;
-  --hairline: rgba(255, 255, 255, 0.12);
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    --page-bg: var(--chalk);
-    --page-fg: var(--ink);
-  }
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --page-bg: var(--ink);
-    --page-fg: var(--chalk);
-  }
-}
-:root[data-theme='light'] {
-  --page-bg: var(--chalk);
-  --page-fg: var(--ink);
-}
-:root[data-theme='dark'] {
-  --page-bg: var(--ink);
-  --page-fg: var(--chalk);
-}
+@import './tokens.css';
 
 * {
   box-sizing: border-box;
@@ -46,6 +19,11 @@ body {
 }
 a {
   color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--ace);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
 }
 
 #root {

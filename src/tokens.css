@@ -1,0 +1,59 @@
+/* Design tokens — single source of truth for color, radius, and spacing.
+   Component CSS should read these variables rather than hardcoding values. */
+
+:root {
+  /* Neutral scale — always active, carries every background and body of text. */
+  --ink: #0e1a33;
+  --court: #16264a;
+  --chalk: #f6f3ec;
+  --line: #8891a3;
+  --hairline: rgba(255, 255, 255, 0.12);
+
+  /* Accent A — Ace. Primary accent: CTAs, active states, the hero stripe. */
+  --ace: #ff5a36;
+
+  /* Accent B — Varsity Gold. Reserved for the Roster page only (jersey
+     numbers, position tags), so it never competes with Ace on the same
+     screen — every other page stays Neutral + Ace. */
+  --gold: #f2b632;
+  --gold-dim: #93690c; /* text-safe on --gold-tint in light mode only */
+  --gold-tint: rgba(242, 182, 50, 0.14);
+
+  /* Radius scale — three steps, doubling each time. Kept tight and
+     hard-edged to match the kit/scoreboard identity; nothing goes fully
+     round. */
+  --radius-xs: 2px; /* buttons, tags, small controls */
+  --radius-sm: 4px; /* cards, panels, inputs */
+  --radius-md: 8px; /* large media/photo tiles (reserved — Photos page) */
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --page-bg: var(--chalk);
+    --page-fg: var(--ink);
+    --muted: #5b6274; /* darker than --line: --line fails AA (2.9:1) on chalk */
+    --gold-tint: rgba(242, 182, 50, 0.16);
+    --gold-fg: var(--gold-dim); /* 4.1:1 on --gold-tint over --chalk */
+  }
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page-bg: var(--ink);
+    --page-fg: var(--chalk);
+    --muted: var(--line); /* --line is 5.5:1 on ink — fine as-is here */
+    --gold-fg: var(--gold); /* --gold-dim fails (2.7:1) on --gold-tint over --ink */
+  }
+}
+:root[data-theme='light'] {
+  --page-bg: var(--chalk);
+  --page-fg: var(--ink);
+  --muted: #5b6274;
+  --gold-tint: rgba(242, 182, 50, 0.16);
+  --gold-fg: var(--gold-dim);
+}
+:root[data-theme='dark'] {
+  --page-bg: var(--ink);
+  --page-fg: var(--chalk);
+  --muted: var(--line);
+  --gold-fg: var(--gold);
+}

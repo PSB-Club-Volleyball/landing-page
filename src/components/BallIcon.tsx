@@ -18,23 +18,23 @@ function BallIcon() {
         </clipPath>
       </defs>
 
-      <g clipPath={`url(#${clipId})`} stroke="#0E1A33" strokeWidth="0.6" strokeLinejoin="round">
+      <g clipPath={`url(#${clipId})`} stroke="var(--ink)" strokeWidth="0.6" strokeLinejoin="round">
         <path
           d="M16,16 C20.6,19.86 20.1,27.28 16,30.5 A14.5,14.5 0 0,1 3.44,8.75 C4.18,13.92 10.36,18.05 16,16 Z"
-          fill="#F6F3EC"
+          fill="var(--chalk)"
         />
         <path
           d="M16,16 C10.36,18.05 4.18,13.92 3.44,8.75 A14.5,14.5 0 0,1 28.56,8.75 C23.72,6.81 17.04,10.09 16,16 Z"
-          fill="#16264A"
+          fill="var(--court)"
         />
         <path
           d="M16,16 C17.04,10.09 23.72,6.81 28.56,8.75 A14.5,14.5 0 0,1 16,30.5 C20.1,27.28 20.6,19.86 16,16 Z"
-          fill="#FF5A36"
+          fill="var(--ace)"
         />
       </g>
 
       <circle cx="16" cy="16" r="14.5" fill={`url(#${shadeId})`} />
-      <circle cx="16" cy="16" r="14.5" fill="none" stroke="#0E1A33" strokeWidth="0.8" />
+      <circle cx="16" cy="16" r="14.5" fill="none" stroke="var(--ink)" strokeWidth="0.8" />
     </svg>
   )
 }
