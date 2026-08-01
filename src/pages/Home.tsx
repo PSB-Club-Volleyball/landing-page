@@ -23,10 +23,6 @@ function Home() {
 
       <div className="scoreboard">
         <div>
-          <div className="label">Practices</div>
-          <div className="value">TBD</div>
-        </div>
-        <div>
           <div className="label">Location</div>
           <div className="value">Erie Hall</div>
         </div>
