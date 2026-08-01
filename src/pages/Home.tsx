@@ -1,4 +1,9 @@
-import { CONTACT_EMAIL, GROUPME_URL } from '../constants'
+import {
+  CONTACT_EMAIL,
+  GROUPME_URL,
+  LOCATION_MAP_URL,
+  LOCATION_NAME,
+} from '../constants'
 
 function Home() {
   return (
@@ -22,7 +27,16 @@ function Home() {
       <div className="scoreboard">
         <div>
           <div className="label">Location</div>
-          <div className="value">Erie Hall</div>
+          <div className="value">
+            <a
+              className="location-link"
+              href={LOCATION_MAP_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {LOCATION_NAME}
+            </a>
+          </div>
         </div>
         <div>
           <div className="label">Season</div>
