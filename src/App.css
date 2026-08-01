@@ -72,6 +72,15 @@
 .instagram-link svg {
   flex-shrink: 0;
 }
+.groupme-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: inherit;
+}
+.groupme-link:hover {
+  color: var(--ace);
+}
 .nav-toggle {
   display: none;
 }
@@ -266,12 +275,17 @@ main {
 .join-card p {
   margin: 0 0 1.4rem;
 }
-.join-card a.email {
+.join-card a.signup-link {
   display: inline-block;
   font-weight: 700;
   border-bottom: 2px solid var(--ace);
   text-decoration: none;
   padding-bottom: 2px;
+}
+.join-card .or-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.9rem;
+  color: var(--line);
 }
 
 .board {
@@ -351,6 +365,21 @@ main {
   color: var(--line);
   font-size: 0.95rem;
   margin: -0.6rem 0 1.6rem;
+}
+.board-contact {
+  color: var(--line);
+  font-size: 0.95rem;
+  margin: 2rem 0 0;
+}
+.inline-link {
+  color: var(--ace);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px solid var(--ace);
+  padding-bottom: 1px;
+}
+.inline-link:hover {
+  color: var(--page-fg);
 }
 
 .placeholder-page {
