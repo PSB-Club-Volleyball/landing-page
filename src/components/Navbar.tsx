@@ -8,7 +8,7 @@ import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../constants'
 const PAGES = [
   { to: '/', label: 'Home' },
   { to: '/roster', label: 'Roster' },
-  { to: '/schedule', label: 'Schedule' },
+  { to: '/events', label: 'Events' },
   { to: '/photos', label: 'Photos' },
 ]
 

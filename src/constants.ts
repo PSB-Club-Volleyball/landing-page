@@ -3,7 +3,7 @@ export const CONTACT_EMAIL = 'hello@behrendclubvolleyball.org'
 export const INSTAGRAM_HANDLE = '@psbclubvolleyball'
 export const INSTAGRAM_URL = 'https://www.instagram.com/psbclubvolleyball'
 
-export const GROUPME_URL = 'https://groupme.com/join_group/116252099/6ld1vXWW'
+export const GROUPME_URL = 'https://groupme.com/join_group/109663906/1gjcnSbW'
 
 export const BOARD = [
   { role: 'President', name: 'Preston Lam' },
