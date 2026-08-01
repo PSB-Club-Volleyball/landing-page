@@ -1,4 +1,4 @@
-import { CONTACT_EMAIL } from '../constants'
+import { GROUPME_URL } from '../constants'
 
 function Home() {
   return (
@@ -16,7 +16,12 @@ function Home() {
           league operating under the National Collegiate Volleyball
           Federation (NCVF).
         </p>
-        <a className="cta" href={`mailto:${CONTACT_EMAIL}`}>
+        <a
+          className="cta"
+          href={GROUPME_URL}
+          target="_blank"
+          rel="noreferrer"
+        >
           Join the club
         </a>
       </section>
@@ -54,11 +59,16 @@ function Home() {
             <h2>How to join</h2>
             <p>
               Details on tryouts and practice times are still being finalized
-              for the season. Email us to get on the list and be notified as
-              soon as they&rsquo;re set.
+              for the season. Join our GroupMe to get on the list and be
+              notified as soon as they&rsquo;re set.
             </p>
-            <a className="email" href={`mailto:${CONTACT_EMAIL}`}>
-              {CONTACT_EMAIL}
+            <a
+              className="signup-link"
+              href={GROUPME_URL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Join the GroupMe
             </a>
           </div>
         </div>

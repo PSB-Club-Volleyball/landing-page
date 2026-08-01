@@ -1,4 +1,4 @@
-import { BOARD } from '../constants'
+import { BOARD, GROUPME_URL } from '../constants'
 
 function Roster() {
   return (
@@ -15,12 +15,21 @@ function Roster() {
             <li key={member.role}>
               <span className="role">{member.role}</span>
               <span className="name">{member.name}</span>
-              {member.email && (
-                <a href={`mailto:${member.email}`}>{member.email}</a>
-              )}
             </li>
           ))}
         </ul>
+        <p className="board-contact">
+          Have a question for the board? Join our{' '}
+          <a
+            className="inline-link"
+            href={GROUPME_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            GroupMe
+          </a>{' '}
+          and ask away.
+        </p>
       </div>
     </main>
   )

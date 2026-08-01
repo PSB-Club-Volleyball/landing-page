@@ -1,5 +1,5 @@
 import InstagramIcon from './InstagramIcon'
-import { CONTACT_EMAIL, INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../constants'
+import { GROUPME_URL, INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../constants'
 
 function Footer() {
   return (
@@ -14,7 +14,9 @@ function Footer() {
         <InstagramIcon />
         {INSTAGRAM_HANDLE}
       </a>
-      <span>{CONTACT_EMAIL}</span>
+      <a className="groupme-link" href={GROUPME_URL} target="_blank" rel="noreferrer">
+        Join our GroupMe
+      </a>
     </footer>
   )
 }
