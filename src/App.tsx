@@ -4,7 +4,7 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
 import Roster from './pages/Roster'
-import Schedule from './pages/Schedule'
+import Events from './pages/Events'
 import Photos from './pages/Photos'
 
 function App() {
@@ -14,7 +14,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/roster" element={<Roster />} />
-        <Route path="/schedule" element={<Schedule />} />
+        <Route path="/events" element={<Events />} />
         <Route path="/photos" element={<Photos />} />
       </Routes>
       <Footer />
