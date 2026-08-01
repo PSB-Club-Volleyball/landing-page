@@ -11,11 +11,8 @@ function Home() {
         </h1>
         <p className="tagline">
           Highly competitive, team-based volleyball at Penn State Behrend,
-          competing in the Eastern Collegiate Volleyball Association (ECVA),
-          the regional league operating under the National Collegiate
-          Volleyball Federation (NCVF). There are no practices right now
-          while the board finalizes tryouts &mdash; join us for weekly open
-          gyms in the meantime.
+          competing in the ECVA. No practices right now while the board
+          finalizes tryouts &mdash; join us for weekly open gyms.
         </p>
         <a className="cta" href={`mailto:${CONTACT_EMAIL}`}>
           Join the club
