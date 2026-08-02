@@ -1,0 +1,25 @@
+name = "behrend-club-volleyball"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Created with: wrangler d1 create behrend-club-volleyball
+# Then paste the returned database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "behrend-club-volleyball"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Created with: wrangler r2 bucket create behrend-club-volleyball-media
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "behrend-club-volleyball-media"
+
+# Non-secret config. Secrets (OAuth client IDs/secrets) are set separately
+# with `wrangler pages secret put <NAME>` — see docs/backend-setup.md.
+[vars]
+PUBLIC_URL = "https://behrendclubvolleyball.org"
+# Comma-separated emails that are auto-approved the first time they sign in,
+# so there's at least one admin who can approve everyone else.
+ADMIN_BOOTSTRAP_EMAILS = "ethanluh@agentmade.ai"
+MICROSOFT_TENANT = "common"

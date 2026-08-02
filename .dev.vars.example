@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local `wrangler pages dev` (this file itself is gitignored).
+# In production, set these with `wrangler pages secret put <NAME>` instead.
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+MICROSOFT_CLIENT_ID=
+MICROSOFT_CLIENT_SECRET=
