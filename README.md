@@ -14,3 +14,10 @@ npm run dev
 ```
 npm run build
 ```
+
+## Backend
+
+Roster, board, events, and media are served from a Cloudflare D1 database
+and R2 bucket via Pages Functions in `functions/`, with a Google/Microsoft-
+gated admin console at `/admin`. See [`docs/backend-setup.md`](docs/backend-setup.md)
+for provisioning the database, bucket, and OAuth apps.

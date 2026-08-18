@@ -1,0 +1,49 @@
+import type { Env } from '../_lib/env'
+import { badRequest, json } from '../_lib/http'
+import type { AdminData } from './_lib/types'
+import { logAudit } from './_lib/audit'
+
+// GET /api/admin/events -> every event regardless of status (drafts included)
+export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env }) => {
+  const events = await env.DB.prepare(`SELECT * FROM events ORDER BY start_time ASC`).all()
+  return json({ events: events.results ?? [] })
+}
+
+interface EventInput {
+  title: string
+  description?: string | null
+  event_type: string
+  start_time: string
+  end_time?: string | null
+  location_name?: string | null
+  location_address?: string | null
+  status?: 'draft' | 'published' | 'cancelled'
+}
+
+// POST /api/admin/events -> create an event (defaults to draft)
+export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ request, env, data }) => {
+  const body = await request.json<Partial<EventInput>>().catch(() => null)
+  if (!body || !body.title || !body.event_type || !body.start_time) {
+    return badRequest('title, event_type, and start_time are required')
+  }
+
+  const result = await env.DB.prepare(
+    `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+  )
+    .bind(
+      body.title,
+      body.description ?? null,
+      body.event_type,
+      body.start_time,
+      body.end_time ?? null,
+      body.location_name ?? null,
+      body.location_address ?? null,
+      body.status ?? 'draft'
+    )
+    .run()
+
+  const id = Number(result.meta.last_row_id)
+  await logAudit(env, data.user.id, 'create', 'events', id, body)
+  return json({ id }, { status: 201 })
+}
