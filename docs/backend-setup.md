@@ -58,7 +58,7 @@ the same two values there instead (that file is gitignored).
 `wrangler.toml` has:
 
 ```toml
-ADMIN_BOOTSTRAP_EMAILS = "ethanluh@agentmade.ai"
+ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
 ```
 
 The first time any of these emails signs in with Google, their account is
