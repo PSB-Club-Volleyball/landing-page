@@ -60,9 +60,23 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   let userId: number
   if (existing) {
     userId = existing.id
-    await env.DB.prepare(`UPDATE users SET name = ?1, avatar_url = ?2, email = ?3 WHERE id = ?4`)
-      .bind(profile.name, profile.picture, profile.email, userId)
-      .run()
+    // Re-approve on every login, not just at account creation — otherwise a
+    // bootstrap email that landed as `pending` before it was added to (or
+    // corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck pending forever, with
+    // no other approved admin able to unstick it.
+    if (bootstrapEmails.includes(profile.email)) {
+      await env.DB.prepare(
+        `UPDATE users SET name = ?1, avatar_url = ?2, email = ?3, status = 'approved',
+                decided_at = COALESCE(decided_at, CURRENT_TIMESTAMP)
+         WHERE id = ?4`
+      )
+        .bind(profile.name, profile.picture, profile.email, userId)
+        .run()
+    } else {
+      await env.DB.prepare(`UPDATE users SET name = ?1, avatar_url = ?2, email = ?3 WHERE id = ?4`)
+        .bind(profile.name, profile.picture, profile.email, userId)
+        .run()
+    }
   } else {
     const autoApprove = bootstrapEmails.includes(profile.email)
     const inserted = await env.DB.prepare(
