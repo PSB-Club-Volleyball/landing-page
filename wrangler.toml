@@ -18,4 +18,4 @@ bucket_name = "behrend-club-volleyball"
 PUBLIC_URL = "https://behrendclubvolleyball.org"
 # Comma-separated emails that are auto-approved the first time they sign in,
 # so there's at least one admin who can approve everyone else.
-ADMIN_BOOTSTRAP_EMAILS = "ethanluh@agentmade.ai"
+ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
