@@ -13,38 +13,26 @@ npm install
 npx wrangler login
 ```
 
-## 2. Create the D1 database
+## 2. Create the D1 database — done
 
-```
-npx wrangler d1 create behrend-club-volleyball
-```
-
-This prints a `database_id`. Paste it into `wrangler.toml`:
-
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "behrend-club-volleyball"
-database_id = "PASTE_IT_HERE"
-```
-
-Then apply the schema:
+The database exists (`behrend-club-volleyball`, id `eca8d67f-5fef-44c1-9f2c-6df039abfbb8`)
+and `wrangler.toml` already has it. What's left is applying the schema:
 
 ```
 npm run db:migrate:remote
 ```
 
 (`npm run db:migrate:local` runs the same migration against a local sqlite
-file for `wrangler pages dev`.)
+file for `wrangler pages dev`; that one doesn't touch the real database.)
+This step needs to run from a machine that can actually reach the Cloudflare
+API — it can't be run from a sandboxed coding session with restricted
+network egress.
 
-## 3. Create the R2 bucket
+## 3. Create the R2 bucket — done
 
-```
-npx wrangler r2 bucket create behrend-club-volleyball-media
-```
-
-The binding name (`MEDIA_BUCKET`) and bucket name in `wrangler.toml` already
-match this — no further edits needed there.
+The bucket exists as `behrend-club-volleyball` (not `-media` — that's just
+what got typed when creating it) and `wrangler.toml`'s `bucket_name` matches.
+Nothing left to do here.
 
 ## 4. Register the OAuth apps
 

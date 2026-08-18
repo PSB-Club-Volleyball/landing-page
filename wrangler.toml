@@ -3,17 +3,14 @@ pages_build_output_dir = "dist"
 compatibility_date = "2026-08-01"
 compatibility_flags = ["nodejs_compat"]
 
-# Created with: wrangler d1 create behrend-club-volleyball
-# Then paste the returned database_id below.
 [[d1_databases]]
 binding = "DB"
 database_name = "behrend-club-volleyball"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "eca8d67f-5fef-44c1-9f2c-6df039abfbb8"
 
-# Created with: wrangler r2 bucket create behrend-club-volleyball-media
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"
-bucket_name = "behrend-club-volleyball-media"
+bucket_name = "behrend-club-volleyball"
 
 # Non-secret config. Secrets (OAuth client IDs/secrets) are set separately
 # with `wrangler pages secret put <NAME>` — see docs/backend-setup.md.
