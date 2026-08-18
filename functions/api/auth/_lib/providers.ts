@@ -1,6 +1,6 @@
 import type { Env } from '../../_lib/env'
 
-export type ProviderName = 'google' | 'microsoft'
+export type ProviderName = 'google'
 
 export interface ProviderConfig {
   authUrl: string
@@ -20,17 +20,6 @@ export function getProvider(name: string, env: Env): ProviderConfig | null {
       scope: 'openid email profile',
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
-    }
-  }
-  if (name === 'microsoft') {
-    const tenant = env.MICROSOFT_TENANT || 'common'
-    return {
-      authUrl: `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/authorize`,
-      tokenUrl: `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
-      userinfoUrl: 'https://graph.microsoft.com/oidc/userinfo',
-      scope: 'openid email profile',
-      clientId: env.MICROSOFT_CLIENT_ID,
-      clientSecret: env.MICROSOFT_CLIENT_SECRET,
     }
   }
   return null

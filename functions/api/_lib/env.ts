@@ -4,10 +4,7 @@ export interface Env {
 
   PUBLIC_URL: string
   ADMIN_BOOTSTRAP_EMAILS: string
-  MICROSOFT_TENANT: string
 
   GOOGLE_CLIENT_ID: string
   GOOGLE_CLIENT_SECRET: string
-  MICROSOFT_CLIENT_ID: string
-  MICROSOFT_CLIENT_SECRET: string
 }

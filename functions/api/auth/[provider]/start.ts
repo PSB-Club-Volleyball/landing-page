@@ -3,7 +3,7 @@ import { serializeCookie, OAUTH_STATE_COOKIE } from '../../_lib/cookies'
 import { randomToken } from '../../_lib/crypto'
 import { getProvider } from '../_lib/providers'
 
-// GET /api/auth/:provider/start -> redirects to Google/Microsoft's consent screen
+// GET /api/auth/:provider/start -> redirects to the provider's consent screen (Google only)
 export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
