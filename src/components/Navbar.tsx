@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
-import InstagramIcon from './InstagramIcon'
+import InstagramLink from './InstagramLink'
 import MenuIcon from './MenuIcon'
-import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from '../constants'
 
 const PAGES = [
   { to: '/', label: 'Home' },
@@ -50,16 +49,7 @@ function Navbar() {
             </NavLink>
           ))}
         </nav>
-        <a
-          className="instagram-link"
-          href={INSTAGRAM_URL}
-          target="_blank"
-          rel="noreferrer"
-          onClick={() => setOpen(false)}
-        >
-          <InstagramIcon />
-          {INSTAGRAM_HANDLE}
-        </a>
+        <InstagramLink onClick={() => setOpen(false)} />
       </div>
     </header>
   )
