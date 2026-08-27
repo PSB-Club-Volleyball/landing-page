@@ -38,6 +38,15 @@
 .admin-loading {
   color: var(--muted);
 }
+/* .signout is tuned for the dark topbar (--line on --ink); on this
+   theme-swapping page background, use --muted/--page-fg instead so it
+   stays readable in both light and dark mode. */
+.admin-lock-card .signout {
+  color: var(--muted);
+}
+.admin-lock-card .signout:hover {
+  color: var(--page-fg);
+}
 .oauth-btn {
   width: 100%;
   display: flex;
