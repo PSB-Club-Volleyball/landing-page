@@ -1,4 +1,5 @@
 import type { AuthUser } from '../../types'
+import { logout } from '../../lib/adminApi'
 
 function AdminPending({ user }: { user: AuthUser }) {
   return (
@@ -9,6 +10,15 @@ function AdminPending({ user }: { user: AuthUser }) {
           Signed in as <strong>{user.email}</strong>. An existing admin needs to approve your
           account in the Users tab before you can edit anything.
         </p>
+        <button
+          type="button"
+          className="signout"
+          onClick={() => {
+            logout().finally(() => window.location.assign('/admin'))
+          }}
+        >
+          Sign out
+        </button>
       </div>
     </div>
   )
