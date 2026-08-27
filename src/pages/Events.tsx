@@ -3,6 +3,8 @@ import Placeholder from '../components/Placeholder'
 import { getEvents } from '../lib/api'
 import type { ClubEvent } from '../types'
 
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   weekday: 'short',
   month: 'short',
@@ -10,13 +12,26 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   hour: 'numeric',
   minute: '2-digit',
 })
+const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
+const monthDayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
 
 function formatWhen(event: ClubEvent) {
+  if (event.recurrence_days) {
+    const days = event.recurrence_days
+      .split(',')
+      .map((d) => WEEKDAY_LABELS[Number(d)])
+      .join(', ')
+    const start = timeFormatter.format(new Date(event.start_time))
+    const time = event.end_time ? `${start} – ${timeFormatter.format(new Date(event.end_time))}` : start
+    const until = event.recurrence_until
+      ? ` through ${monthDayFormatter.format(new Date(`${event.recurrence_until}T00:00`))}`
+      : ''
+    return `Every ${days}, ${time}${until}`
+  }
+
   const start = dateFormatter.format(new Date(event.start_time))
   if (!event.end_time) return start
-  const end = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(
-    new Date(event.end_time)
-  )
+  const end = timeFormatter.format(new Date(event.end_time))
   return `${start} – ${end}`
 }
 

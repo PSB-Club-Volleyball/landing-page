@@ -5,7 +5,7 @@ import { json } from './_lib/http'
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   const events = await env.DB.prepare(
     `SELECT id, title, description, event_type, start_time, end_time,
-            location_name, location_address, status
+            location_name, location_address, status, recurrence_days, recurrence_until
      FROM events
      WHERE status IN ('published', 'cancelled')
      ORDER BY start_time ASC`

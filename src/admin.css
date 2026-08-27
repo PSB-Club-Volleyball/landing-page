@@ -227,6 +227,20 @@
   font-size: 0.85rem;
 }
 
+.recurrence-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.recurrence-fields label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
 .data-table {
   border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   border-radius: var(--radius-sm);
