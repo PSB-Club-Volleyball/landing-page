@@ -34,6 +34,64 @@ export interface ClubEvent {
   status: EventStatus
   recurrence_days: string | null
   recurrence_until: string | null
+  form_id: number | null
+  capacity: number | null
+}
+
+// Public-facing event with the signup summary the Events page needs to
+// decide what to render (a plain count vs. a "spots left" chip).
+export interface PublicClubEvent extends ClubEvent {
+  signup_count: number
+}
+
+// Admin's Events-tab row: same event, joined with the attached form's name
+// and its signup count for the table.
+export interface AdminEventRow extends ClubEvent {
+  form_name: string | null
+  signup_count: number
+}
+
+export type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'checkbox'
+
+export interface FormField {
+  id: number
+  form_id: number
+  label: string
+  field_type: FieldType
+  options: string | null // choices separated by "|", 'select' only
+  required: boolean
+  sort_order: number
+}
+
+export interface FormTemplate {
+  id: number
+  name: string
+  created_at: string
+  updated_at: string
+  used_count: number
+  field_count: number
+}
+
+export interface FormWithFields extends FormTemplate {
+  fields: FormField[]
+}
+
+export interface FormFieldInput {
+  id?: number
+  label: string
+  field_type: FieldType
+  options: string | null
+  required: boolean
+  sort_order: number
+}
+
+export interface EventSignup {
+  id: number
+  event_id: number
+  name: string
+  email: string
+  answers: Record<string, string> | null
+  created_at: string
 }
 
 export type MediaType = 'photo' | 'video'
