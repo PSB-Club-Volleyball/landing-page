@@ -4,15 +4,17 @@ import { adminApi, logout } from '../../lib/adminApi'
 import RosterAdmin from './RosterAdmin'
 import BoardAdmin from './BoardAdmin'
 import EventsAdmin from './EventsAdmin'
+import FormsAdmin from './FormsAdmin'
 import UsersAdmin from './UsersAdmin'
 import AuditLogAdmin from './AuditLogAdmin'
 
-type Tab = 'roster' | 'board' | 'events' | 'users' | 'audit-log'
+type Tab = 'roster' | 'board' | 'events' | 'forms' | 'users' | 'audit-log'
 
 const TABS: { key: Tab; label: string; ownerOnly?: boolean }[] = [
   { key: 'roster', label: 'Roster' },
   { key: 'board', label: 'Board' },
   { key: 'events', label: 'Events' },
+  { key: 'forms', label: 'Forms' },
   { key: 'users', label: 'Users' },
   { key: 'audit-log', label: 'Audit log', ownerOnly: true },
 ]
@@ -75,6 +77,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
           {tab === 'roster' && <RosterAdmin isOwner={isOwner} />}
           {tab === 'board' && <BoardAdmin isOwner={isOwner} />}
           {tab === 'events' && <EventsAdmin isOwner={isOwner} />}
+          {tab === 'forms' && <FormsAdmin isOwner={isOwner} />}
           {tab === 'users' && <UsersAdmin currentUser={user} onChange={() => setTab('users')} />}
           {tab === 'audit-log' && isOwner && <AuditLogAdmin />}
         </div>

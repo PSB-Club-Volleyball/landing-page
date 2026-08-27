@@ -16,6 +16,8 @@ const FIELDS = [
   'status',
   'recurrence_days',
   'recurrence_until',
+  'form_id',
+  'capacity',
 ] as const
 
 // PUT /api/admin/events/:id -> partial update, any subset of FIELDS

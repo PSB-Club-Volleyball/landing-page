@@ -1,4 +1,15 @@
-import type { AuditEntry, BoardMember, ClubEvent, MediaItem, PendingUser, Player } from '../types'
+import type {
+  AdminEventRow,
+  AuditEntry,
+  BoardMember,
+  EventSignup,
+  FormFieldInput,
+  FormTemplate,
+  FormWithFields,
+  MediaItem,
+  PendingUser,
+  Player,
+} from '../types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -32,12 +43,22 @@ export const adminApi = {
     remove: (id: number) => request<{ ok: true }>(`/api/admin/board/${id}`, { method: 'DELETE' }),
   },
   events: {
-    list: () => request<{ events: ClubEvent[] }>('/api/admin/events'),
-    create: (input: Partial<ClubEvent>) =>
+    list: () => request<{ events: AdminEventRow[] }>('/api/admin/events'),
+    create: (input: Partial<AdminEventRow>) =>
       request<{ id: number }>('/api/admin/events', { method: 'POST', body: JSON.stringify(input) }),
-    update: (id: number, input: Partial<ClubEvent>) =>
+    update: (id: number, input: Partial<AdminEventRow>) =>
       request<{ ok: true }>(`/api/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: number) => request<{ ok: true }>(`/api/admin/events/${id}`, { method: 'DELETE' }),
+    signups: (id: number) => request<{ signups: EventSignup[] }>(`/api/admin/events/${id}/signups`),
+  },
+  forms: {
+    list: () => request<{ forms: FormTemplate[] }>('/api/admin/forms'),
+    get: (id: number) => request<{ form: FormWithFields }>(`/api/admin/forms/${id}`),
+    create: (input: { name: string; fields: FormFieldInput[] }) =>
+      request<{ id: number }>('/api/admin/forms', { method: 'POST', body: JSON.stringify(input) }),
+    update: (id: number, input: { name: string; fields: FormFieldInput[] }) =>
+      request<{ ok: true }>(`/api/admin/forms/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    remove: (id: number) => request<{ ok: true }>(`/api/admin/forms/${id}`, { method: 'DELETE' }),
   },
   media: {
     list: () => request<{ media: MediaItem[] }>('/api/admin/media'),
