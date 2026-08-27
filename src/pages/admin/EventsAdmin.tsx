@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import type { ClubEvent, EventStatus } from '../../types'
 
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 const emptyDraft = {
   title: '',
   event_type: 'practice',
@@ -10,6 +12,8 @@ const emptyDraft = {
   location_name: '',
   status: 'draft' as EventStatus,
   description: '',
+  recurrence_days: '' as string, // comma-separated weekday ints, e.g. "2,4,6"; empty = one-time
+  recurrence_until: '',
 }
 type Draft = typeof emptyDraft
 
@@ -22,6 +26,8 @@ function toInput(draft: Draft) {
     location_name: draft.location_name || null,
     status: draft.status,
     description: draft.description || null,
+    recurrence_days: draft.recurrence_days || null,
+    recurrence_until: draft.recurrence_days ? draft.recurrence_until || null : null,
   }
 }
 
@@ -34,7 +40,44 @@ function eventToDraft(e: ClubEvent): Draft {
     location_name: e.location_name ?? '',
     status: e.status,
     description: e.description ?? '',
+    recurrence_days: e.recurrence_days ?? '',
+    recurrence_until: e.recurrence_until ?? '',
   }
+}
+
+function toggleWeekday(recurrence_days: string, day: number): string {
+  const days = recurrence_days ? recurrence_days.split(',').map(Number) : []
+  const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort()
+  return next.join(',')
+}
+
+function RecurrenceFields({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
+  const selectedDays = draft.recurrence_days ? draft.recurrence_days.split(',').map(Number) : []
+  return (
+    <div className="recurrence-fields">
+      <span>Repeats weekly on:</span>
+      {WEEKDAY_LABELS.map((label, day) => (
+        <label key={day}>
+          <input
+            type="checkbox"
+            checked={selectedDays.includes(day)}
+            onChange={() => onChange({ ...draft, recurrence_days: toggleWeekday(draft.recurrence_days, day) })}
+          />
+          {label}
+        </label>
+      ))}
+      {draft.recurrence_days && (
+        <label>
+          Until
+          <input
+            type="date"
+            value={draft.recurrence_until}
+            onChange={(e) => onChange({ ...draft, recurrence_until: e.target.value })}
+          />
+        </label>
+      )}
+    </div>
+  )
 }
 
 function EventsAdmin() {
@@ -127,6 +170,7 @@ function EventsAdmin() {
             <option value="published">Published</option>
             <option value="cancelled">Cancelled</option>
           </select>
+          <RecurrenceFields draft={createDraft} onChange={setCreateDraft} />
           <button className="approve-btn" type="button" onClick={handleCreate}>
             Save
           </button>
@@ -140,18 +184,19 @@ function EventsAdmin() {
               <th>Type</th>
               <th>Starts</th>
               <th>Status</th>
+              <th>Repeats</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={5}>Loading&hellip;</td>
+                <td colSpan={6}>Loading&hellip;</td>
               </tr>
             )}
             {!loading && events.length === 0 && (
               <tr>
-                <td colSpan={5}>No events yet.</td>
+                <td colSpan={6}>No events yet.</td>
               </tr>
             )}
             {events.map((ev) =>
@@ -189,6 +234,9 @@ function EventsAdmin() {
                     </select>
                   </td>
                   <td>
+                    <RecurrenceFields draft={editDraft} onChange={setEditDraft} />
+                  </td>
+                  <td>
                     <span className="row-actions">
                       <button type="button" onClick={() => handleSave(ev.id)}>
                         Save
@@ -206,6 +254,14 @@ function EventsAdmin() {
                   <td>{new Date(ev.start_time).toLocaleString()}</td>
                   <td>
                     <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
+                  </td>
+                  <td>
+                    {ev.recurrence_days
+                      ? ev.recurrence_days
+                          .split(',')
+                          .map((d) => WEEKDAY_LABELS[Number(d)])
+                          .join(', ')
+                      : '—'}
                   </td>
                   <td>
                     <span className="row-actions">

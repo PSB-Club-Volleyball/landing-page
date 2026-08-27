@@ -32,6 +32,8 @@ export interface ClubEvent {
   location_name: string | null
   location_address: string | null
   status: EventStatus
+  recurrence_days: string | null
+  recurrence_until: string | null
 }
 
 export type MediaType = 'photo' | 'video'
