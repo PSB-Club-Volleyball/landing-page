@@ -5,14 +5,16 @@ import RosterAdmin from './RosterAdmin'
 import BoardAdmin from './BoardAdmin'
 import EventsAdmin from './EventsAdmin'
 import UsersAdmin from './UsersAdmin'
+import AuditLogAdmin from './AuditLogAdmin'
 
-type Tab = 'roster' | 'board' | 'events' | 'users'
+type Tab = 'roster' | 'board' | 'events' | 'users' | 'audit-log'
 
-const TABS: { key: Tab; label: string }[] = [
+const TABS: { key: Tab; label: string; ownerOnly?: boolean }[] = [
   { key: 'roster', label: 'Roster' },
   { key: 'board', label: 'Board' },
   { key: 'events', label: 'Events' },
   { key: 'users', label: 'Users' },
+  { key: 'audit-log', label: 'Audit log', ownerOnly: true },
 ]
 
 function initials(user: AuthUser) {
@@ -26,6 +28,7 @@ function initials(user: AuthUser) {
 }
 
 function AdminLayout({ user }: { user: AuthUser }) {
+  const isOwner = user.role === 'owner'
   const [tab, setTab] = useState<Tab>('roster')
   const [pendingCount, setPendingCount] = useState(0)
 
@@ -56,7 +59,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
       </div>
       <div className="admin-body">
         <nav className="admin-sidebar">
-          {TABS.map((t) => (
+          {TABS.filter((t) => !t.ownerOnly || isOwner).map((t) => (
             <button
               key={t.key}
               type="button"
@@ -64,15 +67,16 @@ function AdminLayout({ user }: { user: AuthUser }) {
               onClick={() => setTab(t.key)}
             >
               {t.label}
-              {t.key === 'users' && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
+              {t.key === 'users' && isOwner && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
             </button>
           ))}
         </nav>
         <div className="admin-main">
-          {tab === 'roster' && <RosterAdmin />}
-          {tab === 'board' && <BoardAdmin />}
-          {tab === 'events' && <EventsAdmin />}
-          {tab === 'users' && <UsersAdmin onChange={() => setTab('users')} />}
+          {tab === 'roster' && <RosterAdmin isOwner={isOwner} />}
+          {tab === 'board' && <BoardAdmin isOwner={isOwner} />}
+          {tab === 'events' && <EventsAdmin isOwner={isOwner} />}
+          {tab === 'users' && <UsersAdmin currentUser={user} onChange={() => setTab('users')} />}
+          {tab === 'audit-log' && isOwner && <AuditLogAdmin />}
         </div>
       </div>
     </div>

@@ -80,7 +80,7 @@ function RecurrenceFields({ draft, onChange }: { draft: Draft; onChange: (draft:
   )
 }
 
-function EventsAdmin() {
+function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const [events, setEvents] = useState<ClubEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -274,9 +274,11 @@ function EventsAdmin() {
                       >
                         Edit
                       </button>
-                      <button type="button" className="danger" onClick={() => handleDelete(ev.id)}>
-                        Delete
-                      </button>
+                      {isOwner && (
+                        <button type="button" className="danger" onClick={() => handleDelete(ev.id)}>
+                          Delete
+                        </button>
+                      )}
                     </span>
                   </td>
                 </tr>

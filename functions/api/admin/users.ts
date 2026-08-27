@@ -9,13 +9,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const users = status
     ? await env.DB.prepare(
-        `SELECT id, email, name, avatar_url, provider, status, requested_at, decided_at, decided_by
+        `SELECT id, email, name, avatar_url, provider, status, role, requested_at, decided_at, decided_by
          FROM users WHERE status = ?1 ORDER BY requested_at DESC`
       )
         .bind(status)
         .all()
     : await env.DB.prepare(
-        `SELECT id, email, name, avatar_url, provider, status, requested_at, decided_at, decided_by
+        `SELECT id, email, name, avatar_url, provider, status, role, requested_at, decided_at, decided_by
          FROM users ORDER BY requested_at DESC`
       ).all()
 

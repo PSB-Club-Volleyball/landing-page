@@ -25,7 +25,7 @@ function memberToDraft(m: BoardMember): Draft {
   }
 }
 
-function BoardAdmin() {
+function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   const [members, setMembers] = useState<BoardMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -205,9 +205,11 @@ function BoardAdmin() {
                       >
                         Edit
                       </button>
-                      <button type="button" className="danger" onClick={() => handleDelete(m.id)}>
-                        Delete
-                      </button>
+                      {isOwner && (
+                        <button type="button" className="danger" onClick={() => handleDelete(m.id)}>
+                          Delete
+                        </button>
+                      )}
                     </span>
                   </td>
                 </tr>

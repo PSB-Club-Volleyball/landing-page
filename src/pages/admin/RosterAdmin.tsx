@@ -34,7 +34,7 @@ function playerToDraft(p: Player): Draft {
   }
 }
 
-function RosterAdmin() {
+function RosterAdmin({ isOwner }: { isOwner: boolean }) {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -228,9 +228,11 @@ function RosterAdmin() {
                       >
                         Edit
                       </button>
-                      <button type="button" className="danger" onClick={() => handleDelete(p.id)}>
-                        Delete
-                      </button>
+                      {isOwner && (
+                        <button type="button" className="danger" onClick={() => handleDelete(p.id)}>
+                          Delete
+                        </button>
+                      )}
                     </span>
                   </td>
                 </tr>

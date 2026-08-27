@@ -186,6 +186,11 @@
   font-size: 0.88rem;
   margin: 0;
 }
+.admin-note {
+  color: var(--ink-soft, color-mix(in srgb, var(--page-fg) 55%, transparent));
+  font-size: 0.82rem;
+  margin: 0 0 1rem;
+}
 
 .add-btn,
 .approve-btn {
