@@ -52,6 +52,7 @@ export interface MediaItem {
 }
 
 export type UserStatus = 'pending' | 'approved' | 'denied'
+export type UserRole = 'member' | 'owner'
 
 export interface AuthUser {
   email: string
@@ -59,6 +60,7 @@ export interface AuthUser {
   avatarUrl: string | null
   provider: string
   status: UserStatus
+  role: UserRole
 }
 
 export interface PendingUser {
@@ -68,7 +70,18 @@ export interface PendingUser {
   avatar_url: string | null
   provider: string
   status: UserStatus
+  role: UserRole
   requested_at: string
   decided_at: string | null
   decided_by: number | null
+}
+
+export interface AuditEntry {
+  id: number
+  action: 'create' | 'update' | 'delete'
+  table_name: string
+  record_id: number | null
+  details: string | null
+  created_at: string
+  actor_email: string | null
 }

@@ -50,6 +50,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   const bootstrapEmails = env.ADMIN_BOOTSTRAP_EMAILS.split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean)
+  const isBootstrap = bootstrapEmails.includes(profile.email)
+
+  // If a bootstrap email is signing in and nobody holds the owner role yet, this
+  // login claims it — self-healing in the same spirit as the approval re-check
+  // below, so a fresh deploy or a wiped owner never needs a manual data patch.
+  let assignOwner = false
+  if (isBootstrap) {
+    const owner = await env.DB.prepare(`SELECT id FROM users WHERE role = 'owner'`).first<{ id: number }>()
+    assignOwner = !owner
+  }
 
   const existing = await env.DB.prepare(
     `SELECT id FROM users WHERE provider = ?1 AND provider_sub = ?2`
@@ -64,35 +74,58 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
     // bootstrap email that landed as `pending` before it was added to (or
     // corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck pending forever, with
     // no other approved admin able to unstick it.
-    if (bootstrapEmails.includes(profile.email)) {
-      await env.DB.prepare(
-        `UPDATE users SET name = ?1, avatar_url = ?2, email = ?3, status = 'approved',
-                decided_at = COALESCE(decided_at, CURRENT_TIMESTAMP)
-         WHERE id = ?4`
-      )
-        .bind(profile.name, profile.picture, profile.email, userId)
-        .run()
+    if (isBootstrap) {
+      const approve = () =>
+        env.DB.prepare(
+          `UPDATE users SET name = ?1, avatar_url = ?2, email = ?3, status = 'approved',
+                  decided_at = COALESCE(decided_at, CURRENT_TIMESTAMP)${assignOwner ? `, role = 'owner'` : ''}
+           WHERE id = ?4`
+        )
+          .bind(profile.name, profile.picture, profile.email, userId)
+          .run()
+      try {
+        await approve()
+      } catch (e) {
+        // Lost the race to claim the owner role — another concurrent bootstrap
+        // login won it between our "no owner yet" check and this write. That
+        // login is still otherwise valid, so retry once as a normal approved
+        // user instead of failing it; a genuinely different failure will still
+        // throw on retry since assignOwner no longer applies.
+        if (!assignOwner) throw e
+        assignOwner = false
+        await approve()
+      }
     } else {
       await env.DB.prepare(`UPDATE users SET name = ?1, avatar_url = ?2, email = ?3 WHERE id = ?4`)
         .bind(profile.name, profile.picture, profile.email, userId)
         .run()
     }
   } else {
-    const autoApprove = bootstrapEmails.includes(profile.email)
-    const inserted = await env.DB.prepare(
-      `INSERT INTO users (email, name, avatar_url, provider, provider_sub, status, decided_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
-    )
-      .bind(
-        profile.email,
-        profile.name,
-        profile.picture,
-        providerName,
-        profile.sub,
-        autoApprove ? 'approved' : 'pending',
-        autoApprove ? new Date().toISOString() : null
+    const insert = () =>
+      env.DB.prepare(
+        `INSERT INTO users (email, name, avatar_url, provider, provider_sub, status, decided_at, role)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
       )
-      .run()
+        .bind(
+          profile.email,
+          profile.name,
+          profile.picture,
+          providerName,
+          profile.sub,
+          isBootstrap ? 'approved' : 'pending',
+          isBootstrap ? new Date().toISOString() : null,
+          assignOwner ? 'owner' : 'member'
+        )
+        .run()
+    let inserted
+    try {
+      inserted = await insert()
+    } catch (e) {
+      // Same race as above, for a brand-new bootstrap-email user.
+      if (!assignOwner) throw e
+      assignOwner = false
+      inserted = await insert()
+    }
     userId = Number(inserted.meta.last_row_id)
   }
 

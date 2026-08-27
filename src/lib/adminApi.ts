@@ -1,4 +1,4 @@
-import type { BoardMember, ClubEvent, MediaItem, PendingUser, Player } from '../types'
+import type { AuditEntry, BoardMember, ClubEvent, MediaItem, PendingUser, Player } from '../types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -47,6 +47,14 @@ export const adminApi = {
     list: () => request<{ users: PendingUser[] }>('/api/admin/users'),
     decide: (id: number, status: 'approved' | 'denied') =>
       request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    transferOwnership: (toUserId: number) =>
+      request<{ ok: true }>('/api/admin/owner/transfer', {
+        method: 'POST',
+        body: JSON.stringify({ to_user_id: toUserId }),
+      }),
+  },
+  auditLog: {
+    list: () => request<{ entries: AuditEntry[] }>('/api/admin/audit-log'),
   },
 }
 

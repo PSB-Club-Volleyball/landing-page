@@ -3,6 +3,7 @@ import { badRequest, json, notFound } from '../../_lib/http'
 import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
 import { isValidRecurrenceDays, isValidRecurrenceUntil, validateRecurrence } from '../_lib/recurrence'
+import { requireOwner } from '../_lib/permissions'
 
 const FIELDS = [
   'title',
@@ -77,8 +78,11 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   return json({ ok: true })
 }
 
-// DELETE /api/admin/events/:id
+// DELETE /api/admin/events/:id -> owner only
 export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env, params, data }) => {
+  const denied = requireOwner(data)
+  if (denied) return denied
+
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
 
