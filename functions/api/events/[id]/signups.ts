@@ -17,12 +17,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const event = await env.DB.prepare(
-    `SELECT id, status, form_id, capacity FROM events WHERE id = ?1`
+    `SELECT id, status, signup_enabled, form_id, capacity FROM events WHERE id = ?1`
   )
     .bind(eventId)
-    .first<{ id: number; status: string; form_id: number | null; capacity: number | null }>()
+    .first<{ id: number; status: string; signup_enabled: number; form_id: number | null; capacity: number | null }>()
   if (!event || event.status !== 'published') return notFound('Event not found')
-  if (!event.form_id) return badRequest('Signup is not open for this event')
+  if (!event.signup_enabled) return badRequest('Signup is not open for this event')
 
   const body = await request.json<Partial<SignupInput>>().catch(() => null)
   if (!body || !body.name?.trim() || !body.email?.trim()) return badRequest('name and email are required')
@@ -32,7 +32,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   // so a bot has no signal to react to, but skip the write entirely.
   if (body.company) return json({ ok: true }, { status: 201 })
 
-  const fields = await fetchFormFields(env, event.form_id)
+  // A form is optional — signup can be just name/email with no extra fields.
+  const fields = event.form_id ? await fetchFormFields(env, event.form_id) : []
   const answers = body.answers ?? {}
   for (const field of fields) {
     if (field.required && !String(answers[field.id] ?? '').trim()) {

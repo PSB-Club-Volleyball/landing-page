@@ -52,7 +52,7 @@ function EventCard({ event, onOpenSignup }: { event: PublicClubEvent; onOpenSign
       {event.status === 'cancelled' && <p className="event-card-desc">Cancelled</p>}
       {event.status !== 'cancelled' && event.description && <p className="event-card-desc">{event.description}</p>}
 
-      {event.status !== 'cancelled' && event.form_id && (
+      {event.status !== 'cancelled' && event.signup_enabled && (
         <div className="event-card-signup">
           <span className="event-card-signup-status">
             <b>{event.signup_count}</b> {verb === 'RSVP' ? 'going' : 'signed up'}

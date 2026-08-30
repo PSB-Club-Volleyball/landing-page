@@ -31,6 +31,7 @@ function toInput(draft: Draft) {
     description: draft.description || null,
     recurrence_days: draft.recurrence_days || null,
     recurrence_until: draft.recurrence_days ? draft.recurrence_until || null : null,
+    signup_enabled: draft.signup_enabled,
     form_id: draft.signup_enabled && draft.form_id ? Number(draft.form_id) : null,
     capacity: draft.signup_enabled && draft.capacity ? Number(draft.capacity) : null,
   }
@@ -47,7 +48,7 @@ function eventToDraft(e: AdminEventRow): Draft {
     description: e.description ?? '',
     recurrence_days: e.recurrence_days ?? '',
     recurrence_until: e.recurrence_until ?? '',
-    signup_enabled: e.form_id !== null,
+    signup_enabled: e.signup_enabled,
     form_id: e.form_id !== null ? String(e.form_id) : '',
     capacity: e.capacity !== null ? String(e.capacity) : '',
   }
@@ -112,24 +113,15 @@ function SignupFields({
       {draft.signup_enabled && (
         <div className="grid2">
           <label className="field">
-            Form <span className="req">*</span>
-            <select
-              required
-              value={draft.form_id}
-              onChange={(e) => onChange({ ...draft, form_id: e.target.value })}
-            >
-              <option value="" disabled>
-                Choose a form
-              </option>
+            Form <span className="field-hint">(optional &mdash; name &amp; email always collected)</span>
+            <select value={draft.form_id} onChange={(e) => onChange({ ...draft, form_id: e.target.value })}>
+              <option value="">No form &mdash; just name &amp; email</option>
               {forms.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
                 </option>
               ))}
             </select>
-            {forms.length === 0 && (
-              <span className="field-hint">No forms yet &mdash; build one in the Forms tab first.</span>
-            )}
           </label>
           <label className="field">
             Capacity <span className="field-hint">(optional)</span>
@@ -466,13 +458,13 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                         : '—'}
                     </td>
                     <td>
-                      {ev.form_name ? (
+                      {ev.signup_enabled ? (
                         <button
                           type="button"
                           className="signups-toggle"
                           onClick={() => setSignupsOpenFor(signupsOpenFor === ev.id ? null : ev.id)}
                         >
-                          {ev.signup_count} &middot; {ev.form_name}
+                          {ev.signup_count} &middot; {ev.form_name ?? 'name & email'}
                         </button>
                       ) : (
                         '—'
