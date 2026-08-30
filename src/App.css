@@ -795,36 +795,6 @@ main {
   color: var(--muted);
 }
 
-.placeholder-page {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 6rem 6vw;
-  min-height: 50vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  text-align: center;
-  color: var(--page-fg);
-}
-.placeholder-page h1 {
-  max-width: none;
-}
-.placeholder-page p {
-  color: var(--muted);
-  font-size: 1.05rem;
-  line-height: 1.6;
-  margin: 0 0 1rem;
-}
-.placeholder-page .instagram-link {
-  color: var(--page-fg);
-}
-.placeholder-page .instagram-link span {
-  border-bottom: 2px solid var(--ace);
-  padding-bottom: 2px;
-}
-
 footer {
   border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   padding: 2rem 6vw;

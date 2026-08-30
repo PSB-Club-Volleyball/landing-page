@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import Placeholder from '../components/Placeholder'
 import SignupModal from '../components/SignupModal'
 import { getEvents } from '../lib/api'
 import type { PublicClubEvent } from '../types'
@@ -94,24 +93,6 @@ function Events() {
     }
   }, [])
 
-  if (error) {
-    return (
-      <Placeholder
-        title="Events"
-        note="Couldn't load events right now &mdash; try refreshing, or check our GroupMe below."
-      />
-    )
-  }
-
-  if (events !== null && events.length === 0) {
-    return (
-      <Placeholder
-        title="Events"
-        note="There are no practices right now while the board decides on tryouts. In the meantime, we're holding weekly open gyms &mdash; join our GroupMe below for times and details. Tournament dates will be posted here once the season is set."
-      />
-    )
-  }
-
   const recurring = (events ?? []).filter((e) => e.recurrence_days)
   const oneTime = (events ?? []).filter((e) => !e.recurrence_days)
 
@@ -125,36 +106,52 @@ function Events() {
   return (
     <main className="board events-page">
       <h2>Events</h2>
-      <p className="events-page-note">RSVP or sign up below &mdash; no account needed.</p>
-
-      {recurring.length > 0 && (
-        <div className="day-group">
-          <div className="day-label">
-            Recurring <span className="day-label-count">{recurring.length}</span>
-          </div>
-          <div className="card-grid">
-            {recurring.map((event) => (
-              <EventCard key={event.id} event={event} onOpenSignup={setSignupEvent} />
-            ))}
-          </div>
-        </div>
+      {error && (
+        <p className="placeholder-note">
+          Couldn&rsquo;t load events right now &mdash; try refreshing, or check our GroupMe below.
+        </p>
       )}
+      {!error && events !== null && events.length === 0 && (
+        <p className="placeholder-note">
+          There are no practices right now while the board decides on tryouts. In the meantime,
+          we&rsquo;re holding weekly open gyms &mdash; join our GroupMe below for times and
+          details. Tournament dates will be posted here once the season is set.
+        </p>
+      )}
+      {!error && events !== null && events.length > 0 && (
+        <>
+          <p className="events-page-note">RSVP or sign up below &mdash; no account needed.</p>
 
-      {[...groups.entries()].map(([dayKey, dayEvents]) => (
-        <div className="day-group" key={dayKey}>
-          <div className="day-label">
-            {dayHeaderFormatter.format(new Date(`${dayKey}T00:00`))}{' '}
-            <span className="day-label-count">
-              {dayEvents.length} event{dayEvents.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <div className="card-grid">
-            {dayEvents.map((event) => (
-              <EventCard key={event.id} event={event} onOpenSignup={setSignupEvent} />
-            ))}
-          </div>
-        </div>
-      ))}
+          {recurring.length > 0 && (
+            <div className="day-group">
+              <div className="day-label">
+                Recurring <span className="day-label-count">{recurring.length}</span>
+              </div>
+              <div className="card-grid">
+                {recurring.map((event) => (
+                  <EventCard key={event.id} event={event} onOpenSignup={setSignupEvent} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {[...groups.entries()].map(([dayKey, dayEvents]) => (
+            <div className="day-group" key={dayKey}>
+              <div className="day-label">
+                {dayHeaderFormatter.format(new Date(`${dayKey}T00:00`))}{' '}
+                <span className="day-label-count">
+                  {dayEvents.length} event{dayEvents.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div className="card-grid">
+                {dayEvents.map((event) => (
+                  <EventCard key={event.id} event={event} onOpenSignup={setSignupEvent} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
 
       {signupEvent && <SignupModal event={signupEvent} onClose={() => setSignupEvent(null)} />}
     </main>
