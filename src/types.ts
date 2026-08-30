@@ -34,6 +34,7 @@ export interface ClubEvent {
   status: EventStatus
   recurrence_days: string | null
   recurrence_until: string | null
+  signup_enabled: boolean
   form_id: number | null
   capacity: number | null
 }

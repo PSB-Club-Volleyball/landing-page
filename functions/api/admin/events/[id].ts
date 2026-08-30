@@ -16,6 +16,7 @@ const FIELDS = [
   'status',
   'recurrence_days',
   'recurrence_until',
+  'signup_enabled',
   'form_id',
   'capacity',
 ] as const
@@ -60,7 +61,7 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   }
 
   const setClause = updates.map((field, i) => `${field} = ?${i + 1}`).join(', ')
-  const values = updates.map((field) => body[field])
+  const values = updates.map((field) => (field === 'signup_enabled' ? (body[field] ? 1 : 0) : body[field]))
   const idPlaceholder = values.length + guardValues.length + 1
   const guardPlaceholder = `?${values.length + 1}`
 
