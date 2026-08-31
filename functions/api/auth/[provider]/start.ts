@@ -4,9 +4,9 @@ import { randomToken } from '../../_lib/crypto'
 import { getProvider } from '../_lib/providers'
 
 // GET /api/auth/:provider/start?redirect=/events -> redirects to the provider's
-// consent screen (Google only). `redirect` must be a same-origin path (checked
-// again on read at the callback) so signing in from any public page returns
-// there instead of always landing on /admin.
+// consent screen (google or microsoft). `redirect` must be a same-origin path
+// (checked again on read at the callback) so signing in from any public page
+// returns there instead of always landing on /admin.
 export const onRequestGet: PagesFunction<Env> = async ({ request, params, env }) => {
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
@@ -23,6 +23,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   authorizeUrl.searchParams.set('state', state)
   if (providerName === 'google') {
     authorizeUrl.searchParams.set('access_type', 'online')
+    authorizeUrl.searchParams.set('prompt', 'select_account')
+  }
+  if (providerName === 'microsoft') {
     authorizeUrl.searchParams.set('prompt', 'select_account')
   }
 

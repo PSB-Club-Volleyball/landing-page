@@ -71,13 +71,23 @@ function Navbar() {
         <div className="nav-account">
           {user === undefined && null}
           {user === null && (
-            <a
-              className="nav-signin"
-              href={`/api/auth/google/start?redirect=${encodeURIComponent(location.pathname)}`}
-              onClick={() => setOpen(false)}
-            >
-              Sign in
-            </a>
+            <details className="nav-signin-menu">
+              <summary className="nav-signin">Sign in</summary>
+              <div className="nav-signin-options">
+                <a
+                  href={`/api/auth/google/start?redirect=${encodeURIComponent(location.pathname)}`}
+                  onClick={() => setOpen(false)}
+                >
+                  Continue with Google
+                </a>
+                <a
+                  href={`/api/auth/microsoft/start?redirect=${encodeURIComponent(location.pathname)}`}
+                  onClick={() => setOpen(false)}
+                >
+                  Continue with Microsoft
+                </a>
+              </div>
+            </details>
           )}
           {user && (
             <span className="nav-account-chip">

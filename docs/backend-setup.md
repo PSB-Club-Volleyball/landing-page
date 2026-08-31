@@ -2,7 +2,8 @@
 
 This repo has a Cloudflare Pages Functions backend under `functions/`,
 backed by a D1 database (roster, board, events, media, users, sessions,
-audit log) and an R2 bucket for photos/video. Sign-in is Google-only.
+audit log) and an R2 bucket for photos/video. Sign-in supports Google and
+Microsoft.
 
 ## 1. Install the CLI and log in
 
@@ -40,7 +41,21 @@ Nothing left to do here.
    (add a second one for any preview/staging domain you use).
 4. Copy the Client ID and Client Secret.
 
-## 5. Set the secrets
+## 5. Register the Microsoft (Entra ID) app
+
+1. [Entra admin center](https://entra.microsoft.com/) → Identity → Applications
+   → App registrations → New registration.
+2. Supported account types: **Accounts in any organizational directory and
+   personal Microsoft accounts** (matches Google's "anyone with an account"
+   behavior; the callback code already assumes this).
+3. Redirect URI: platform **Web**,
+   `https://behrendclubvolleyball.org/api/auth/microsoft/callback`
+   (add a second one for any preview/staging domain you use).
+4. Copy the Application (client) ID from the app's Overview page.
+5. Certificates & secrets → New client secret → copy the secret **value**
+   (not the secret ID) immediately, since it's hidden after you leave the page.
+
+## 6. Set the secrets
 
 Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`) already lives in
 `wrangler.toml`. The actual OAuth credentials are secrets — never commit them:
@@ -48,12 +63,14 @@ Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`) already lives in
 ```
 npx wrangler pages secret put GOOGLE_CLIENT_ID
 npx wrangler pages secret put GOOGLE_CLIENT_SECRET
+npx wrangler pages secret put MICROSOFT_CLIENT_ID
+npx wrangler pages secret put MICROSOFT_CLIENT_SECRET
 ```
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and fill in
-the same two values there instead (that file is gitignored).
+the same four values there instead (that file is gitignored).
 
-## 6. Check `ADMIN_BOOTSTRAP_EMAILS`
+## 7. Check `ADMIN_BOOTSTRAP_EMAILS`
 
 `wrangler.toml` has:
 
@@ -61,14 +78,14 @@ the same two values there instead (that file is gitignored).
 ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
 ```
 
-The first time any of these emails signs in with Google, their account is
-auto-approved — this is what breaks the
+The first time any of these emails signs in (with either Google or
+Microsoft), their account is auto-approved — this is what breaks the
 chicken-and-egg problem of "no one is approved yet to approve anyone."
 Everyone else who signs in afterward lands as `pending` until an approved
 user approves them from the Users tab in `/admin`. Add more emails
 (comma-separated) if more than one person should start out pre-approved.
 
-## 7. Deploy
+## 8. Deploy
 
 The existing GitHub Actions (`deploy.yml` / `deploy-preview.yml`) already run
 `wrangler pages deploy`, which picks up `wrangler.toml`'s bindings and vars
@@ -84,5 +101,6 @@ npm run pages:dev
 Builds the SPA and serves it through `wrangler pages dev`, so
 `functions/api/**` runs against a local D1/R2 emulation
 (`npm run db:migrate:local` seeds the schema into it). OAuth won't complete
-locally unless `.dev.vars` has real credentials and Google's redirect URI
-allow-list includes `http://localhost:8788/api/auth/google/callback`.
+locally unless `.dev.vars` has real credentials and the provider's redirect
+URI allow-list includes `http://localhost:8788/api/auth/<provider>/callback`
+(`google` or `microsoft`).
