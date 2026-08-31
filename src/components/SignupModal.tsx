@@ -3,6 +3,8 @@ import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
 import { clearCancelToken, storeCancelToken } from '../lib/cancelTokens'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
 
+const WAIVER_URL = '/liability-waiver.pdf'
+
 function FieldInput({
   field,
   value,
@@ -86,6 +88,9 @@ function SignupModal({
   const [cancelToken, setCancelToken] = useState<string | null>(existingCancelToken ?? null)
   const [cancelling, setCancelling] = useState(false)
   const [signupCancelled, setSignupCancelled] = useState(false)
+  // Only a logged-in account can confirm a waiver's on file; a walk-up
+  // signup has no way to know, so it defaults to showing the download link.
+  const [waiverOnFile, setWaiverOnFile] = useState(false)
 
   useEffect(() => {
     if (!event.form_id) return
@@ -108,6 +113,7 @@ function SignupModal({
       if (cancelled || !res.user) return
       setName((prev) => prev || res.user!.name || '')
       setEmail((prev) => prev || res.user!.email)
+      setWaiverOnFile(res.user!.waiverSignedYear === new Date().getFullYear())
     })
     return () => {
       cancelled = true
@@ -244,6 +250,17 @@ function SignupModal({
                     <input tabIndex={-1} autoComplete="off" value={company} onChange={(e) => setCompany(e.target.value)} />
                   </label>
                 </div>
+
+                {!waiverOnFile && (
+                  <p className="waiver-download-note">
+                    Haven&rsquo;t signed a liability waiver yet? You don&rsquo;t need one to {verb.toLowerCase()} &mdash;
+                    just{' '}
+                    <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+                      download and print it
+                    </a>{' '}
+                    and bring the signed copy to the event.
+                  </p>
+                )}
 
                 {form?.fields.map((field) => (
                   <label className="field" key={field.id}>

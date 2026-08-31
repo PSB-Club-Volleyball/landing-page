@@ -11,6 +11,7 @@ export interface SessionUser {
   provider: string
   status: 'pending' | 'approved' | 'denied'
   role: UserRole
+  waiverSignedYear: number | null
 }
 
 export async function getSessionUser(request: Request, env: Env): Promise<SessionUser | null> {
@@ -20,7 +21,7 @@ export async function getSessionUser(request: Request, env: Env): Promise<Sessio
 
   const tokenHash = await sha256Hex(token)
   const row = await env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.avatar_url, u.provider, u.status, u.role
+    `SELECT u.id, u.email, u.name, u.avatar_url, u.provider, u.status, u.role, u.waiver_signed_year
      FROM sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token_hash = ?1 AND s.expires_at > ?2`
@@ -34,6 +35,7 @@ export async function getSessionUser(request: Request, env: Env): Promise<Sessio
       provider: string
       status: string
       role: string
+      waiver_signed_year: number | null
     }>()
 
   if (!row) return null
@@ -45,5 +47,6 @@ export async function getSessionUser(request: Request, env: Env): Promise<Sessio
     provider: row.provider,
     status: row.status as SessionUser['status'],
     role: row.role as SessionUser['role'],
+    waiverSignedYear: row.waiver_signed_year,
   }
 }
