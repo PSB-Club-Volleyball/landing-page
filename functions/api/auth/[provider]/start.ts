@@ -2,6 +2,7 @@ import type { Env } from '../../_lib/env'
 import { serializeCookie, OAUTH_STATE_COOKIE, OAUTH_REDIRECT_COOKIE } from '../../_lib/cookies'
 import { randomToken } from '../../_lib/crypto'
 import { getProvider } from '../_lib/providers'
+import { getLoginSettings, isProviderEnabled } from '../_lib/settings'
 
 // GET /api/auth/:provider/start?redirect=/events -> redirects to the provider's
 // consent screen (google or microsoft). `redirect` must be a same-origin path
@@ -11,6 +12,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
   if (!provider) return new Response('Unknown auth provider', { status: 404 })
+
+  const settings = await getLoginSettings(env)
+  if (!isProviderEnabled(providerName, settings)) {
+    return new Response('Sign-in with this provider is currently disabled', { status: 404 })
+  }
 
   const state = randomToken(16)
   const redirectUri = `${env.PUBLIC_URL}/api/auth/${providerName}/callback`

@@ -6,6 +6,7 @@ import type {
   FormFieldInput,
   FormTemplate,
   FormWithFields,
+  LoginSettings,
   MediaItem,
   PendingUser,
   Player,
@@ -89,6 +90,11 @@ export const adminApi = {
   },
   auditLog: {
     list: () => request<{ entries: AuditEntry[] }>('/api/admin/audit-log'),
+  },
+  settings: {
+    get: () => request<LoginSettings>('/api/admin/settings'),
+    update: (input: LoginSettings) =>
+      request<{ ok: true }>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(input) }),
   },
 }
 
