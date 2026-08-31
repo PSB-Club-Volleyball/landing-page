@@ -11,14 +11,18 @@ interface UsersPatchInput {
   role?: SettableRole
   position?: string | null
   team?: 'A' | 'B' | null
+  waiver_signed?: boolean
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { status, role, position, team }
-// Any admin can approve/deny and promote/demote between outsider and
-// club_member. Granting 'admin', or touching a row that's currently admin,
-// is owner-only — an admin can't create or remove other admins. Nobody can
-// set role to 'owner' here or touch the owner's own row; see
-// functions/api/admin/owner/transfer.ts for the only way to move ownership.
+// PUT /api/admin/users/:id  Body: any subset of { status, role, position, team, waiver_signed }
+// Any admin can approve/deny, promote/demote between outsider and
+// club_member, and mark/unmark a waiver on file for the current year — a
+// waiver is an annual, admin-verified thing (e.g. a signed paper form),
+// never something the member self-attests to. Granting 'admin', or
+// touching a row that's currently admin, is owner-only — an admin can't
+// create or remove other admins. Nobody can set role to 'owner' here or
+// touch the owner's own row; see functions/api/admin/owner/transfer.ts for
+// the only way to move ownership.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
@@ -76,6 +80,19 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     values.push(body.team)
     setClauses.push(`team = ?${values.length}`)
     auditDetails.team = body.team
+  }
+
+  if (body.waiver_signed !== undefined) {
+    if (body.waiver_signed) {
+      values.push(new Date().getUTCFullYear())
+      setClauses.push(`waiver_signed_year = ?${values.length}`)
+      values.push(data.user.id)
+      setClauses.push(`waiver_signed_by = ?${values.length}`)
+      setClauses.push(`waiver_signed_at = CURRENT_TIMESTAMP`)
+    } else {
+      setClauses.push(`waiver_signed_year = NULL`, `waiver_signed_by = NULL`, `waiver_signed_at = NULL`)
+    }
+    auditDetails.waiver_signed = body.waiver_signed
   }
 
   if (setClauses.length === 0) return badRequest('No recognized fields to update')

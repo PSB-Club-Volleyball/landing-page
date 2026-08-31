@@ -76,7 +76,6 @@ function SignupModal({
   const [email, setEmail] = useState('')
   const [company, setCompany] = useState('') // honeypot
   const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [waiverAccepted, setWaiverAccepted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(Boolean(existingSignupId))
@@ -125,7 +124,7 @@ function SignupModal({
     setSubmitting(true)
     setSubmitError(null)
     try {
-      const res = await submitSignup(event.id, { name, email, answers, waiver_accepted: waiverAccepted, company })
+      const res = await submitSignup(event.id, { name, email, answers, company })
       storeCancelToken(event.id, res.id, res.cancel_token)
       setConfirmedSignupId(res.id)
       setCancelToken(res.cancel_token)
@@ -229,18 +228,6 @@ function SignupModal({
                     />
                   </label>
                 ))}
-
-                <label className="waiver-row">
-                  <input
-                    type="checkbox"
-                    required
-                    checked={waiverAccepted}
-                    onChange={(e) => setWaiverAccepted(e.target.checked)}
-                  />
-                  <span>
-                    I acknowledge the club&rsquo;s liability waiver for this event. <span className="req">*</span>
-                  </span>
-                </label>
 
                 {submitError && <p className="admin-error">{submitError}</p>}
 

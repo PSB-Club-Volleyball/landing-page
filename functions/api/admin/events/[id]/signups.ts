@@ -8,7 +8,6 @@ interface SignupRow {
   name: string
   email: string
   answers: string | null
-  waiver_accepted: number
   created_at: string
 }
 
@@ -20,7 +19,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const signups = await env.DB.prepare(
-    `SELECT id, event_id, name, email, answers, waiver_accepted, created_at
+    `SELECT id, event_id, name, email, answers, created_at
      FROM event_signups WHERE event_id = ?1 ORDER BY created_at ASC`
   )
     .bind(eventId)
@@ -29,7 +28,6 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
   const parsed = (signups.results ?? []).map((row) => ({
     ...row,
     answers: row.answers ? (JSON.parse(row.answers) as Record<string, string>) : null,
-    waiver_accepted: Boolean(row.waiver_accepted),
   }))
 
   return json({ signups: parsed })
