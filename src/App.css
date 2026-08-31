@@ -1,7 +1,6 @@
 .navbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1.5rem;
   padding: 1.2rem 6vw;
   background: var(--ink);
@@ -90,6 +89,7 @@
 .nav-account {
   display: flex;
   align-items: center;
+  margin-left: auto;
 }
 .nav-signin {
   font-size: 0.85rem;
@@ -939,7 +939,8 @@ footer {
     flex-direction: column;
     gap: 0.9rem;
   }
-  .nav-panel .instagram-link {
+  .nav-panel .nav-account {
+    margin-left: 0;
     padding-top: 0.9rem;
     border-top: 1px solid var(--hairline);
   }
