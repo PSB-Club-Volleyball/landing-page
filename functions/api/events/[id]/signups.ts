@@ -3,6 +3,8 @@ import { badRequest, json, notFound } from '../../_lib/http'
 import { fetchFormFields } from '../../_lib/forms'
 import { randomToken } from '../../_lib/crypto'
 import { buildCancelUrl, sendRsvpConfirmationEmail, sendRsvpRequestEmail } from '../../_lib/eventEmails'
+import { getSessionUser } from '../../_lib/session'
+import { isAtLeast } from '../../_lib/roles'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -24,7 +26,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const event = await env.DB.prepare(
-    `SELECT id, title, start_time, location_name, status, signup_enabled, rsvp_gated, form_id, capacity
+    `SELECT id, title, start_time, location_name, status, visibility, signup_enabled, rsvp_gated, form_id, capacity
      FROM events WHERE id = ?1`
   )
     .bind(eventId)
@@ -34,12 +36,26 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       start_time: string
       location_name: string | null
       status: string
+      visibility: string
       signup_enabled: number
       rsvp_gated: number
       form_id: number | null
       capacity: number | null
     }>()
   if (!event || event.status !== 'published') return notFound('Event not found')
+
+  // Event IDs are guessable, so a non-public event must reject a signup from
+  // anyone who couldn't see it in the first place — otherwise visibility is
+  // just a display filter, not real access control. This runs before any
+  // other check (e.g. signup_enabled) that could otherwise distinguish "this
+  // event exists but isn't open" from "not found" and leak its existence.
+  if (event.visibility !== 'public') {
+    const sessionUser = await getSessionUser(request, env)
+    const role = sessionUser?.role ?? 'outsider'
+    const minRole = event.visibility === 'eboard' ? 'admin' : 'club_member'
+    if (!isAtLeast(role, minRole)) return notFound('Event not found')
+  }
+
   if (!event.signup_enabled) return badRequest('Signup is not open for this event')
 
   const body = await request.json<Partial<SignupInput>>().catch(() => null)

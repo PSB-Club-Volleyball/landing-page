@@ -706,6 +706,18 @@
   background: color-mix(in srgb, var(--page-fg) 12%, transparent);
   color: var(--muted);
 }
+.status-chip.visibility-public {
+  background: color-mix(in srgb, var(--page-fg) 12%, transparent);
+  color: var(--muted);
+}
+.status-chip.visibility-club {
+  background: rgba(63, 185, 108, 0.16);
+  color: #2c8a55;
+}
+.status-chip.visibility-eboard {
+  background: rgba(255, 90, 54, 0.14);
+  color: var(--ace);
+}
 
 .role-chip {
   font-size: 0.66rem;

@@ -21,6 +21,7 @@ export interface BoardMember {
 }
 
 export type EventStatus = 'draft' | 'published' | 'cancelled'
+export type EventVisibility = 'public' | 'club' | 'eboard'
 export type SignupStatus = 'pending' | 'approved' | 'denied'
 
 export interface ClubEvent {
@@ -33,6 +34,9 @@ export interface ClubEvent {
   location_name: string | null
   location_address: string | null
   status: EventStatus
+  // Who can see this event on the public site: everyone, club members and
+  // above, or admins/owners only (e-board). Independent of status.
+  visibility: EventVisibility
   signup_enabled: boolean
   // Gated RSVP: when true, a new signup starts 'pending' until an admin
   // approves or denies it instead of being confirmed immediately.

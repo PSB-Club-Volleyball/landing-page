@@ -36,6 +36,7 @@ interface EventInput {
   location_name?: string | null
   location_address?: string | null
   status?: 'draft' | 'published' | 'cancelled'
+  visibility?: 'public' | 'club' | 'eboard'
   recurrence_days?: string | null
   recurrence_until?: string | null
   signup_enabled?: boolean
@@ -71,8 +72,8 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
 
   const insertOne = (start_time: string, end_time: string | null, seriesId: number | null) =>
     env.DB.prepare(
-      `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status, signup_enabled, rsvp_gated, form_id, capacity, series_id)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`
+      `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status, visibility, signup_enabled, rsvp_gated, form_id, capacity, series_id)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`
     )
       .bind(
         body.title,
@@ -83,6 +84,7 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
         body.location_name ?? null,
         body.location_address ?? null,
         body.status ?? 'draft',
+        body.visibility ?? 'public',
         body.signup_enabled ? 1 : 0,
         body.rsvp_gated ? 1 : 0,
         body.form_id ?? null,

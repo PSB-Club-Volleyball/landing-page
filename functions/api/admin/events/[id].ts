@@ -16,6 +16,7 @@ const FIELDS = [
   'location_name',
   'location_address',
   'status',
+  'visibility',
   'signup_enabled',
   'rsvp_gated',
   'form_id',

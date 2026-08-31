@@ -1,8 +1,14 @@
 import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
-import type { AdminEventRow, EventSignup, EventStatus, FormTemplate } from '../../types'
+import type { AdminEventRow, EventSignup, EventStatus, EventVisibility, FormTemplate } from '../../types'
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+const VISIBILITY_LABELS: Record<EventVisibility, string> = {
+  public: 'Public',
+  club: 'Club members only',
+  eboard: 'E-board only',
+}
 
 const emptyDraft = {
   title: '',
@@ -11,6 +17,7 @@ const emptyDraft = {
   end_time: '',
   location_name: '',
   status: 'draft' as EventStatus,
+  visibility: 'public' as EventVisibility,
   description: '',
   recurrence_days: '' as string, // comma-separated weekday ints, e.g. "2,4,6"; empty = one-time
   recurrence_until: '',
@@ -29,6 +36,7 @@ function toInput(draft: Draft) {
     end_time: draft.end_time || null,
     location_name: draft.location_name || null,
     status: draft.status,
+    visibility: draft.visibility,
     description: draft.description || null,
     recurrence_days: draft.recurrence_days || null,
     recurrence_until: draft.recurrence_days ? draft.recurrence_until || null : null,
@@ -47,6 +55,7 @@ function eventToDraft(e: AdminEventRow): Draft {
     end_time: e.end_time ?? '',
     location_name: e.location_name ?? '',
     status: e.status,
+    visibility: e.visibility,
     description: e.description ?? '',
     // Recurrence is create-time only (see events.ts) — an existing row never carries it.
     recurrence_days: '',
@@ -430,17 +439,32 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 onChange={(e) => setCreateDraft({ ...createDraft, location_name: e.target.value })}
               />
             </label>
-            <label className="field">
-              Status
-              <select
-                value={createDraft.status}
-                onChange={(e) => setCreateDraft({ ...createDraft, status: e.target.value as EventStatus })}
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </label>
+            <div className="grid2">
+              <label className="field">
+                Status
+                <select
+                  value={createDraft.status}
+                  onChange={(e) => setCreateDraft({ ...createDraft, status: e.target.value as EventStatus })}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+              <label className="field">
+                Visibility
+                <select
+                  value={createDraft.visibility}
+                  onChange={(e) => setCreateDraft({ ...createDraft, visibility: e.target.value as EventVisibility })}
+                >
+                  {(Object.keys(VISIBILITY_LABELS) as EventVisibility[]).map((v) => (
+                    <option key={v} value={v}>
+                      {VISIBILITY_LABELS[v]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <RecurrenceFields draft={createDraft} onChange={setCreateDraft} />
           </fieldset>
 
@@ -464,6 +488,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               <th>Type</th>
               <th>Starts</th>
               <th>Status</th>
+              <th>Visibility</th>
               <th>Series</th>
               <th>Signups</th>
               <th>Actions</th>
@@ -472,18 +497,18 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7}>Loading&hellip;</td>
+                <td colSpan={8}>Loading&hellip;</td>
               </tr>
             )}
             {!loading && events.length === 0 && (
               <tr>
-                <td colSpan={7}>No events yet.</td>
+                <td colSpan={8}>No events yet.</td>
               </tr>
             )}
             {events.map((ev) =>
               editingId === ev.id ? (
                 <tr key={ev.id}>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <form
                       className="event-form event-form-inline"
                       onSubmit={(e) => {
@@ -517,17 +542,34 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                         <div className="grid3">
                           <EventDateTimeFields draft={editDraft} onChange={setEditDraft} />
                         </div>
-                        <label className="field">
-                          Status
-                          <select
-                            value={editDraft.status}
-                            onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
-                          >
-                            <option value="draft">Draft</option>
-                            <option value="published">Published</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </label>
+                        <div className="grid2">
+                          <label className="field">
+                            Status
+                            <select
+                              value={editDraft.status}
+                              onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
+                            >
+                              <option value="draft">Draft</option>
+                              <option value="published">Published</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </label>
+                          <label className="field">
+                            Visibility
+                            <select
+                              value={editDraft.visibility}
+                              onChange={(e) =>
+                                setEditDraft({ ...editDraft, visibility: e.target.value as EventVisibility })
+                              }
+                            >
+                              {(Object.keys(VISIBILITY_LABELS) as EventVisibility[]).map((v) => (
+                                <option key={v} value={v}>
+                                  {VISIBILITY_LABELS[v]}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
                       </fieldset>
                       <SignupFields draft={editDraft} onChange={setEditDraft} forms={forms} />
                       <div className="form-actions">
@@ -553,6 +595,9 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                       ) : (
                         <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
                       )}
+                    </td>
+                    <td>
+                      <span className={`status-chip visibility-${ev.visibility}`}>{VISIBILITY_LABELS[ev.visibility]}</span>
                     </td>
                     <td>{ev.series_id ? `Series of ${seriesCounts.get(ev.series_id) ?? 1}` : '—'}</td>
                     <td>
@@ -592,7 +637,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   </tr>
                   {signupsOpenFor === ev.id && (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <SignupsPanel eventId={ev.id} onChanged={refresh} />
                       </td>
                     </tr>
