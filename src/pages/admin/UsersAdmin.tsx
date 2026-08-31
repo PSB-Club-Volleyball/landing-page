@@ -12,14 +12,12 @@ const ROLE_LABELS: Record<UserRole, string> = {
 function UserRow({
   user,
   isOwner,
-  currentUserEmail,
   onSaved,
   onError,
   onDecide,
 }: {
   user: PendingUser
   isOwner: boolean
-  currentUserEmail: string
   onSaved: () => void
   onError: (msg: string) => void
   onDecide: (status: 'approved' | 'denied') => void
@@ -66,11 +64,9 @@ function UserRow({
 
   // Only the owner may touch role, approval status, or admin-verified fields
   // (waiver/dues) on a row that's currently admin — even the admin's own row.
+  // Basic profile fields (name/position/team) are never guarded — any admin
+  // can edit any user's basic info, including another admin's.
   const ownerOnly = !isOwner && user.role === 'admin'
-  // But an admin can still update their own basic profile (name/position/
-  // team) without owner involvement.
-  const isSelf = user.email.toLowerCase() === currentUserEmail.toLowerCase()
-  const locked = ownerOnly && !isSelf
   const roleOptions: Exclude<UserRole, 'owner'>[] = isOwner
     ? ['outsider', 'club_member', 'admin']
     : ['outsider', 'club_member']
@@ -102,16 +98,12 @@ function UserRow({
   return (
     <tr>
       <td>
-        {locked ? (
-          user.name || '—'
-        ) : (
-          <input
-            className="mini-input"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        )}
+        <input
+          className="mini-input"
+          placeholder="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
       </td>
       <td>{user.email}</td>
       <td>
@@ -140,7 +132,6 @@ function UserRow({
             className="mini-input"
             placeholder="Position"
             value={position}
-            disabled={locked}
             onChange={(e) => setPosition(e.target.value)}
           />
         ) : (
@@ -152,7 +143,6 @@ function UserRow({
           <select
             className="role-select"
             value={team}
-            disabled={locked}
             onChange={(e) => setTeam(e.target.value as Team | '')}
           >
             <option value="">&mdash;</option>
@@ -203,11 +193,9 @@ function UserRow({
       </td>
       <td>
         <span className="row-actions">
-          {!locked && (
-            <button type="button" disabled={!dirty || saving} onClick={save}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
-          )}
+          <button type="button" disabled={!dirty || saving} onClick={save}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
           {!ownerOnly && user.status !== 'denied' && (
             <button type="button" className="danger" onClick={() => onDecide('denied')}>
               Deny
@@ -290,7 +278,8 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
       <p className="admin-note">
         Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
         someone to club member or admin below.
-        {!isOwner && " Only the owner can grant admin or change another admin's account — you can still edit your own name, position, and team."}
+        {!isOwner &&
+          " Only the owner can grant admin, or change another admin's role, approval status, waiver, or dues — anyone's name, position, and team can still be edited by an admin."}
       </p>
       {loading && <p>Loading&hellip;</p>}
 
@@ -361,7 +350,6 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                       key={u.id}
                       user={u}
                       isOwner={isOwner}
-                      currentUserEmail={currentUser.email}
                       onSaved={refresh}
                       onError={setError}
                       onDecide={(status) => decide(u.id, status)}
