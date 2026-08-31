@@ -139,6 +139,21 @@
   align-items: center;
   gap: 0.55rem;
 }
+.nav-admin-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--chalk);
+  text-decoration: none;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xs);
+  padding: 0.25rem 0.55rem;
+}
+.nav-admin-link:hover {
+  border-color: var(--ace);
+  color: var(--ace);
+}
 .nav-avatar {
   width: 26px;
   height: 26px;
