@@ -21,11 +21,13 @@ interface UsersPatchInput {
 // club_member, edit a member's display name, and mark/unmark a waiver or
 // dues as on file for the current year — both are an annual, admin-verified
 // thing (e.g. a signed paper form or cash/check received), never something
-// the member self-attests to. Granting 'admin', or
-// touching a row that's currently admin, is owner-only — an admin can't
-// create or remove other admins. Nobody can set role to 'owner' here or
-// touch the owner's own row; see functions/api/admin/owner/transfer.ts for
-// the only way to move ownership.
+// the member self-attests to. Granting 'admin', or touching a row that's
+// currently admin, is owner-only — an admin can't create or remove other
+// admins, or approve/deny, re-role, or re-verify their own waiver/dues.
+// The one exception: an admin can always update their own name, position,
+// and team, same as any other member editing their own basic profile info.
+// Nobody can set role to 'owner' here or touch the owner's own row; see
+// functions/api/admin/owner/transfer.ts for the only way to move ownership.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
@@ -36,10 +38,18 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   // Fetched once regardless of which fields are being changed — an admin
   // can't touch ANY field on a row that's currently admin, not just role,
   // otherwise position/team/status edits would bypass the owner-only rule.
-  const target = await env.DB.prepare(`SELECT role FROM users WHERE id = ?1`).bind(id).first<{ role: string }>()
+  const target = await env.DB.prepare(`SELECT id, role FROM users WHERE id = ?1`).bind(id).first<{
+    id: number
+    role: string
+  }>()
   if (!target) return notFound('User not found')
   if (target.role === 'admin' && data.user.role !== 'owner') {
-    return badRequest("Only the owner can change an admin's account")
+    const isSelf = target.id === data.user.id
+    const touchesGuardedField =
+      body.role !== undefined || body.status !== undefined || body.waiver_signed !== undefined || body.dues_paid !== undefined
+    if (!isSelf || touchesGuardedField) {
+      return badRequest("Only the owner can change an admin's account")
+    }
   }
 
   const setClauses: string[] = []
