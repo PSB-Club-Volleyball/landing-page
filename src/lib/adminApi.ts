@@ -87,6 +87,7 @@ export const adminApi = {
         position?: string | null
         team?: Team | null
         waiver_signed?: boolean
+        dues_paid?: boolean
       }
     ) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     transferOwnership: (toUserId: number) =>
