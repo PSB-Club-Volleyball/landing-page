@@ -28,9 +28,11 @@ function UserRow({
   const [team, setTeam] = useState<Team | ''>(user.team ?? '')
   const [saving, setSaving] = useState(false)
   const [waiverSaving, setWaiverSaving] = useState(false)
+  const [duesSaving, setDuesSaving] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const waiverCurrent = user.waiver_signed_year === currentYear
+  const duesCurrent = user.dues_paid_year === currentYear
 
   async function toggleWaiver() {
     setWaiverSaving(true)
@@ -43,6 +45,20 @@ function UserRow({
       onError((e as Error).message)
     } finally {
       setWaiverSaving(false)
+    }
+  }
+
+  async function toggleDues() {
+    setDuesSaving(true)
+    try {
+      // Same "expired means renew" logic as the waiver toggle — only a
+      // currently-valid payment toggles off.
+      await adminApi.users.update(user.id, { dues_paid: !duesCurrent })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setDuesSaving(false)
     }
   }
 
@@ -161,6 +177,26 @@ function UserRow({
         )}
       </td>
       <td>
+        {role === 'club_member' || role === 'admin' ? (
+          <span className="row-actions">
+            <span className={duesCurrent ? 'waiver-chip' : 'waiver-chip no'}>
+              {user.dues_paid_year
+                ? duesCurrent
+                  ? `Paid ${user.dues_paid_year}`
+                  : `Expired ${user.dues_paid_year}`
+                : 'Not paid'}
+            </span>
+            {!locked && (
+              <button type="button" disabled={duesSaving} onClick={toggleDues}>
+                {duesSaving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
+              </button>
+            )}
+          </span>
+        ) : (
+          '—'
+        )}
+      </td>
+      <td>
         <span className="row-actions">
           {!locked && (
             <button type="button" disabled={!dirty || saving} onClick={save}>
@@ -183,111 +219,9 @@ function UserRow({
   )
 }
 
-// Dues are only ever tracked for members who actually owe them — outsiders
-// don't pay dues, and a role's group is grouped/headed the same way
-// regardless of how many members are in it.
-const DUES_ROLE_ORDER: UserRole[] = ['owner', 'admin', 'club_member']
-
-function DuesRow({
-  user,
-  onSaved,
-  onError,
-}: {
-  user: PendingUser
-  onSaved: () => void
-  onError: (msg: string) => void
-}) {
-  const [saving, setSaving] = useState(false)
-
-  const currentYear = new Date().getFullYear()
-  const duesCurrent = user.dues_paid_year === currentYear
-
-  async function toggleDues() {
-    setSaving(true)
-    try {
-      // Same "expired means renew" logic as the waiver toggle — only a
-      // currently-valid payment toggles off.
-      await adminApi.users.update(user.id, { dues_paid: !duesCurrent })
-      onSaved()
-    } catch (e) {
-      onError((e as Error).message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <tr>
-      <td>{user.name || '—'}</td>
-      <td>{user.email}</td>
-      <td>
-        <span className={duesCurrent ? 'waiver-chip' : 'waiver-chip no'}>
-          {user.dues_paid_year
-            ? duesCurrent
-              ? `Paid ${user.dues_paid_year}`
-              : `Expired ${user.dues_paid_year}`
-            : 'Not paid'}
-        </span>
-      </td>
-      <td>
-        <button type="button" disabled={saving} onClick={toggleDues}>
-          {saving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
-        </button>
-      </td>
-    </tr>
-  )
-}
-
-function DuesSection({
-  users,
-  onSaved,
-  onError,
-}: {
-  users: PendingUser[]
-  onSaved: () => void
-  onError: (msg: string) => void
-}) {
-  const duesEligible = users.filter((u) => u.status === 'approved' && DUES_ROLE_ORDER.includes(u.role))
-  const groups = DUES_ROLE_ORDER.map((role) => ({
-    role,
-    members: duesEligible.filter((u) => u.role === role),
-  })).filter((g) => g.members.length > 0)
-
-  return (
-    <>
-      <h2 style={{ marginTop: '2rem' }}>Dues</h2>
-      <p className="admin-note">Mark dues paid for the current year, grouped by role.</p>
-      {groups.length === 0 ? (
-        <p>No dues-paying members yet.</p>
-      ) : (
-        <div className="data-table">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Dues</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((g) => (
-                <Fragment key={g.role}>
-                  <tr className="role-group-header">
-                    <td colSpan={4}>{ROLE_LABELS[g.role]}</td>
-                  </tr>
-                  {g.members.map((u) => (
-                    <DuesRow key={u.id} user={u} onSaved={onSaved} onError={onError} />
-                  ))}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </>
-  )
-}
+// Non-owner rows in the main table are grouped by role, each group under
+// its own header row, so e.g. all club members sit together.
+const ROLE_GROUP_ORDER: UserRole[] = ['admin', 'club_member', 'outsider']
 
 function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange: () => void }) {
   const isOwner = currentUser.role === 'owner'
@@ -336,6 +270,10 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
   const decided = users.filter((u) => u.status !== 'pending')
   const owner = users.find((u) => u.role === 'owner')
   const others = decided.filter((u) => u.role !== 'owner')
+  const roleGroups = ROLE_GROUP_ORDER.map((role) => ({
+    role,
+    members: others.filter((u) => u.role === role),
+  })).filter((g) => g.members.length > 0)
   const transferCandidates = users.filter((u) => u.status === 'approved' && u.role !== 'owner')
 
   return (
@@ -387,6 +325,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                 <th>Position</th>
                 <th>Team</th>
                 <th>Waiver</th>
+                <th>Dues</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -401,28 +340,33 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                   <td>
                     <span className="role-chip role-owner">Owner</span>
                   </td>
-                  <td colSpan={3}>
+                  <td colSpan={4}>
                     <span className="admin-note">Transfer ownership to change</span>
                   </td>
                   <td />
                 </tr>
               )}
-              {others.map((u) => (
-                <UserRow
-                  key={u.id}
-                  user={u}
-                  isOwner={isOwner}
-                  onSaved={refresh}
-                  onError={setError}
-                  onDecide={(status) => decide(u.id, status)}
-                />
+              {roleGroups.map((g) => (
+                <Fragment key={g.role}>
+                  <tr className="role-group-header">
+                    <td colSpan={8}>{ROLE_LABELS[g.role]}</td>
+                  </tr>
+                  {g.members.map((u) => (
+                    <UserRow
+                      key={u.id}
+                      user={u}
+                      isOwner={isOwner}
+                      onSaved={refresh}
+                      onError={setError}
+                      onDecide={(status) => decide(u.id, status)}
+                    />
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>
         </div>
       )}
-
-      {!loading && <DuesSection users={users} onSaved={refresh} onError={setError} />}
 
       {!loading && isOwner && (
         <div className="admin-form" style={{ marginTop: '1.5rem' }}>
