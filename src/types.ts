@@ -21,6 +21,7 @@ export interface BoardMember {
 }
 
 export type EventStatus = 'draft' | 'published' | 'cancelled'
+export type SignupStatus = 'pending' | 'approved' | 'denied'
 
 export interface ClubEvent {
   id: number
@@ -33,18 +34,23 @@ export interface ClubEvent {
   location_address: string | null
   status: EventStatus
   signup_enabled: boolean
+  // Gated RSVP: when true, a new signup starts 'pending' until an admin
+  // approves or denies it instead of being confirmed immediately.
+  rsvp_gated: boolean
   form_id: number | null
   capacity: number | null
 }
 
 // Public-facing event with the signup summary the Events page needs to
 // decide what to render (a plain count vs. a "spots left" chip), plus the
-// visitor's own signup id if they're logged in and already signed up. Every
-// event is a real, individually-dated occurrence — a recurring event just
-// means several of these were created together (see AdminEventRow.series_id).
+// visitor's own signup id/status if they're logged in and already signed up.
+// signup_count only counts approved signups. Every event is a real,
+// individually-dated occurrence — a recurring event just means several of
+// these were created together (see AdminEventRow.series_id).
 export interface PublicClubEvent extends ClubEvent {
   signup_count: number
   my_signup_id: number | null
+  my_signup_status: SignupStatus | null
 }
 
 // Admin's Events-tab row: same event, joined with the attached form's name
@@ -98,6 +104,7 @@ export interface EventSignup {
   name: string
   email: string
   answers: Record<string, string> | null
+  status: SignupStatus
   created_at: string
 }
 

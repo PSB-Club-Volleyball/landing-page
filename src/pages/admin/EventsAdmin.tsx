@@ -15,6 +15,7 @@ const emptyDraft = {
   recurrence_days: '' as string, // comma-separated weekday ints, e.g. "2,4,6"; empty = one-time
   recurrence_until: '',
   signup_enabled: false,
+  rsvp_gated: false,
   form_id: '' as string, // '' = none chosen yet
   capacity: '' as string,
 }
@@ -32,6 +33,7 @@ function toInput(draft: Draft) {
     recurrence_days: draft.recurrence_days || null,
     recurrence_until: draft.recurrence_days ? draft.recurrence_until || null : null,
     signup_enabled: draft.signup_enabled,
+    rsvp_gated: draft.signup_enabled && draft.rsvp_gated,
     form_id: draft.signup_enabled && draft.form_id ? Number(draft.form_id) : null,
     capacity: draft.signup_enabled && draft.capacity ? Number(draft.capacity) : null,
   }
@@ -50,6 +52,7 @@ function eventToDraft(e: AdminEventRow): Draft {
     recurrence_days: '',
     recurrence_until: '',
     signup_enabled: e.signup_enabled,
+    rsvp_gated: e.rsvp_gated,
     form_id: e.form_id !== null ? String(e.form_id) : '',
     capacity: e.capacity !== null ? String(e.capacity) : '',
   }
@@ -173,6 +176,17 @@ function SignupFields({
       </label>
 
       {draft.signup_enabled && (
+        <label className="switch-row">
+          <input
+            type="checkbox"
+            checked={draft.rsvp_gated}
+            onChange={(e) => onChange({ ...draft, rsvp_gated: e.target.checked })}
+          />
+          Require admin approval (gated RSVP) &mdash; requests stay pending until approved or denied
+        </label>
+      )}
+
+      {draft.signup_enabled && (
         <div className="grid2">
           <label className="field">
             Form <span className="field-hint">(optional &mdash; name &amp; email always collected)</span>
@@ -224,6 +238,16 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
     }
   }
 
+  async function handleDecide(signupId: number, status: 'approved' | 'denied') {
+    try {
+      await adminApi.events.decideSignup(eventId, signupId, status)
+      refresh()
+      onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   if (error) return <p className="admin-error">{error}</p>
   if (!signups) return <p className="admin-note">Loading&hellip;</p>
   if (signups.length === 0) return <p className="admin-note">No one has signed up yet.</p>
@@ -235,6 +259,7 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
           <th>Name</th>
           <th>Email</th>
           <th>Answers</th>
+          <th>Status</th>
           <th>Submitted</th>
           <th></th>
         </tr>
@@ -249,11 +274,26 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
                 ? Object.values(s.answers).filter(Boolean).join(', ') || '—'
                 : '—'}
             </td>
+            <td>
+              <span className={`status-chip status-${s.status}`}>{s.status}</span>
+            </td>
             <td>{new Date(s.created_at).toLocaleDateString()}</td>
             <td>
-              <button type="button" className="danger" onClick={() => handleRemove(s.id)}>
-                Remove
-              </button>
+              <span className="row-actions">
+                {s.status === 'pending' && (
+                  <>
+                    <button type="button" onClick={() => handleDecide(s.id, 'approved')}>
+                      Approve
+                    </button>
+                    <button type="button" className="danger" onClick={() => handleDecide(s.id, 'denied')}>
+                      Deny
+                    </button>
+                  </>
+                )}
+                <button type="button" className="danger" onClick={() => handleRemove(s.id)}>
+                  Remove
+                </button>
+              </span>
             </td>
           </tr>
         ))}
