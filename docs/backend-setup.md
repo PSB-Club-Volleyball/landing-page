@@ -108,9 +108,10 @@ preview backend.)
 
 ## 7. Set the secrets
 
-Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`) already lives in
-`wrangler.toml` / `wrangler.staging.toml`. The actual OAuth credentials are
-secrets — never commit them, and set them separately per environment:
+Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`, `EVENTS_EMAIL_FROM`)
+already lives in `wrangler.toml` / `wrangler.staging.toml`. The actual OAuth
+credentials are secrets — never commit them, and set them separately per
+environment:
 
 `wrangler pages secret put` doesn't read `wrangler.toml` at all — it just needs
 `--project-name` (which Pages project) and `--env` (`production` or `preview`;
@@ -134,7 +135,29 @@ PR previews use the shared `preview` environment; sign-in won't complete
 there (see the note in step 5), so preview secrets are optional.
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and fill in
-the same four values there instead (that file is gitignored).
+the same values there instead (that file is gitignored).
+
+### RSVP emails (Resend)
+
+RSVP confirmation, RSVP request, and RSVP approval emails
+(`functions/api/_lib/email.ts` / `eventEmails.ts`) are sent through
+[Resend](https://resend.com)'s HTTP API, `from` the address in
+`EVENTS_EMAIL_FROM` (`events@behrendclubvolleyball.org`).
+
+1. In the Resend dashboard, verify the `behrendclubvolleyball.org` domain
+   (adds the DNS records Resend gives you) so it can send as
+   `events@behrendclubvolleyball.org`.
+2. Create an API key and set it as a secret, per environment:
+   ```
+   npx wrangler pages secret put RESEND_API_KEY --project-name=behrend-club-volleyball --env production
+   npx wrangler pages secret put RESEND_API_KEY --project-name=behrend-club-volleyball-staging --env production
+   ```
+   PR previews use the shared `preview` environment; the API key there is
+   optional (see the fallback below). For local dev, put the same value in
+   `.dev.vars` as `RESEND_API_KEY=...`.
+
+If `RESEND_API_KEY` isn't set, RSVP/signup actions still work — the email
+send is skipped and logged, never blocking the request.
 
 ## 8. Check `ADMIN_BOOTSTRAP_EMAILS`
 

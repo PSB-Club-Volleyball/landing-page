@@ -17,6 +17,7 @@ const FIELDS = [
   'location_address',
   'status',
   'signup_enabled',
+  'rsvp_gated',
   'form_id',
   'capacity',
 ] as const
@@ -33,7 +34,9 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   if (updates.length === 0) return badRequest('No recognized fields to update')
 
   const setClause = updates.map((field, i) => `${field} = ?${i + 1}`).join(', ')
-  const values = updates.map((field) => (field === 'signup_enabled' ? (body[field] ? 1 : 0) : body[field]))
+  const values = updates.map((field) =>
+    field === 'signup_enabled' || field === 'rsvp_gated' ? (body[field] ? 1 : 0) : body[field]
+  )
 
   const result = await env.DB.prepare(
     `UPDATE events SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?${values.length + 1}`

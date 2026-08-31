@@ -17,10 +17,11 @@ export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env 
      FROM events e
      LEFT JOIN forms f ON f.id = e.form_id
      ORDER BY e.start_time ASC`
-  ).all<Record<string, unknown> & { signup_enabled: number; is_past: number }>()
+  ).all<Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; is_past: number }>()
   const withBooleans = (events.results ?? []).map((e) => ({
     ...e,
     signup_enabled: Boolean(e.signup_enabled),
+    rsvp_gated: Boolean(e.rsvp_gated),
     is_past: Boolean(e.is_past),
   }))
   return json({ events: withBooleans })
@@ -38,6 +39,7 @@ interface EventInput {
   recurrence_days?: string | null
   recurrence_until?: string | null
   signup_enabled?: boolean
+  rsvp_gated?: boolean
   form_id?: number | null
   capacity?: number | null
 }
@@ -69,8 +71,8 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
 
   const insertOne = (start_time: string, end_time: string | null, seriesId: number | null) =>
     env.DB.prepare(
-      `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status, signup_enabled, form_id, capacity, series_id)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`
+      `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status, signup_enabled, rsvp_gated, form_id, capacity, series_id)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`
     )
       .bind(
         body.title,
@@ -82,6 +84,7 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
         body.location_address ?? null,
         body.status ?? 'draft',
         body.signup_enabled ? 1 : 0,
+        body.rsvp_gated ? 1 : 0,
         body.form_id ?? null,
         body.capacity ?? null,
         seriesId

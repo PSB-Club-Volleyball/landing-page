@@ -22,3 +22,4 @@ bucket_name = "behrend-club-volleyball-staging"
 [env.production.vars]
 PUBLIC_URL = "https://staging.behrendclubvolleyball.org"
 ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
+EVENTS_EMAIL_FROM = "events@behrendclubvolleyball.org"

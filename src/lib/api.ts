@@ -1,4 +1,4 @@
-import type { AuthUser, BoardMember, FormWithFields, MediaItem, Player, PublicClubEvent } from '../types'
+import type { AuthUser, BoardMember, FormWithFields, MediaItem, Player, PublicClubEvent, SignupStatus } from '../types'
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path, { credentials: 'include' })
@@ -30,7 +30,7 @@ export async function submitSignup(
     answers: Record<string, string>
     company?: string
   }
-): Promise<{ id: number; cancel_token: string }> {
+): Promise<{ id: number; cancel_token: string; status: SignupStatus }> {
   const res = await fetch(`/api/events/${eventId}/signups`, {
     method: 'POST',
     credentials: 'include',
@@ -41,7 +41,7 @@ export async function submitSignup(
     const body = await res.json().catch(() => ({}) as { error?: string })
     throw new Error(body.error || `Signup failed (${res.status})`)
   }
-  return res.json() as Promise<{ id: number; cancel_token: string }>
+  return res.json() as Promise<{ id: number; cancel_token: string; status: SignupStatus }>
 }
 
 export async function cancelSignup(eventId: number, signupId: number, token?: string): Promise<void> {
