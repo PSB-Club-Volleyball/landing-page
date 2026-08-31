@@ -427,6 +427,10 @@
   gap: 0.25rem;
   white-space: nowrap;
 }
+.recurrence-hint {
+  flex-basis: 100%;
+  margin: 0;
+}
 
 .data-table {
   border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
@@ -569,6 +573,10 @@
 .status-chip.status-pending {
   background: var(--gold-tint);
   color: var(--gold-fg);
+}
+.status-chip.status-completed {
+  background: color-mix(in srgb, var(--page-fg) 12%, transparent);
+  color: var(--muted);
 }
 
 .role-chip {

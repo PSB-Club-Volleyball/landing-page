@@ -55,6 +55,7 @@ export interface AdminEventRow extends ClubEvent {
   form_name: string | null
   signup_count: number
   series_id: number | null
+  is_past: boolean
 }
 
 export type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'checkbox'

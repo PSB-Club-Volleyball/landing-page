@@ -77,14 +77,20 @@ function RecurrenceFields({ draft, onChange }: { draft: Draft; onChange: (draft:
         </label>
       ))}
       {draft.recurrence_days && (
-        <label>
-          Until
-          <input
-            type="date"
-            value={draft.recurrence_until}
-            onChange={(e) => onChange({ ...draft, recurrence_until: e.target.value })}
-          />
-        </label>
+        <>
+          <label>
+            Until
+            <input
+              type="date"
+              value={draft.recurrence_until}
+              onChange={(e) => onChange({ ...draft, recurrence_until: e.target.value })}
+            />
+          </label>
+          <p className="field-hint recurrence-hint">
+            Creates one event per week. Each only appears on the public site starting 7 days before it happens, and
+            has its own signups.
+          </p>
+        </>
       )}
     </div>
   )
@@ -471,7 +477,11 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                     <td>{ev.event_type}</td>
                     <td>{new Date(ev.start_time).toLocaleString()}</td>
                     <td>
-                      <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
+                      {ev.status !== 'cancelled' && ev.is_past ? (
+                        <span className="status-chip status-completed">completed</span>
+                      ) : (
+                        <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
+                      )}
                     </td>
                     <td>{ev.series_id ? `Series of ${seriesCounts.get(ev.series_id) ?? 1}` : '—'}</td>
                     <td>

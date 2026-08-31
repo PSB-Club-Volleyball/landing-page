@@ -5,16 +5,24 @@ import { logAudit } from './_lib/audit'
 import { expandOccurrences, validateRecurrence } from './_lib/recurrence'
 
 // GET /api/admin/events -> every event regardless of status (drafts included),
-// joined with the attached form's name and signup count for the table
+// joined with the attached form's name and signup count for the table.
+// is_past is computed, not stored: an event that's already happened shows as
+// "Completed" in the table without touching its draft/published/cancelled
+// status, so nothing needs a background job to flip it over.
 export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env }) => {
   const events = await env.DB.prepare(
     `SELECT e.*, f.name AS form_name,
-            (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id) AS signup_count
+            (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id) AS signup_count,
+            datetime(COALESCE(e.end_time, e.start_time)) < datetime('now') AS is_past
      FROM events e
      LEFT JOIN forms f ON f.id = e.form_id
      ORDER BY e.start_time ASC`
-  ).all<Record<string, unknown> & { signup_enabled: number }>()
-  const withBooleans = (events.results ?? []).map((e) => ({ ...e, signup_enabled: Boolean(e.signup_enabled) }))
+  ).all<Record<string, unknown> & { signup_enabled: number; is_past: number }>()
+  const withBooleans = (events.results ?? []).map((e) => ({
+    ...e,
+    signup_enabled: Boolean(e.signup_enabled),
+    is_past: Boolean(e.is_past),
+  }))
   return json({ events: withBooleans })
 }
 
