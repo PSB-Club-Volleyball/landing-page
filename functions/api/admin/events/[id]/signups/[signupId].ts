@@ -2,7 +2,7 @@ import type { Env } from '../../../../_lib/env'
 import { badRequest, notFound, json } from '../../../../_lib/http'
 import type { AdminData } from '../../../_lib/types'
 import { logAudit } from '../../../_lib/audit'
-import { sendRsvpApprovedEmail } from '../../../../_lib/eventEmails'
+import { buildCancelUrl, sendRsvpApprovedEmail } from '../../../../_lib/eventEmails'
 
 // PUT /api/admin/events/:id/signups/:signupId -> approve or deny a (typically
 // gated-event) pending request. Approving sends the "you're approved" email;
@@ -19,12 +19,20 @@ export const onRequestPut: PagesFunction<Env, 'id' | 'signupId', AdminData> = as
   }
 
   const signup = await env.DB.prepare(
-    `SELECT s.id, s.name, s.email, e.title, e.start_time, e.location_name
+    `SELECT s.id, s.name, s.email, s.cancel_token, e.title, e.start_time, e.location_name
      FROM event_signups s JOIN events e ON e.id = s.event_id
      WHERE s.id = ?1 AND s.event_id = ?2`
   )
     .bind(signupId, eventId)
-    .first<{ id: number; name: string; email: string; title: string; start_time: string; location_name: string | null }>()
+    .first<{
+      id: number
+      name: string
+      email: string
+      cancel_token: string | null
+      title: string
+      start_time: string
+      location_name: string | null
+    }>()
   if (!signup) return notFound('Signup not found')
 
   await env.DB.prepare(
@@ -35,12 +43,10 @@ export const onRequestPut: PagesFunction<Env, 'id' | 'signupId', AdminData> = as
 
   await logAudit(env, data.user.id, 'update', 'event_signups', signupId, { event_id: eventId, status: body.status })
 
-  if (body.status === 'approved') {
-    await sendRsvpApprovedEmail(env, signup.email, signup.name, {
-      title: signup.title,
-      start_time: signup.start_time,
-      location_name: signup.location_name,
-    })
+  if (body.status === 'approved' && signup.cancel_token) {
+    const eventInfo = { title: signup.title, start_time: signup.start_time, location_name: signup.location_name }
+    const cancelUrl = buildCancelUrl(env, eventId, signupId, signup.cancel_token)
+    await sendRsvpApprovedEmail(env, signup.email, signup.name, eventInfo, cancelUrl)
   }
 
   return json({ ok: true })
