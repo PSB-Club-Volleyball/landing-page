@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
 import { clearCancelToken, storeCancelToken } from '../lib/cancelTokens'
-import type { FormWithFields, PublicClubEvent } from '../types'
+import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
 
 function FieldInput({
   field,
@@ -60,6 +60,7 @@ function SignupModal({
   onCancelled,
   existingSignupId,
   existingCancelToken,
+  existingSignupStatus,
 }: {
   event: PublicClubEvent
   onClose: () => void
@@ -69,6 +70,7 @@ function SignupModal({
   // of the signup form.
   existingSignupId?: number
   existingCancelToken?: string | null
+  existingSignupStatus?: SignupStatus | null
 }) {
   const [form, setForm] = useState<FormWithFields | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -80,6 +82,7 @@ function SignupModal({
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(Boolean(existingSignupId))
   const [confirmedSignupId, setConfirmedSignupId] = useState<number | null>(existingSignupId ?? null)
+  const [signupStatus, setSignupStatus] = useState<SignupStatus | null>(existingSignupStatus ?? null)
   const [cancelToken, setCancelToken] = useState<string | null>(existingCancelToken ?? null)
   const [cancelling, setCancelling] = useState(false)
   const [signupCancelled, setSignupCancelled] = useState(false)
@@ -128,6 +131,7 @@ function SignupModal({
       storeCancelToken(event.id, res.id, res.cancel_token)
       setConfirmedSignupId(res.id)
       setCancelToken(res.cancel_token)
+      setSignupStatus(res.status)
       setConfirmed(true)
     } catch (err) {
       setSubmitError((err as Error).message)
@@ -152,7 +156,11 @@ function SignupModal({
   }
 
   const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
-  const verb = event.event_type === 'game' || event.event_type === 'tournament' ? 'RSVP' : 'Sign up'
+  const verb = event.rsvp_gated
+    ? 'Request'
+    : event.event_type === 'game' || event.event_type === 'tournament'
+      ? 'RSVP'
+      : 'Sign up'
 
   return (
     <div className="signup-overlay" role="dialog" aria-modal="true" aria-label={`${verb} for ${event.title}`}>
@@ -164,6 +172,26 @@ function SignupModal({
               <>
                 <h4>Cancelled</h4>
                 <p>You&rsquo;re no longer signed up for {event.title}.</p>
+              </>
+            ) : signupStatus === 'denied' ? (
+              <>
+                <h4>Request not approved</h4>
+                <p>Your request to attend {event.title} wasn&rsquo;t approved. Reach out to an admin with questions.</p>
+              </>
+            ) : signupStatus === 'pending' ? (
+              <>
+                <h4>Request received</h4>
+                <p>
+                  Your request to attend {event.title} is awaiting admin approval. We&rsquo;ll email you once it&rsquo;s
+                  reviewed.
+                </p>
+                {submitError && <p className="admin-error">{submitError}</p>}
+                <p className="cancel-note">
+                  Changed your mind?{' '}
+                  <button className="link-btn" type="button" disabled={cancelling} onClick={handleCancel}>
+                    {cancelling ? 'Cancelling…' : 'Withdraw my request'}
+                  </button>
+                </p>
               </>
             ) : (
               <>

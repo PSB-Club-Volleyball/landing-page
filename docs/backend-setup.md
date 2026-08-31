@@ -57,8 +57,9 @@ Nothing left to do here.
 
 ## 6. Set the secrets
 
-Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`) already lives in
-`wrangler.toml`. The actual OAuth credentials are secrets — never commit them:
+Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`, `EVENTS_EMAIL_FROM`)
+already lives in `wrangler.toml`. The actual OAuth credentials are secrets —
+never commit them:
 
 ```
 npx wrangler pages secret put GOOGLE_CLIENT_ID
@@ -68,7 +69,26 @@ npx wrangler pages secret put MICROSOFT_CLIENT_SECRET
 ```
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and fill in
-the same four values there instead (that file is gitignored).
+the same values there instead (that file is gitignored).
+
+### RSVP emails (Resend)
+
+RSVP confirmation, RSVP request, and RSVP approval emails
+(`functions/api/_lib/email.ts` / `eventEmails.ts`) are sent through
+[Resend](https://resend.com)'s HTTP API, `from` the address in
+`EVENTS_EMAIL_FROM` (`events@behrendclubvolleyball.org`).
+
+1. In the Resend dashboard, verify the `behrendclubvolleyball.org` domain
+   (adds the DNS records Resend gives you) so it can send as
+   `events@behrendclubvolleyball.org`.
+2. Create an API key and set it as a secret:
+   ```
+   npx wrangler pages secret put RESEND_API_KEY
+   ```
+   For local dev, put the same value in `.dev.vars` as `RESEND_API_KEY=...`.
+
+If `RESEND_API_KEY` isn't set, RSVP/signup actions still work — the email
+send is skipped and logged, never blocking the request.
 
 ## 7. Check `ADMIN_BOOTSTRAP_EMAILS`
 

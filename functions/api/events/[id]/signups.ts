@@ -2,6 +2,7 @@ import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
 import { fetchFormFields } from '../../_lib/forms'
 import { randomToken } from '../../_lib/crypto'
+import { sendRsvpConfirmationEmail, sendRsvpRequestEmail } from '../../_lib/eventEmails'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -13,17 +14,31 @@ interface SignupInput {
 }
 
 // POST /api/events/:id/signups -> RSVP or sign up as a guest, no auth.
-// Returns a cancel_token the client shows once (this app sends no outbound
-// email) — a logged-in account whose email matches can also cancel without it.
+// Returns a cancel_token the client shows once — a logged-in account whose
+// email matches can also cancel without it. When the event is gated
+// (rsvp_gated), the signup starts out 'pending' until an admin approves it
+// instead of being confirmed immediately; either way a confirmation/request
+// email goes out right away.
 export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const event = await env.DB.prepare(
-    `SELECT id, status, signup_enabled, form_id, capacity FROM events WHERE id = ?1`
+    `SELECT id, title, start_time, location_name, status, signup_enabled, rsvp_gated, form_id, capacity
+     FROM events WHERE id = ?1`
   )
     .bind(eventId)
-    .first<{ id: number; status: string; signup_enabled: number; form_id: number | null; capacity: number | null }>()
+    .first<{
+      id: number
+      title: string
+      start_time: string
+      location_name: string | null
+      status: string
+      signup_enabled: number
+      rsvp_gated: number
+      form_id: number | null
+      capacity: number | null
+    }>()
   if (!event || event.status !== 'published') return notFound('Event not found')
   if (!event.signup_enabled) return badRequest('Signup is not open for this event')
 
@@ -45,7 +60,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   }
 
   if (event.capacity !== null) {
-    const count = await env.DB.prepare(`SELECT COUNT(*) AS n FROM event_signups WHERE event_id = ?1`)
+    // Pending requests count against capacity too (not just approved ones)
+    // so a gated event can't be requested past capacity while decisions are
+    // still outstanding.
+    const count = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM event_signups WHERE event_id = ?1 AND status != 'denied'`
+    )
       .bind(eventId)
       .first<{ n: number }>()
     if ((count?.n ?? 0) >= event.capacity) return badRequest('This event is full')
@@ -56,18 +76,22 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   )
 
   const cancelToken = randomToken(24)
+  const status = event.rsvp_gated ? 'pending' : 'approved'
+  const name = body.name.trim()
+  const email = body.email.trim().toLowerCase()
   let signupId: number
 
   try {
     const result = await env.DB.prepare(
-      `INSERT INTO event_signups (event_id, name, email, answers, cancel_token) VALUES (?1, ?2, ?3, ?4, ?5)`
+      `INSERT INTO event_signups (event_id, name, email, answers, cancel_token, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
     )
       .bind(
         eventId,
-        body.name.trim(),
-        body.email.trim().toLowerCase(),
+        name,
+        email,
         Object.keys(filteredAnswers).length ? JSON.stringify(filteredAnswers) : null,
-        cancelToken
+        cancelToken,
+        status
       )
       .run()
     signupId = Number(result.meta.last_row_id)
@@ -82,5 +106,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     throw e
   }
 
-  return json({ ok: true, id: signupId, cancel_token: cancelToken }, { status: 201 })
+  const eventInfo = { title: event.title, start_time: event.start_time, location_name: event.location_name }
+  if (status === 'pending') {
+    await sendRsvpRequestEmail(env, email, name, eventInfo)
+  } else {
+    await sendRsvpConfirmationEmail(env, email, name, eventInfo)
+  }
+
+  return json({ ok: true, id: signupId, cancel_token: cancelToken, status }, { status: 201 })
 }
