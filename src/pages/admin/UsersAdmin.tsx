@@ -12,12 +12,14 @@ const ROLE_LABELS: Record<UserRole, string> = {
 function UserRow({
   user,
   isOwner,
+  currentUserEmail,
   onSaved,
   onError,
   onDecide,
 }: {
   user: PendingUser
   isOwner: boolean
+  currentUserEmail: string
   onSaved: () => void
   onError: (msg: string) => void
   onDecide: (status: 'approved' | 'denied') => void
@@ -62,8 +64,13 @@ function UserRow({
     }
   }
 
-  // Only the owner may touch a row that's currently admin, or grant admin to anyone.
-  const locked = !isOwner && user.role === 'admin'
+  // Only the owner may touch role, approval status, or admin-verified fields
+  // (waiver/dues) on a row that's currently admin — even the admin's own row.
+  const ownerOnly = !isOwner && user.role === 'admin'
+  // But an admin can still update their own basic profile (name/position/
+  // team) without owner involvement.
+  const isSelf = user.email.toLowerCase() === currentUserEmail.toLowerCase()
+  const locked = ownerOnly && !isSelf
   const roleOptions: Exclude<UserRole, 'owner'>[] = isOwner
     ? ['outsider', 'club_member', 'admin']
     : ['outsider', 'club_member']
@@ -79,7 +86,7 @@ function UserRow({
     try {
       const trimmedName = name.trim()
       await adminApi.users.update(user.id, {
-        role,
+        ...(role !== user.role ? { role } : {}),
         ...(trimmedName !== (user.name ?? '') ? { name: trimmedName } : {}),
         position: position || null,
         team: team || null,
@@ -111,7 +118,7 @@ function UserRow({
         <span className={`status-chip status-${user.status}`}>{user.status}</span>
       </td>
       <td>
-        {locked ? (
+        {ownerOnly ? (
           <span className={`role-chip role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
         ) : (
           <select
@@ -167,7 +174,7 @@ function UserRow({
                 : `Expired ${user.waiver_signed_year}`
               : 'Not signed'}
           </span>
-          {!locked && (
+          {!ownerOnly && (
             <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
               {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
             </button>
@@ -184,7 +191,7 @@ function UserRow({
                   : `Expired ${user.dues_paid_year}`
                 : 'Not paid'}
             </span>
-            {!locked && (
+            {!ownerOnly && (
               <button type="button" disabled={duesSaving} onClick={toggleDues}>
                 {duesSaving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
               </button>
@@ -201,12 +208,12 @@ function UserRow({
               {saving ? 'Saving…' : 'Save'}
             </button>
           )}
-          {!locked && user.status !== 'denied' && (
+          {!ownerOnly && user.status !== 'denied' && (
             <button type="button" className="danger" onClick={() => onDecide('denied')}>
               Deny
             </button>
           )}
-          {!locked && user.status === 'denied' && (
+          {!ownerOnly && user.status === 'denied' && (
             <button type="button" onClick={() => onDecide('approved')}>
               Re-approve
             </button>
@@ -283,7 +290,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
       <p className="admin-note">
         Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
         someone to club member or admin below.
-        {!isOwner && ' Only the owner can grant admin or change another admin.'}
+        {!isOwner && " Only the owner can grant admin or change another admin's account — you can still edit your own name, position, and team."}
       </p>
       {loading && <p>Loading&hellip;</p>}
 
@@ -354,6 +361,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                       key={u.id}
                       user={u}
                       isOwner={isOwner}
+                      currentUserEmail={currentUser.email}
                       onSaved={refresh}
                       onError={setError}
                       onDecide={(status) => decide(u.id, status)}
