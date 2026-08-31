@@ -7,8 +7,9 @@ import EventsAdmin from './EventsAdmin'
 import FormsAdmin from './FormsAdmin'
 import UsersAdmin from './UsersAdmin'
 import AuditLogAdmin from './AuditLogAdmin'
+import SettingsAdmin from './SettingsAdmin'
 
-type Tab = 'roster' | 'board' | 'events' | 'forms' | 'users' | 'audit-log'
+type Tab = 'roster' | 'board' | 'events' | 'forms' | 'users' | 'audit-log' | 'settings'
 
 const TABS: { key: Tab; label: string; ownerOnly?: boolean }[] = [
   { key: 'roster', label: 'Roster' },
@@ -17,6 +18,7 @@ const TABS: { key: Tab; label: string; ownerOnly?: boolean }[] = [
   { key: 'forms', label: 'Forms' },
   { key: 'users', label: 'Users' },
   { key: 'audit-log', label: 'Audit log', ownerOnly: true },
+  { key: 'settings', label: 'Settings', ownerOnly: true },
 ]
 
 function initials(user: AuthUser) {
@@ -80,6 +82,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
           {tab === 'forms' && <FormsAdmin isOwner={isOwner} />}
           {tab === 'users' && <UsersAdmin currentUser={user} onChange={() => setTab('users')} />}
           {tab === 'audit-log' && isOwner && <AuditLogAdmin />}
+          {tab === 'settings' && isOwner && <SettingsAdmin />}
         </div>
       </div>
     </div>

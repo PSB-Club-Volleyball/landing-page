@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
 import MenuIcon from './MenuIcon'
-import { getMe } from '../lib/api'
+import { getMe, getLoginProviders } from '../lib/api'
 import { logout } from '../lib/adminApi'
 import type { AuthUser } from '../types'
 
@@ -26,6 +26,7 @@ function initials(user: AuthUser) {
 function Navbar() {
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
+  const [providers, setProviders] = useState({ google: true, microsoft: true })
   const location = useLocation()
 
   useEffect(() => {
@@ -36,6 +37,9 @@ function Navbar() {
     getMe()
       .then((res) => setUser(res.user))
       .catch(() => setUser(null))
+    getLoginProviders()
+      .then(setProviders)
+      .catch(() => {})
   }, [])
 
   return (
@@ -70,7 +74,7 @@ function Navbar() {
         </nav>
         <div className="nav-account">
           {user === undefined && null}
-          {user === null && (
+          {user === null && providers.google && providers.microsoft && (
             <details className="nav-signin-menu">
               <summary className="nav-signin">Sign in</summary>
               <div className="nav-signin-options">
@@ -88,6 +92,15 @@ function Navbar() {
                 </a>
               </div>
             </details>
+          )}
+          {user === null && providers.google !== providers.microsoft && (
+            <a
+              className="nav-signin"
+              href={`/api/auth/${providers.google ? 'google' : 'microsoft'}/start?redirect=${encodeURIComponent(location.pathname)}`}
+              onClick={() => setOpen(false)}
+            >
+              Sign in
+            </a>
           )}
           {user && (
             <span className="nav-account-chip">

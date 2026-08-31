@@ -67,3 +67,7 @@ export function mediaUrl(r2Key: string): string {
 export function getMe(): Promise<{ user: AuthUser | null }> {
   return getJson('/api/auth/me')
 }
+
+export function getLoginProviders(): Promise<{ google: boolean; microsoft: boolean }> {
+  return getJson('/api/auth/providers')
+}

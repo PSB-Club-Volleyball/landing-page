@@ -131,6 +131,11 @@ export interface AuthUser {
   role: UserRole
 }
 
+export interface LoginSettings {
+  google_enabled: boolean
+  microsoft_enabled: boolean
+}
+
 export interface PendingUser {
   id: number
   email: string
