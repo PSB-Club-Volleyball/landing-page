@@ -446,6 +446,14 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                             />
                           </label>
                           <label className="field">
+                            Ends
+                            <input
+                              type="datetime-local"
+                              value={editDraft.end_time}
+                              onChange={(e) => setEditDraft({ ...editDraft, end_time: e.target.value })}
+                            />
+                          </label>
+                          <label className="field">
                             Status
                             <select
                               value={editDraft.status}
