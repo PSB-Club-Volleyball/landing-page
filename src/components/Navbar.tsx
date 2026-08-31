@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
-import InstagramLink from './InstagramLink'
 import MenuIcon from './MenuIcon'
 import { getMe } from '../lib/api'
 import { logout } from '../lib/adminApi'
@@ -95,7 +94,6 @@ function Navbar() {
             </span>
           )}
         </div>
-        <InstagramLink onClick={() => setOpen(false)} />
       </div>
     </header>
   )
