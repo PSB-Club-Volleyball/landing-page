@@ -23,6 +23,7 @@ function UserRow({
   onDecide: (status: 'approved' | 'denied') => void
 }) {
   const [role, setRole] = useState<Exclude<UserRole, 'owner'>>(user.role === 'owner' ? 'admin' : user.role)
+  const [name, setName] = useState(user.name ?? '')
   const [position, setPosition] = useState(user.position ?? '')
   const [team, setTeam] = useState<Team | ''>(user.team ?? '')
   const [saving, setSaving] = useState(false)
@@ -51,12 +52,22 @@ function UserRow({
     ? ['outsider', 'club_member', 'admin']
     : ['outsider', 'club_member']
 
-  const dirty = role !== user.role || position !== (user.position ?? '') || team !== (user.team ?? '')
+  const dirty =
+    role !== user.role ||
+    name.trim() !== (user.name ?? '') ||
+    position !== (user.position ?? '') ||
+    team !== (user.team ?? '')
 
   async function save() {
     setSaving(true)
     try {
-      await adminApi.users.update(user.id, { role, position: position || null, team: team || null })
+      const trimmedName = name.trim()
+      await adminApi.users.update(user.id, {
+        role,
+        ...(trimmedName !== (user.name ?? '') ? { name: trimmedName } : {}),
+        position: position || null,
+        team: team || null,
+      })
       onSaved()
     } catch (e) {
       onError((e as Error).message)
@@ -67,7 +78,18 @@ function UserRow({
 
   return (
     <tr>
-      <td>{user.name || '—'}</td>
+      <td>
+        {locked ? (
+          user.name || '—'
+        ) : (
+          <input
+            className="mini-input"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        )}
+      </td>
       <td>{user.email}</td>
       <td>
         <span className={`status-chip status-${user.status}`}>{user.status}</span>

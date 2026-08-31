@@ -9,14 +9,16 @@ type SettableRole = (typeof SETTABLE_ROLES)[number]
 interface UsersPatchInput {
   status?: 'approved' | 'denied'
   role?: SettableRole
+  name?: string
   position?: string | null
   team?: 'A' | 'B' | null
   waiver_signed?: boolean
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { status, role, position, team, waiver_signed }
+// PUT /api/admin/users/:id  Body: any subset of { status, role, name, position, team, waiver_signed }
 // Any admin can approve/deny, promote/demote between outsider and
-// club_member, and mark/unmark a waiver on file for the current year — a
+// club_member, edit a member's display name, and mark/unmark a waiver on
+// file for the current year — a
 // waiver is an annual, admin-verified thing (e.g. a signed paper form),
 // never something the member self-attests to. Granting 'admin', or
 // touching a row that's currently admin, is owner-only — an admin can't
@@ -65,6 +67,14 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     values.push(body.role)
     setClauses.push(`role = ?${values.length}`)
     auditDetails.role = body.role
+  }
+
+  if (body.name !== undefined) {
+    const name = body.name.trim()
+    if (!name) return badRequest('name cannot be empty')
+    values.push(name)
+    setClauses.push(`name = ?${values.length}`)
+    auditDetails.name = name
   }
 
   if (body.position !== undefined) {

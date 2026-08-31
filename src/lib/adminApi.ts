@@ -77,6 +77,7 @@ export const adminApi = {
       id: number,
       input: {
         role?: Exclude<UserRole, 'owner'>
+        name?: string
         position?: string | null
         team?: Team | null
         waiver_signed?: boolean
