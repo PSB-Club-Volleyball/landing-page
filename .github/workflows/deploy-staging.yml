@@ -22,8 +22,18 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # Pages rejects `wrangler pages deploy --config <custom path>` (config
+      # must be named wrangler.toml in the working directory), so stage
+      # wrangler.staging.toml under that name in its own directory and run
+      # wrangler from there instead.
+      - name: Stage wrangler config for the staging Pages project
+        run: |
+          mkdir -p .cf-staging
+          cp wrangler.staging.toml .cf-staging/wrangler.toml
+
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=behrend-club-volleyball-staging --branch=staging --config=wrangler.staging.toml
+          workingDirectory: .cf-staging
+          command: pages deploy ../dist --project-name=behrend-club-volleyball-staging --branch=staging

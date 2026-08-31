@@ -112,18 +112,22 @@ Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`) already lives in
 `wrangler.toml` / `wrangler.staging.toml`. The actual OAuth credentials are
 secrets — never commit them, and set them separately per environment:
 
+`wrangler pages secret put` doesn't read `wrangler.toml` at all — it just needs
+`--project-name` (which Pages project) and `--env` (`production` or `preview`;
+defaults to `production`), so no `--config` flag is needed or supported here:
+
 ```
 # Production
-npx wrangler pages secret put GOOGLE_CLIENT_ID --env production
-npx wrangler pages secret put GOOGLE_CLIENT_SECRET --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_ID --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --env production
+npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name=behrend-club-volleyball --env production
+npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_ID --project-name=behrend-club-volleyball --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
 
-# Staging (separate Pages project, so pass --config)
-npx wrangler pages secret put GOOGLE_CLIENT_ID --config wrangler.staging.toml --env production
-npx wrangler pages secret put GOOGLE_CLIENT_SECRET --config wrangler.staging.toml --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_ID --config wrangler.staging.toml --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --config wrangler.staging.toml --env production
+# Staging (separate Pages project)
+npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
+npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
 ```
 
 PR previews use the shared `preview` environment; sign-in won't complete
@@ -159,8 +163,12 @@ backend.
   preview build against the shared preview backend and comments the URL on
   the PR.
 
-All three already run `wrangler pages deploy`, which picks up the right
-config file/environment automatically. Nothing to change there — once the
+All three already run `wrangler pages deploy`. `main`/PR deploys read
+`wrangler.toml` directly (Pages resolves `env.production` vs `env.preview`
+from the branch). The staging workflow can't pass `--config wrangler.staging.toml`
+to `wrangler pages deploy` — Pages rejects a custom config path — so it stages
+a copy of `wrangler.staging.toml` as `wrangler.toml` in a scratch directory and
+runs wrangler from there instead. Nothing to change there — once the
 databases/buckets/secrets above exist, pushes just work.
 
 ## Local dev
