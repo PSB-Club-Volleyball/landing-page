@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
 import MenuIcon from './MenuIcon'
 import { getMe, getLoginProviders } from '../lib/api'
@@ -104,6 +104,11 @@ function Navbar() {
           )}
           {user && (
             <span className="nav-account-chip">
+              {(user.role === 'admin' || user.role === 'owner') && (
+                <Link to="/admin" className="nav-admin-link" onClick={() => setOpen(false)}>
+                  Admin
+                </Link>
+              )}
               <span className="nav-avatar">{initials(user)}</span>
               <button
                 type="button"

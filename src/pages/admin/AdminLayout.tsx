@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { AuthUser } from '../../types'
 import { adminApi, logout } from '../../lib/adminApi'
+import MenuIcon from '../../components/MenuIcon'
 import RosterAdmin from './RosterAdmin'
 import BoardAdmin from './BoardAdmin'
 import EventsAdmin from './EventsAdmin'
@@ -35,6 +37,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
   const isOwner = user.role === 'owner'
   const [tab, setTab] = useState<Tab>('roster')
   const [pendingCount, setPendingCount] = useState(0)
+  const [navOpen, setNavOpen] = useState(false)
 
   useEffect(() => {
     adminApi.users
@@ -46,10 +49,23 @@ function AdminLayout({ user }: { user: AuthUser }) {
   return (
     <div className="admin-shell">
       <div className="admin-topbar">
+        <button
+          type="button"
+          className="admin-nav-toggle"
+          aria-label={navOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={navOpen}
+          aria-controls="admin-sidebar"
+          onClick={() => setNavOpen((prev) => !prev)}
+        >
+          <MenuIcon open={navOpen} />
+        </button>
         <span className="admin-brand">Admin Console</span>
+        <Link to="/" className="admin-view-site">
+          View site
+        </Link>
         <span className="admin-who">
           <span className="avatar">{initials(user)}</span>
-          {user.name || user.email}
+          <span className="admin-who-name">{user.name || user.email}</span>
           <button
             type="button"
             className="signout"
@@ -62,13 +78,16 @@ function AdminLayout({ user }: { user: AuthUser }) {
         </span>
       </div>
       <div className="admin-body">
-        <nav className="admin-sidebar">
+        <nav id="admin-sidebar" className={navOpen ? 'admin-sidebar open' : 'admin-sidebar'}>
           {TABS.filter((t) => !t.ownerOnly || isOwner).map((t) => (
             <button
               key={t.key}
               type="button"
               className={tab === t.key ? 'active' : undefined}
-              onClick={() => setTab(t.key)}
+              onClick={() => {
+                setTab(t.key)
+                setNavOpen(false)
+              }}
             >
               {t.label}
               {t.key === 'users' && isOwner && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
