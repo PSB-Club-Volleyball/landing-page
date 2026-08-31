@@ -55,6 +55,61 @@ function eventToDraft(e: AdminEventRow): Draft {
   }
 }
 
+// start_time/end_time stay stored as combined "YYYY-MM-DDTHH:MM" strings (see
+// toInput/eventToDraft) — these just split/recombine them so the form can show
+// one date plus separate start/end time inputs instead of two full datetimes.
+function splitDateTime(dt: string): { date: string; time: string } {
+  if (!dt) return { date: '', time: '' }
+  const [date, time] = dt.split('T')
+  return { date, time: time ?? '' }
+}
+
+function combineDateTime(date: string, time: string): string {
+  return date && time ? `${date}T${time}` : ''
+}
+
+function EventDateTimeFields({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
+  const { date, time: startTime } = splitDateTime(draft.start_time)
+  const { time: endTime } = splitDateTime(draft.end_time)
+
+  return (
+    <>
+      <label className="field">
+        Date <span className="req">*</span>
+        <input
+          type="date"
+          required
+          value={date}
+          onChange={(e) =>
+            onChange({
+              ...draft,
+              start_time: combineDateTime(e.target.value, startTime),
+              end_time: draft.end_time ? combineDateTime(e.target.value, endTime) : draft.end_time,
+            })
+          }
+        />
+      </label>
+      <label className="field">
+        Start time <span className="req">*</span>
+        <input
+          type="time"
+          required
+          value={startTime}
+          onChange={(e) => onChange({ ...draft, start_time: combineDateTime(date, e.target.value) })}
+        />
+      </label>
+      <label className="field">
+        End time
+        <input
+          type="time"
+          value={endTime}
+          onChange={(e) => onChange({ ...draft, end_time: combineDateTime(date, e.target.value) })}
+        />
+      </label>
+    </>
+  )
+}
+
 function toggleWeekday(recurrence_days: string, day: number): string {
   const days = recurrence_days ? recurrence_days.split(',').map(Number) : []
   const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort()
@@ -233,7 +288,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   }, [])
 
   function startDuplicate(ev: AdminEventRow) {
-    setCreateDraft({ ...eventToDraft(ev), start_time: '', status: 'draft' })
+    setCreateDraft({ ...eventToDraft(ev), start_time: '', end_time: '', status: 'draft' })
     setCreating(true)
     setEditingId(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -326,31 +381,15 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           <fieldset>
             <legend>When &amp; where</legend>
             <div className="grid3">
-              <label className="field">
-                Starts <span className="req">*</span>
-                <input
-                  type="datetime-local"
-                  required
-                  value={createDraft.start_time}
-                  onChange={(e) => setCreateDraft({ ...createDraft, start_time: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                Ends
-                <input
-                  type="datetime-local"
-                  value={createDraft.end_time}
-                  onChange={(e) => setCreateDraft({ ...createDraft, end_time: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                Location
-                <input
-                  value={createDraft.location_name}
-                  onChange={(e) => setCreateDraft({ ...createDraft, location_name: e.target.value })}
-                />
-              </label>
+              <EventDateTimeFields draft={createDraft} onChange={setCreateDraft} />
             </div>
+            <label className="field">
+              Location
+              <input
+                value={createDraft.location_name}
+                onChange={(e) => setCreateDraft({ ...createDraft, location_name: e.target.value })}
+              />
+            </label>
             <label className="field">
               Status
               <select
@@ -436,35 +475,19 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                       <fieldset>
                         <legend>When &amp; where</legend>
                         <div className="grid3">
-                          <label className="field">
-                            Starts <span className="req">*</span>
-                            <input
-                              type="datetime-local"
-                              required
-                              value={editDraft.start_time}
-                              onChange={(e) => setEditDraft({ ...editDraft, start_time: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            Ends
-                            <input
-                              type="datetime-local"
-                              value={editDraft.end_time}
-                              onChange={(e) => setEditDraft({ ...editDraft, end_time: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            Status
-                            <select
-                              value={editDraft.status}
-                              onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
-                            >
-                              <option value="draft">Draft</option>
-                              <option value="published">Published</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
-                          </label>
+                          <EventDateTimeFields draft={editDraft} onChange={setEditDraft} />
                         </div>
+                        <label className="field">
+                          Status
+                          <select
+                            value={editDraft.status}
+                            onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
+                          >
+                            <option value="draft">Draft</option>
+                            <option value="published">Published</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </label>
                       </fieldset>
                       <SignupFields draft={editDraft} onChange={setEditDraft} forms={forms} />
                       <div className="form-actions">
