@@ -94,7 +94,6 @@ export interface EventSignup {
   name: string
   email: string
   answers: Record<string, string> | null
-  waiver_accepted: boolean
   created_at: string
 }
 
@@ -138,6 +137,8 @@ export interface PendingUser {
   role: UserRole
   position: string | null
   team: Team | null
+  waiver_signed_year: number | null
+  waiver_signed_at: string | null
   requested_at: string
   decided_at: string | null
   decided_by: number | null

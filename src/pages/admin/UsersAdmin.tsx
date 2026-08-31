@@ -26,6 +26,24 @@ function UserRow({
   const [position, setPosition] = useState(user.position ?? '')
   const [team, setTeam] = useState<Team | ''>(user.team ?? '')
   const [saving, setSaving] = useState(false)
+  const [waiverSaving, setWaiverSaving] = useState(false)
+
+  const currentYear = new Date().getFullYear()
+  const waiverCurrent = user.waiver_signed_year === currentYear
+
+  async function toggleWaiver() {
+    setWaiverSaving(true)
+    try {
+      // Signed-but-expired means "renew" (mark again for the current year),
+      // not "unmark" — only a currently-valid waiver toggles off.
+      await adminApi.users.update(user.id, { waiver_signed: !waiverCurrent })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setWaiverSaving(false)
+    }
+  }
 
   // Only the owner may touch a row that's currently admin, or grant admin to anyone.
   const locked = !isOwner && user.role === 'admin'
@@ -96,6 +114,26 @@ function UserRow({
             <option value="A">A</option>
             <option value="B">B</option>
           </select>
+        ) : (
+          '—'
+        )}
+      </td>
+      <td>
+        {role === 'club_member' || role === 'admin' ? (
+          <span className="row-actions">
+            <span className={waiverCurrent ? 'waiver-chip' : 'waiver-chip no'}>
+              {user.waiver_signed_year
+                ? waiverCurrent
+                  ? `Signed ${user.waiver_signed_year}`
+                  : `Expired ${user.waiver_signed_year}`
+                : 'Not signed'}
+            </span>
+            {!locked && (
+              <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
+                {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
+              </button>
+            )}
+          </span>
         ) : (
           '—'
         )}
@@ -220,6 +258,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                 <th>Role</th>
                 <th>Position</th>
                 <th>Team</th>
+                <th>Waiver</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -234,7 +273,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                   <td>
                     <span className="role-chip role-owner">Owner</span>
                   </td>
-                  <td colSpan={2}>
+                  <td colSpan={3}>
                     <span className="admin-note">Transfer ownership to change</span>
                   </td>
                   <td />

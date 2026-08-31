@@ -28,7 +28,6 @@ export async function submitSignup(
     name: string
     email: string
     answers: Record<string, string>
-    waiver_accepted: boolean
     company?: string
   }
 ): Promise<{ id: number; cancel_token: string }> {

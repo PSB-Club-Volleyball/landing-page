@@ -772,20 +772,6 @@ main {
   cursor: not-allowed;
 }
 
-.waiver-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: flex-start;
-  font-size: 0.78rem;
-  line-height: 1.5;
-  padding: 0.6rem 0.7rem;
-  border: 1px dashed color-mix(in srgb, var(--page-fg) 20%, transparent);
-  border-radius: var(--radius-xs);
-}
-.waiver-row input {
-  margin-top: 0.15rem;
-}
-
 /* shared labeled-field style, used by the signup modal and admin forms */
 .field {
   display: flex;

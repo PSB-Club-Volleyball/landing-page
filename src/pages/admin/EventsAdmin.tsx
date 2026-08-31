@@ -172,7 +172,6 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
         <tr>
           <th>Name</th>
           <th>Email</th>
-          <th>Waiver</th>
           <th>Answers</th>
           <th>Submitted</th>
           <th></th>
@@ -183,11 +182,6 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
           <tr key={s.id}>
             <td>{s.name}</td>
             <td>{s.email}</td>
-            <td>
-              <span className={s.waiver_accepted ? 'waiver-chip' : 'waiver-chip no'}>
-                {s.waiver_accepted ? 'Signed' : 'Not signed'}
-              </span>
-            </td>
             <td>
               {s.answers
                 ? Object.values(s.answers).filter(Boolean).join(', ') || '—'

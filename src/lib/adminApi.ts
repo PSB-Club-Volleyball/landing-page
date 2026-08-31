@@ -72,8 +72,15 @@ export const adminApi = {
     list: () => request<{ users: PendingUser[] }>('/api/admin/users'),
     decide: (id: number, status: 'approved' | 'denied') =>
       request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
-    update: (id: number, input: { role?: Exclude<UserRole, 'owner'>; position?: string | null; team?: Team | null }) =>
-      request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    update: (
+      id: number,
+      input: {
+        role?: Exclude<UserRole, 'owner'>
+        position?: string | null
+        team?: Team | null
+        waiver_signed?: boolean
+      }
+    ) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     transferOwnership: (toUserId: number) =>
       request<{ ok: true }>('/api/admin/owner/transfer', {
         method: 'POST',

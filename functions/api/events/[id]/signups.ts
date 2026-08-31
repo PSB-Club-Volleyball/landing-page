@@ -9,7 +9,6 @@ interface SignupInput {
   name: string
   email: string
   answers?: Record<string, string>
-  waiver_accepted?: boolean
   company?: string // honeypot — real users never see or fill this field
 }
 
@@ -31,7 +30,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const body = await request.json<Partial<SignupInput>>().catch(() => null)
   if (!body || !body.name?.trim() || !body.email?.trim()) return badRequest('name and email are required')
   if (!EMAIL_PATTERN.test(body.email.trim())) return badRequest('Enter a valid email')
-  if (!body.waiver_accepted) return badRequest('You must accept the waiver to sign up')
 
   // Honeypot: real visitors never populate this hidden field. Pretend success
   // so a bot has no signal to react to, but skip the write entirely.
@@ -62,14 +60,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
 
   try {
     const result = await env.DB.prepare(
-      `INSERT INTO event_signups (event_id, name, email, answers, waiver_accepted, cancel_token) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+      `INSERT INTO event_signups (event_id, name, email, answers, cancel_token) VALUES (?1, ?2, ?3, ?4, ?5)`
     )
       .bind(
         eventId,
         body.name.trim(),
         body.email.trim().toLowerCase(),
         Object.keys(filteredAnswers).length ? JSON.stringify(filteredAnswers) : null,
-        1,
         cancelToken
       )
       .run()
