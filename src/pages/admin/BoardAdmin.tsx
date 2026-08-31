@@ -5,6 +5,12 @@ import type { BoardMember, PendingUser, Player } from '../../types'
 const emptyDraft = { season: '', role: '', first_name: '', last_name: '', email: '' }
 type Draft = typeof emptyDraft
 
+// Roles the club always wants filled; they're offered as standing slots
+// (each with its own fuzzy-search box) rather than typed in by hand.
+const FIXED_ROLES = ['President', 'Vice President', 'Treasurer', 'Secretary', 'Social Media Manager']
+
+const SEARCH_DEBOUNCE_MS = 250
+
 // A person to pull name/email from when adding a board member, rather than
 // typing them in from scratch — either an approved club member (account) or
 // a roster player. `source` disambiguates the id namespace on selection.
@@ -21,6 +27,28 @@ function userToPerson(u: PendingUser): Person {
 
 function playerToPerson(p: Player): Person {
   return { source: 'player', id: p.id, first_name: p.first_name, last_name: p.last_name, email: '' }
+}
+
+// Subsequence-based fuzzy match: every character of the query must appear
+// in the target, in order, but not necessarily adjacent — forgiving of
+// typos and partial names ("jsmi" still matches "John Smith").
+function fuzzyMatch(query: string, target: string): boolean {
+  let qi = 0
+  const q = query.toLowerCase()
+  const t = target.toLowerCase()
+  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
+    if (t[ti] === q[qi]) qi++
+  }
+  return qi === q.length
+}
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs)
+    return () => clearTimeout(timer)
+  }, [value, delayMs])
+  return debounced
 }
 
 function toInput(draft: Draft) {
@@ -43,23 +71,100 @@ function memberToDraft(m: BoardMember): Draft {
   }
 }
 
+// One always-present role (President, Treasurer, etc.). Shows a fuzzy-search
+// box against club members/players while unfilled, and just the assigned
+// person once one is picked — the search box has no reason to stick around
+// after that.
+function RoleSlot({
+  role,
+  season,
+  assigned,
+  people,
+  isOwner,
+  onAssign,
+  onUnassign,
+}: {
+  role: string
+  season: string
+  assigned: BoardMember | null
+  people: Person[]
+  isOwner: boolean
+  onAssign: (person: Person) => void
+  onUnassign: (id: number) => void
+}) {
+  const [query, setQuery] = useState('')
+  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS)
+
+  const matches =
+    debouncedQuery.trim().length === 0
+      ? []
+      : people.filter((p) => fuzzyMatch(debouncedQuery, `${p.first_name} ${p.last_name}`)).slice(0, 6)
+
+  return (
+    <div className="board-role-row">
+      <span className="board-role-label">{role}</span>
+      {assigned ? (
+        <span className="board-role-assigned">
+          {assigned.first_name} {assigned.last_name}
+          {isOwner && (
+            <button type="button" className="board-role-clear" onClick={() => onUnassign(assigned.id)}>
+              Change
+            </button>
+          )}
+        </span>
+      ) : (
+        <div className="board-role-search">
+          <input
+            placeholder={season ? 'Search club members/players…' : 'Set a season first'}
+            value={query}
+            disabled={!season}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {debouncedQuery.trim().length > 0 && (
+            <div className="board-role-suggestions">
+              {matches.length === 0 ? (
+                <div className="board-role-suggestion-empty">No matches</div>
+              ) : (
+                matches.map((p) => (
+                  <button
+                    type="button"
+                    key={`${p.source}:${p.id}`}
+                    className="board-role-suggestion"
+                    onClick={() => {
+                      onAssign(p)
+                      setQuery('')
+                    }}
+                  >
+                    {p.first_name} {p.last_name}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   const [members, setMembers] = useState<BoardMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft)
-  const [creating, setCreating] = useState(false)
-  const [createDraft, setCreateDraft] = useState<Draft>(emptyDraft)
   const [clubMembers, setClubMembers] = useState<PendingUser[]>([])
   const [players, setPlayers] = useState<Player[]>([])
-  const [personKey, setPersonKey] = useState('')
+  const [season, setSeason] = useState('')
 
   function refresh() {
     setLoading(true)
     adminApi.board
       .list()
-      .then((res) => setMembers(res.board))
+      .then((res) => {
+        setMembers(res.board)
+        setSeason((current) => current || res.board[0]?.season || '')
+      })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }
@@ -78,21 +183,15 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
 
   const people: Person[] = [...clubMembers.map(userToPerson), ...players.map(playerToPerson)]
 
-  function handlePersonPick(key: string) {
-    setPersonKey(key)
-    if (!key) return
-    const [source, idStr] = key.split(':')
-    const person = people.find((p) => p.source === source && p.id === Number(idStr))
-    if (!person) return
-    setCreateDraft({ ...createDraft, first_name: person.first_name, last_name: person.last_name, email: person.email })
-  }
-
-  async function handleCreate() {
+  async function assignRole(role: string, person: Person) {
     try {
-      await adminApi.board.create(toInput(createDraft))
-      setCreating(false)
-      setCreateDraft(emptyDraft)
-      setPersonKey('')
+      await adminApi.board.create({
+        season,
+        role,
+        first_name: person.first_name,
+        last_name: person.last_name,
+        email: person.email || null,
+      })
       refresh()
     } catch (e) {
       setError((e as Error).message)
@@ -123,71 +222,30 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
     <>
       <div className="admin-main-head">
         <h2>Board</h2>
-        <button
-          className="add-btn"
-          type="button"
-          onClick={() => {
-            setCreating((v) => !v)
-            setPersonKey('')
-          }}
-        >
-          {creating ? 'Cancel' : '+ Add board member'}
-        </button>
       </div>
       {error && <p className="admin-error">{error}</p>}
-      {creating && (
-        <div className="admin-form">
-          <select value={personKey} onChange={(e) => handlePersonPick(e.target.value)}>
-            <option value="">Add from club members/players&hellip;</option>
-            {clubMembers.length > 0 && (
-              <optgroup label="Club members">
-                {clubMembers.map((u) => (
-                  <option key={`member:${u.id}`} value={`member:${u.id}`}>
-                    {u.name || u.email}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {players.length > 0 && (
-              <optgroup label="Players">
-                {players.map((p) => (
-                  <option key={`player:${p.id}`} value={`player:${p.id}`}>
-                    {p.first_name} {p.last_name} ({p.season})
-                  </option>
-                ))}
-              </optgroup>
-            )}
-          </select>
-          <input
-            placeholder="Season (2025-2026)"
-            value={createDraft.season}
-            onChange={(e) => setCreateDraft({ ...createDraft, season: e.target.value })}
+      <div className="admin-form">
+        <input
+          placeholder="Season (2025-2026)"
+          value={season}
+          onChange={(e) => setSeason(e.target.value)}
+          style={{ flex: '1 1 140px' }}
+        />
+      </div>
+      <div className="board-roles">
+        {FIXED_ROLES.map((role) => (
+          <RoleSlot
+            key={role}
+            role={role}
+            season={season}
+            assigned={members.find((m) => m.season === season && m.role === role) ?? null}
+            people={people}
+            isOwner={isOwner}
+            onAssign={(person) => assignRole(role, person)}
+            onUnassign={handleDelete}
           />
-          <input
-            placeholder="Role"
-            value={createDraft.role}
-            onChange={(e) => setCreateDraft({ ...createDraft, role: e.target.value })}
-          />
-          <input
-            placeholder="First name"
-            value={createDraft.first_name}
-            onChange={(e) => setCreateDraft({ ...createDraft, first_name: e.target.value })}
-          />
-          <input
-            placeholder="Last name"
-            value={createDraft.last_name}
-            onChange={(e) => setCreateDraft({ ...createDraft, last_name: e.target.value })}
-          />
-          <input
-            placeholder="Email (optional)"
-            value={createDraft.email}
-            onChange={(e) => setCreateDraft({ ...createDraft, email: e.target.value })}
-          />
-          <button className="approve-btn" type="button" onClick={handleCreate}>
-            Save
-          </button>
-        </div>
-      )}
+        ))}
+      </div>
       <div className="data-table">
         <table>
           <thead>
