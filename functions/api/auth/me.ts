@@ -17,6 +17,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       provider: user.provider,
       status: user.status,
       role: user.role,
+      waiverSignedYear: user.waiverSignedYear,
     },
   })
 }

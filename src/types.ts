@@ -136,6 +136,7 @@ export interface AuthUser {
   provider: string
   status: UserStatus
   role: UserRole
+  waiverSignedYear: number | null
 }
 
 export interface LoginSettings {
