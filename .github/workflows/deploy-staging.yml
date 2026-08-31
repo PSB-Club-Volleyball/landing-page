@@ -23,17 +23,17 @@ jobs:
       - run: npm run build
 
       # Pages rejects `wrangler pages deploy --config <custom path>` (config
-      # must be named wrangler.toml in the working directory), so stage
-      # wrangler.staging.toml under that name in its own directory and run
-      # wrangler from there instead.
-      - name: Stage wrangler config for the staging Pages project
-        run: |
-          mkdir -p .cf-staging
-          cp wrangler.staging.toml .cf-staging/wrangler.toml
+      # must be named wrangler.toml in the working directory). We can't run
+      # wrangler from a subdirectory to work around that either: it discovers
+      # the `functions/` directory relative to its cwd, not the deployed
+      # directory, so a relocated cwd silently drops all Pages Functions and
+      # the deploy becomes static-assets-only. Overwrite the root
+      # wrangler.toml instead so cwd (and therefore `functions/`) stays put.
+      - name: Swap in the staging wrangler config
+        run: cp wrangler.staging.toml wrangler.toml
 
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          workingDirectory: .cf-staging
-          command: pages deploy ../dist --project-name=behrend-club-volleyball-staging --branch=staging
+          command: pages deploy dist --project-name=behrend-club-volleyball-staging --branch=staging
