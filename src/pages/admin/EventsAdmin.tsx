@@ -65,7 +65,7 @@ function splitDateTime(dt: string): { date: string; time: string } {
 }
 
 function combineDateTime(date: string, time: string): string {
-  return date && time ? `${date}T${time}` : ''
+  return date || time ? `${date}T${time}` : ''
 }
 
 function EventDateTimeFields({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
@@ -103,7 +103,7 @@ function EventDateTimeFields({ draft, onChange }: { draft: Draft; onChange: (dra
         <input
           type="time"
           value={endTime}
-          onChange={(e) => onChange({ ...draft, end_time: combineDateTime(date, e.target.value) })}
+          onChange={(e) => onChange({ ...draft, end_time: e.target.value ? combineDateTime(date, e.target.value) : '' })}
         />
       </label>
     </>
