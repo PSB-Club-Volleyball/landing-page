@@ -8,9 +8,11 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "pages:dev": "npm run build && wrangler pages dev dist",
-    "db:migrate:local": "wrangler d1 migrations apply behrend-club-volleyball --local",
-    "db:migrate:remote": "wrangler d1 migrations apply behrend-club-volleyball --remote"
+    "pages:dev": "npm run build && wrangler pages dev dist --env preview",
+    "db:migrate:local": "wrangler d1 migrations apply behrend-club-volleyball-preview --local",
+    "db:migrate:remote": "wrangler d1 migrations apply behrend-club-volleyball --remote --env production",
+    "db:migrate:preview": "wrangler d1 migrations apply behrend-club-volleyball-preview --remote --env preview",
+    "db:migrate:staging": "wrangler d1 migrations apply behrend-club-volleyball-staging --remote --config wrangler.staging.toml --env production"
   },
   "dependencies": {
     "react": "^19.2.8",
