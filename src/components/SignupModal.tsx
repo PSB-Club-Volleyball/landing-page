@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getForm, submitSignup } from '../lib/api'
+import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
+import { clearCancelToken, storeCancelToken } from '../lib/cancelTokens'
 import type { FormWithFields, PublicClubEvent } from '../types'
 
 function FieldInput({
@@ -53,16 +54,36 @@ function FieldInput({
   )
 }
 
-function SignupModal({ event, onClose }: { event: PublicClubEvent; onClose: () => void }) {
+function SignupModal({
+  event,
+  onClose,
+  onCancelled,
+  existingSignupId,
+  existingCancelToken,
+}: {
+  event: PublicClubEvent
+  onClose: () => void
+  onCancelled?: () => void
+  // When the visitor already signed up (a matching session, or a token saved
+  // in this browser), open straight into the "manage my RSVP" view instead
+  // of the signup form.
+  existingSignupId?: number
+  existingCancelToken?: string | null
+}) {
   const [form, setForm] = useState<FormWithFields | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [company, setCompany] = useState('') // honeypot
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [waiverAccepted, setWaiverAccepted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [confirmed, setConfirmed] = useState(false)
+  const [confirmed, setConfirmed] = useState(Boolean(existingSignupId))
+  const [confirmedSignupId, setConfirmedSignupId] = useState<number | null>(existingSignupId ?? null)
+  const [cancelToken, setCancelToken] = useState<string | null>(existingCancelToken ?? null)
+  const [cancelling, setCancelling] = useState(false)
+  const [signupCancelled, setSignupCancelled] = useState(false)
 
   useEffect(() => {
     if (!event.form_id) return
@@ -80,6 +101,18 @@ function SignupModal({ event, onClose }: { event: PublicClubEvent; onClose: () =
   }, [event.form_id])
 
   useEffect(() => {
+    let cancelled = false
+    getMe().then((res) => {
+      if (cancelled || !res.user) return
+      setName((prev) => prev || res.user!.name || '')
+      setEmail((prev) => prev || res.user!.email)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose()
     }
@@ -92,12 +125,30 @@ function SignupModal({ event, onClose }: { event: PublicClubEvent; onClose: () =
     setSubmitting(true)
     setSubmitError(null)
     try {
-      await submitSignup(event.id, { name, email, answers, company })
+      const res = await submitSignup(event.id, { name, email, answers, waiver_accepted: waiverAccepted, company })
+      storeCancelToken(event.id, res.id, res.cancel_token)
+      setConfirmedSignupId(res.id)
+      setCancelToken(res.cancel_token)
       setConfirmed(true)
     } catch (err) {
       setSubmitError((err as Error).message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  async function handleCancel() {
+    if (!confirmedSignupId) return
+    setCancelling(true)
+    try {
+      await cancelSignup(event.id, confirmedSignupId, cancelToken ?? undefined)
+      clearCancelToken(event.id)
+      setSignupCancelled(true)
+      onCancelled?.()
+    } catch (err) {
+      setSubmitError((err as Error).message)
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -110,10 +161,28 @@ function SignupModal({ event, onClose }: { event: PublicClubEvent; onClose: () =
         {confirmed ? (
           <div className="signup-confirm">
             <div className="signup-confirm-tick">&#10003;</div>
-            <h4>You&rsquo;re in!</h4>
-            <p>
-              You&rsquo;re signed up for {event.title}. See you at {event.location_name || 'the event'}.
-            </p>
+            {signupCancelled ? (
+              <>
+                <h4>Cancelled</h4>
+                <p>You&rsquo;re no longer signed up for {event.title}.</p>
+              </>
+            ) : (
+              <>
+                <h4>You&rsquo;re in!</h4>
+                <p>
+                  You&rsquo;re signed up for {event.title}. See you at {event.location_name || 'the event'}.
+                </p>
+                {submitError && <p className="admin-error">{submitError}</p>}
+                <p className="cancel-note">
+                  Changed your mind?{' '}
+                  <button className="link-btn" type="button" disabled={cancelling} onClick={handleCancel}>
+                    {cancelling ? 'Cancelling…' : 'Cancel my RSVP'}
+                  </button>
+                  <br />
+                  (saved in this browser &mdash; a logged-in account can also cancel from the event card)
+                </p>
+              </>
+            )}
             <button className="btn btn-outline btn-sm" type="button" onClick={onClose}>
               Close
             </button>
@@ -160,6 +229,18 @@ function SignupModal({ event, onClose }: { event: PublicClubEvent; onClose: () =
                     />
                   </label>
                 ))}
+
+                <label className="waiver-row">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={waiverAccepted}
+                    onChange={(e) => setWaiverAccepted(e.target.checked)}
+                  />
+                  <span>
+                    I acknowledge the club&rsquo;s liability waiver for this event. <span className="req">*</span>
+                  </span>
+                </label>
 
                 {submitError && <p className="admin-error">{submitError}</p>}
 

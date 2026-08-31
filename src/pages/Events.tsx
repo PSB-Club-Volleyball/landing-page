@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import SignupModal from '../components/SignupModal'
 import { getEvents } from '../lib/api'
+import { getCancelToken } from '../lib/cancelTokens'
 import type { PublicClubEvent } from '../types'
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -35,10 +36,22 @@ function formatTimeRange(event: PublicClubEvent) {
   return `${start} – ${timeFormatter.format(new Date(event.end_time))}`
 }
 
-function EventCard({ event, onOpenSignup }: { event: PublicClubEvent; onOpenSignup: (e: PublicClubEvent) => void }) {
+function EventCard({
+  event,
+  onOpenSignup,
+  onManageSignup,
+}: {
+  event: PublicClubEvent
+  onOpenSignup: (e: PublicClubEvent) => void
+  onManageSignup: (e: PublicClubEvent, signupId: number, token: string | null) => void
+}) {
   const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
   const isFull = spotsLeft !== null && spotsLeft <= 0
   const verb = event.event_type === 'game' || event.event_type === 'tournament' ? 'RSVP' : 'Sign up'
+
+  const stored = getCancelToken(event.id)
+  const mySignupId = event.my_signup_id ?? stored?.signupId ?? null
+  const myToken = event.my_signup_id ? null : (stored?.token ?? null)
 
   return (
     <div className={`event-card${event.status === 'cancelled' ? ' cancelled' : ''}`}>
@@ -58,14 +71,20 @@ function EventCard({ event, onOpenSignup }: { event: PublicClubEvent; onOpenSign
             {spotsLeft !== null && !isFull && <span className="cap-chip">{spotsLeft} left</span>}
             {isFull && <span className="full-chip">full</span>}
           </span>
-          <button
-            className={isFull ? 'btn btn-outline' : 'btn btn-ace'}
-            type="button"
-            disabled={isFull}
-            onClick={() => onOpenSignup(event)}
-          >
-            {isFull ? 'Full' : verb}
-          </button>
+          {mySignupId ? (
+            <button className="btn btn-outline" type="button" onClick={() => onManageSignup(event, mySignupId, myToken)}>
+              You&rsquo;re going &middot; Manage
+            </button>
+          ) : (
+            <button
+              className={isFull ? 'btn btn-outline' : 'btn btn-ace'}
+              type="button"
+              disabled={isFull}
+              onClick={() => onOpenSignup(event)}
+            >
+              {isFull ? 'Full' : verb}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -76,22 +95,17 @@ function Events() {
   const [events, setEvents] = useState<PublicClubEvent[] | null>(null)
   const [error, setError] = useState(false)
   const [signupEvent, setSignupEvent] = useState<PublicClubEvent | null>(null)
+  const [manage, setManage] = useState<{ event: PublicClubEvent; signupId: number; token: string | null } | null>(
+    null
+  )
 
-  useEffect(() => {
-    let cancelled = false
-
+  function refresh() {
     getEvents()
-      .then((res) => {
-        if (!cancelled) setEvents(res.events)
-      })
-      .catch(() => {
-        if (!cancelled) setError(true)
-      })
+      .then((res) => setEvents(res.events))
+      .catch(() => setError(true))
+  }
 
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  useEffect(refresh, [])
 
   const recurring = (events ?? []).filter((e) => e.recurrence_days)
   const oneTime = (events ?? []).filter((e) => !e.recurrence_days)
@@ -130,7 +144,12 @@ function Events() {
                 </div>
                 <div className="card-grid">
                   {recurring.map((event) => (
-                    <EventCard key={event.id} event={event} onOpenSignup={setSignupEvent} />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      onOpenSignup={setSignupEvent}
+                      onManageSignup={(e, signupId, token) => setManage({ event: e, signupId, token })}
+                    />
                   ))}
                 </div>
               </div>
@@ -146,7 +165,12 @@ function Events() {
                 </div>
                 <div className="card-grid">
                   {dayEvents.map((event) => (
-                    <EventCard key={event.id} event={event} onOpenSignup={setSignupEvent} />
+                    <EventCard
+                      key={event.id}
+                      event={event}
+                      onOpenSignup={setSignupEvent}
+                      onManageSignup={(e, signupId, token) => setManage({ event: e, signupId, token })}
+                    />
                   ))}
                 </div>
               </div>
@@ -154,7 +178,27 @@ function Events() {
           </>
         )}
 
-        {signupEvent && <SignupModal event={signupEvent} onClose={() => setSignupEvent(null)} />}
+        {signupEvent && (
+          <SignupModal
+            event={signupEvent}
+            onClose={() => {
+              setSignupEvent(null)
+              refresh()
+            }}
+          />
+        )}
+        {manage && (
+          <SignupModal
+            event={manage.event}
+            existingSignupId={manage.signupId}
+            existingCancelToken={manage.token}
+            onCancelled={refresh}
+            onClose={() => {
+              setManage(null)
+              refresh()
+            }}
+          />
+        )}
       </div>
     </main>
   )

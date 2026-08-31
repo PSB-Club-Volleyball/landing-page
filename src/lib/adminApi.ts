@@ -9,6 +9,8 @@ import type {
   MediaItem,
   PendingUser,
   Player,
+  Team,
+  UserRole,
 } from '../types'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -50,6 +52,8 @@ export const adminApi = {
       request<{ ok: true }>(`/api/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: number) => request<{ ok: true }>(`/api/admin/events/${id}`, { method: 'DELETE' }),
     signups: (id: number) => request<{ signups: EventSignup[] }>(`/api/admin/events/${id}/signups`),
+    removeSignup: (eventId: number, signupId: number) =>
+      request<{ ok: true }>(`/api/admin/events/${eventId}/signups/${signupId}`, { method: 'DELETE' }),
   },
   forms: {
     list: () => request<{ forms: FormTemplate[] }>('/api/admin/forms'),
@@ -68,6 +72,8 @@ export const adminApi = {
     list: () => request<{ users: PendingUser[] }>('/api/admin/users'),
     decide: (id: number, status: 'approved' | 'denied') =>
       request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    update: (id: number, input: { role?: Exclude<UserRole, 'owner'>; position?: string | null; team?: Team | null }) =>
+      request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     transferOwnership: (toUserId: number) =>
       request<{ ok: true }>('/api/admin/owner/transfer', {
         method: 'POST',

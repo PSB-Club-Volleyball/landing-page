@@ -40,9 +40,11 @@ export interface ClubEvent {
 }
 
 // Public-facing event with the signup summary the Events page needs to
-// decide what to render (a plain count vs. a "spots left" chip).
+// decide what to render (a plain count vs. a "spots left" chip), plus the
+// visitor's own signup id if they're logged in and already signed up.
 export interface PublicClubEvent extends ClubEvent {
   signup_count: number
+  my_signup_id: number | null
 }
 
 // Admin's Events-tab row: same event, joined with the attached form's name
@@ -92,6 +94,7 @@ export interface EventSignup {
   name: string
   email: string
   answers: Record<string, string> | null
+  waiver_accepted: boolean
   created_at: string
 }
 
@@ -111,7 +114,10 @@ export interface MediaItem {
 }
 
 export type UserStatus = 'pending' | 'approved' | 'denied'
-export type UserRole = 'member' | 'owner'
+// Hierarchical, not independent flags: each tier includes the permissions
+// of the ones below it — outsider < club_member < admin < owner.
+export type UserRole = 'outsider' | 'club_member' | 'admin' | 'owner'
+export type Team = 'A' | 'B'
 
 export interface AuthUser {
   email: string
@@ -130,6 +136,8 @@ export interface PendingUser {
   provider: string
   status: UserStatus
   role: UserRole
+  position: string | null
+  team: Team | null
   requested_at: string
   decided_at: string | null
   decided_by: number | null

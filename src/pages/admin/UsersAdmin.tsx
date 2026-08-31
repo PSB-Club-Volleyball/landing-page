@@ -1,6 +1,127 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
-import type { AuthUser, PendingUser } from '../../types'
+import type { AuthUser, PendingUser, Team, UserRole } from '../../types'
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  outsider: 'Outsider',
+  club_member: 'Club member',
+  admin: 'Admin',
+  owner: 'Owner',
+}
+
+function UserRow({
+  user,
+  isOwner,
+  onSaved,
+  onError,
+  onDecide,
+}: {
+  user: PendingUser
+  isOwner: boolean
+  onSaved: () => void
+  onError: (msg: string) => void
+  onDecide: (status: 'approved' | 'denied') => void
+}) {
+  const [role, setRole] = useState<Exclude<UserRole, 'owner'>>(user.role === 'owner' ? 'admin' : user.role)
+  const [position, setPosition] = useState(user.position ?? '')
+  const [team, setTeam] = useState<Team | ''>(user.team ?? '')
+  const [saving, setSaving] = useState(false)
+
+  // Only the owner may touch a row that's currently admin, or grant admin to anyone.
+  const locked = !isOwner && user.role === 'admin'
+  const roleOptions: Exclude<UserRole, 'owner'>[] = isOwner
+    ? ['outsider', 'club_member', 'admin']
+    : ['outsider', 'club_member']
+
+  const dirty = role !== user.role || position !== (user.position ?? '') || team !== (user.team ?? '')
+
+  async function save() {
+    setSaving(true)
+    try {
+      await adminApi.users.update(user.id, { role, position: position || null, team: team || null })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <tr>
+      <td>{user.name || '—'}</td>
+      <td>{user.email}</td>
+      <td>
+        <span className={`status-chip status-${user.status}`}>{user.status}</span>
+      </td>
+      <td>
+        {locked ? (
+          <span className={`role-chip role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
+        ) : (
+          <select
+            className="role-select"
+            value={role}
+            onChange={(e) => setRole(e.target.value as Exclude<UserRole, 'owner'>)}
+          >
+            {roleOptions.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABELS[r]}
+              </option>
+            ))}
+          </select>
+        )}
+      </td>
+      <td>
+        {role === 'club_member' || role === 'admin' ? (
+          <input
+            className="mini-input"
+            placeholder="Position"
+            value={position}
+            disabled={locked}
+            onChange={(e) => setPosition(e.target.value)}
+          />
+        ) : (
+          '—'
+        )}
+      </td>
+      <td>
+        {role === 'club_member' || role === 'admin' ? (
+          <select
+            className="role-select"
+            value={team}
+            disabled={locked}
+            onChange={(e) => setTeam(e.target.value as Team | '')}
+          >
+            <option value="">&mdash;</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+          </select>
+        ) : (
+          '—'
+        )}
+      </td>
+      <td>
+        <span className="row-actions">
+          {!locked && (
+            <button type="button" disabled={!dirty || saving} onClick={save}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          )}
+          {!locked && user.status !== 'denied' && (
+            <button type="button" className="danger" onClick={() => onDecide('denied')}>
+              Deny
+            </button>
+          )}
+          {!locked && user.status === 'denied' && (
+            <button type="button" onClick={() => onDecide('approved')}>
+              Re-approve
+            </button>
+          )}
+        </span>
+      </td>
+    </tr>
+  )
+}
 
 function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange: () => void }) {
   const isOwner = currentUser.role === 'owner'
@@ -47,6 +168,8 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
 
   const pending = users.filter((u) => u.status === 'pending')
   const decided = users.filter((u) => u.status !== 'pending')
+  const owner = users.find((u) => u.role === 'owner')
+  const others = decided.filter((u) => u.role !== 'owner')
   const transferCandidates = users.filter((u) => u.status === 'approved' && u.role !== 'owner')
 
   return (
@@ -55,13 +178,16 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
         <h2>Users</h2>
       </div>
       {error && <p className="admin-error">{error}</p>}
-      {!isOwner && <p className="admin-note">Only the owner can approve, deny, or transfer access.</p>}
+      <p className="admin-note">
+        Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
+        someone to club member or admin below.
+        {!isOwner && ' Only the owner can grant admin or change another admin.'}
+      </p>
       {loading && <p>Loading&hellip;</p>}
 
-      {!loading && isOwner && (
+      {!loading && pending.length > 0 && (
         <div className="approvals-panel">
           <div className="ap-head">Pending approvals — {pending.length}</div>
-          {pending.length === 0 && <div className="ap-row">Nobody is waiting on approval.</div>}
           {pending.map((u) => (
             <div className="ap-row" key={u.id}>
               <div className="ap-info">
@@ -90,45 +216,39 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
               <tr>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Provider</th>
                 <th>Status</th>
                 <th>Role</th>
-                {isOwner && <th>Actions</th>}
+                <th>Position</th>
+                <th>Team</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {decided.map((u) => (
-                <tr key={u.id}>
-                  <td>{u.name || '—'}</td>
-                  <td>{u.email}</td>
-                  <td>{u.provider}</td>
+              {owner && (
+                <tr>
+                  <td>{owner.name || '—'}</td>
+                  <td>{owner.email}</td>
                   <td>
-                    <span className={`status-chip status-${u.status}`}>{u.status}</span>
+                    <span className={`status-chip status-${owner.status}`}>{owner.status}</span>
                   </td>
-                  <td>{u.role === 'owner' && <span className="status-chip status-approved">Owner</span>}</td>
-                  {isOwner && (
-                    <td>
-                      <span className="row-actions">
-                        {u.role === 'owner' ? (
-                          <span className="admin-note">Transfer ownership to change</span>
-                        ) : (
-                          <>
-                            {u.status !== 'approved' && (
-                              <button type="button" onClick={() => decide(u.id, 'approved')}>
-                                Approve
-                              </button>
-                            )}
-                            {u.status !== 'denied' && (
-                              <button type="button" className="danger" onClick={() => decide(u.id, 'denied')}>
-                                Deny
-                              </button>
-                            )}
-                          </>
-                        )}
-                      </span>
-                    </td>
-                  )}
+                  <td>
+                    <span className="role-chip role-owner">Owner</span>
+                  </td>
+                  <td colSpan={2}>
+                    <span className="admin-note">Transfer ownership to change</span>
+                  </td>
+                  <td />
                 </tr>
+              )}
+              {others.map((u) => (
+                <UserRow
+                  key={u.id}
+                  user={u}
+                  isOwner={isOwner}
+                  onSaved={refresh}
+                  onError={setError}
+                  onDecide={(status) => decide(u.id, status)}
+                />
               ))}
             </tbody>
           </table>

@@ -571,6 +571,63 @@
   color: var(--gold-fg);
 }
 
+.role-chip {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-xs);
+  padding: 0.15rem 0.5rem;
+  font-weight: 700;
+}
+.role-chip.role-owner {
+  background: var(--gold-tint);
+  color: var(--gold-fg);
+}
+.role-chip.role-admin {
+  background: rgba(255, 90, 54, 0.14);
+  color: var(--ace);
+}
+.role-chip.role-club_member {
+  background: rgba(63, 185, 108, 0.16);
+  color: #2c8a55;
+}
+.role-chip.role-outsider {
+  background: color-mix(in srgb, var(--page-fg) 12%, transparent);
+  color: var(--muted);
+}
+.role-select {
+  padding: 0.3rem 0.45rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
+  background: var(--page-bg);
+  color: var(--page-fg);
+  font-size: 0.82rem;
+}
+.mini-input {
+  padding: 0.3rem 0.45rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
+  background: var(--page-bg);
+  color: var(--page-fg);
+  font-size: 0.82rem;
+  width: 100px;
+}
+
+.waiver-chip {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: var(--radius-xs);
+  padding: 0.15rem 0.5rem;
+  font-weight: 700;
+  background: rgba(63, 185, 108, 0.16);
+  color: #2c8a55;
+}
+.waiver-chip.no {
+  background: rgba(178, 59, 44, 0.14);
+  color: #b23b2c;
+}
+
 @media (max-width: 700px) {
   .admin-body {
     flex-direction: column;

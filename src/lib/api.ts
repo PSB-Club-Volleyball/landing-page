@@ -24,8 +24,14 @@ export function getForm(id: number): Promise<{ form: FormWithFields }> {
 
 export async function submitSignup(
   eventId: number,
-  input: { name: string; email: string; answers: Record<string, string>; company?: string }
-): Promise<void> {
+  input: {
+    name: string
+    email: string
+    answers: Record<string, string>
+    waiver_accepted: boolean
+    company?: string
+  }
+): Promise<{ id: number; cancel_token: string }> {
   const res = await fetch(`/api/events/${eventId}/signups`, {
     method: 'POST',
     credentials: 'include',
@@ -35,6 +41,19 @@ export async function submitSignup(
   if (!res.ok) {
     const body = await res.json().catch(() => ({}) as { error?: string })
     throw new Error(body.error || `Signup failed (${res.status})`)
+  }
+  return res.json() as Promise<{ id: number; cancel_token: string }>
+}
+
+export async function cancelSignup(eventId: number, signupId: number, token?: string): Promise<void> {
+  const query = token ? `?token=${encodeURIComponent(token)}` : ''
+  const res = await fetch(`/api/events/${eventId}/signups/${signupId}${query}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string })
+    throw new Error(body.error || `Cancel failed (${res.status})`)
   }
 }
 

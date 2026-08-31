@@ -29,4 +29,5 @@ export function serializeCookie(name: string, value: string, opts: CookieOptions
 
 export const SESSION_COOKIE = 'session'
 export const OAUTH_STATE_COOKIE = 'oauth_state'
+export const OAUTH_REDIRECT_COOKIE = 'oauth_redirect'
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30 // 30 days
