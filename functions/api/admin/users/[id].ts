@@ -18,14 +18,15 @@ interface UsersPatchInput {
 
 // PUT /api/admin/users/:id  Body: any subset of { status, role, name, position, team, waiver_signed, dues_paid }
 // Any admin can approve/deny, promote/demote between outsider and
-// club_member, edit a member's display name, and mark/unmark a waiver or
-// dues as on file for the current year — both are an annual, admin-verified
-// thing (e.g. a signed paper form or cash/check received), never something
-// the member self-attests to. Granting 'admin', or touching a row that's
-// currently admin, is owner-only — an admin can't create or remove other
-// admins, or approve/deny, re-role, or re-verify their own waiver/dues.
-// The one exception: an admin can always update their own name, position,
-// and team, same as any other member editing their own basic profile info.
+// club_member, edit a member's display name/position/team, and mark/unmark a
+// waiver or dues as on file for the current year — the latter is an annual,
+// admin-verified thing (e.g. a signed paper form or cash/check received),
+// never something the member self-attests to. Granting 'admin', or touching
+// status/role/waiver/dues on a row that's currently admin, is owner-only —
+// an admin can't create or remove other admins, or approve/deny, re-role, or
+// re-verify another admin's (or their own) waiver/dues. Basic profile fields
+// (name/position/team) on an admin row are NOT guarded — any admin can edit
+// any user's basic info, including another admin's.
 // Nobody can set role to 'owner' here or touch the owner's own row; see
 // functions/api/admin/owner/transfer.ts for the only way to move ownership.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
@@ -35,20 +36,19 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const body = await request.json<UsersPatchInput>().catch(() => null)
   if (!body) return badRequest('Invalid JSON body')
 
-  // Fetched once regardless of which fields are being changed — an admin
-  // can't touch ANY field on a row that's currently admin, not just role,
-  // otherwise position/team/status edits would bypass the owner-only rule.
+  // Fetched once regardless of which fields are being changed — status,
+  // role, waiver, and dues on a row that's currently admin are owner-only,
+  // regardless of which other fields are also present in the same request.
   const target = await env.DB.prepare(`SELECT id, role FROM users WHERE id = ?1`).bind(id).first<{
     id: number
     role: string
   }>()
   if (!target) return notFound('User not found')
   if (target.role === 'admin' && data.user.role !== 'owner') {
-    const isSelf = target.id === data.user.id
     const touchesGuardedField =
       body.role !== undefined || body.status !== undefined || body.waiver_signed !== undefined || body.dues_paid !== undefined
-    if (!isSelf || touchesGuardedField) {
-      return badRequest("Only the owner can change an admin's account")
+    if (touchesGuardedField) {
+      return badRequest("Only the owner can change an admin's access, role, waiver, or dues status")
     }
   }
 
