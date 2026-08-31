@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import type { AuthUser, PendingUser, Team, UserRole } from '../../types'
 
@@ -183,6 +183,112 @@ function UserRow({
   )
 }
 
+// Dues are only ever tracked for members who actually owe them — outsiders
+// don't pay dues, and a role's group is grouped/headed the same way
+// regardless of how many members are in it.
+const DUES_ROLE_ORDER: UserRole[] = ['owner', 'admin', 'club_member']
+
+function DuesRow({
+  user,
+  onSaved,
+  onError,
+}: {
+  user: PendingUser
+  onSaved: () => void
+  onError: (msg: string) => void
+}) {
+  const [saving, setSaving] = useState(false)
+
+  const currentYear = new Date().getFullYear()
+  const duesCurrent = user.dues_paid_year === currentYear
+
+  async function toggleDues() {
+    setSaving(true)
+    try {
+      // Same "expired means renew" logic as the waiver toggle — only a
+      // currently-valid payment toggles off.
+      await adminApi.users.update(user.id, { dues_paid: !duesCurrent })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <tr>
+      <td>{user.name || '—'}</td>
+      <td>{user.email}</td>
+      <td>
+        <span className={duesCurrent ? 'waiver-chip' : 'waiver-chip no'}>
+          {user.dues_paid_year
+            ? duesCurrent
+              ? `Paid ${user.dues_paid_year}`
+              : `Expired ${user.dues_paid_year}`
+            : 'Not paid'}
+        </span>
+      </td>
+      <td>
+        <button type="button" disabled={saving} onClick={toggleDues}>
+          {saving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
+        </button>
+      </td>
+    </tr>
+  )
+}
+
+function DuesSection({
+  users,
+  onSaved,
+  onError,
+}: {
+  users: PendingUser[]
+  onSaved: () => void
+  onError: (msg: string) => void
+}) {
+  const duesEligible = users.filter((u) => u.status === 'approved' && DUES_ROLE_ORDER.includes(u.role))
+  const groups = DUES_ROLE_ORDER.map((role) => ({
+    role,
+    members: duesEligible.filter((u) => u.role === role),
+  })).filter((g) => g.members.length > 0)
+
+  return (
+    <>
+      <h2 style={{ marginTop: '2rem' }}>Dues</h2>
+      <p className="admin-note">Mark dues paid for the current year, grouped by role.</p>
+      {groups.length === 0 ? (
+        <p>No dues-paying members yet.</p>
+      ) : (
+        <div className="data-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Dues</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((g) => (
+                <Fragment key={g.role}>
+                  <tr className="role-group-header">
+                    <td colSpan={4}>{ROLE_LABELS[g.role]}</td>
+                  </tr>
+                  {g.members.map((u) => (
+                    <DuesRow key={u.id} user={u} onSaved={onSaved} onError={onError} />
+                  ))}
+                </Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  )
+}
+
 function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange: () => void }) {
   const isOwner = currentUser.role === 'owner'
   const [users, setUsers] = useState<PendingUser[]>([])
@@ -315,6 +421,8 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
           </table>
         </div>
       )}
+
+      {!loading && <DuesSection users={users} onSaved={refresh} onError={setError} />}
 
       {!loading && isOwner && (
         <div className="admin-form" style={{ marginTop: '1.5rem' }}>
