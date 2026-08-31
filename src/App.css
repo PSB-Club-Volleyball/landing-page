@@ -323,7 +323,7 @@ main {
   padding: 1.8rem 0 0;
   border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1rem;
 }
 .player-card {
@@ -464,8 +464,8 @@ main {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
 }
 
 .event-card {
@@ -773,8 +773,8 @@ main {
   padding: 1.8rem 0 0;
   border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.2rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
 }
 .media-grid li {
   display: flex;
