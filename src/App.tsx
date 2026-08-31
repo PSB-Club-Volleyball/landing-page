@@ -7,6 +7,7 @@ import Home from './pages/Home'
 import Roster from './pages/Roster'
 import Events from './pages/Events'
 import Photos from './pages/Photos'
+import CancelRsvp from './pages/CancelRsvp'
 import AdminGate from './pages/admin/AdminGate'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/roster" element={<Roster />} />
         <Route path="/events" element={<Events />} />
+        <Route path="/events/:eventId/cancel/:signupId" element={<CancelRsvp />} />
         <Route path="/photos" element={<Photos />} />
         <Route path="/admin/*" element={<AdminGate />} />
       </Routes>

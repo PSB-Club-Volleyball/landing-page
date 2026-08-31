@@ -13,18 +13,21 @@ interface UsersPatchInput {
   position?: string | null
   team?: 'A' | 'B' | null
   waiver_signed?: boolean
+  dues_paid?: boolean
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { status, role, name, position, team, waiver_signed }
+// PUT /api/admin/users/:id  Body: any subset of { status, role, name, position, team, waiver_signed, dues_paid }
 // Any admin can approve/deny, promote/demote between outsider and
-// club_member, edit a member's display name, and mark/unmark a waiver on
-// file for the current year — a
-// waiver is an annual, admin-verified thing (e.g. a signed paper form),
-// never something the member self-attests to. Granting 'admin', or
-// touching a row that's currently admin, is owner-only — an admin can't
-// create or remove other admins. Nobody can set role to 'owner' here or
-// touch the owner's own row; see functions/api/admin/owner/transfer.ts for
-// the only way to move ownership.
+// club_member, edit a member's display name, and mark/unmark a waiver or
+// dues as on file for the current year — both are an annual, admin-verified
+// thing (e.g. a signed paper form or cash/check received), never something
+// the member self-attests to. Granting 'admin', or touching a row that's
+// currently admin, is owner-only — an admin can't create or remove other
+// admins, or approve/deny, re-role, or re-verify their own waiver/dues.
+// The one exception: an admin can always update their own name, position,
+// and team, same as any other member editing their own basic profile info.
+// Nobody can set role to 'owner' here or touch the owner's own row; see
+// functions/api/admin/owner/transfer.ts for the only way to move ownership.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
@@ -35,10 +38,18 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   // Fetched once regardless of which fields are being changed — an admin
   // can't touch ANY field on a row that's currently admin, not just role,
   // otherwise position/team/status edits would bypass the owner-only rule.
-  const target = await env.DB.prepare(`SELECT role FROM users WHERE id = ?1`).bind(id).first<{ role: string }>()
+  const target = await env.DB.prepare(`SELECT id, role FROM users WHERE id = ?1`).bind(id).first<{
+    id: number
+    role: string
+  }>()
   if (!target) return notFound('User not found')
   if (target.role === 'admin' && data.user.role !== 'owner') {
-    return badRequest("Only the owner can change an admin's account")
+    const isSelf = target.id === data.user.id
+    const touchesGuardedField =
+      body.role !== undefined || body.status !== undefined || body.waiver_signed !== undefined || body.dues_paid !== undefined
+    if (!isSelf || touchesGuardedField) {
+      return badRequest("Only the owner can change an admin's account")
+    }
   }
 
   const setClauses: string[] = []
@@ -103,6 +114,19 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
       setClauses.push(`waiver_signed_year = NULL`, `waiver_signed_by = NULL`, `waiver_signed_at = NULL`)
     }
     auditDetails.waiver_signed = body.waiver_signed
+  }
+
+  if (body.dues_paid !== undefined) {
+    if (body.dues_paid) {
+      values.push(new Date().getUTCFullYear())
+      setClauses.push(`dues_paid_year = ?${values.length}`)
+      values.push(data.user.id)
+      setClauses.push(`dues_paid_by = ?${values.length}`)
+      setClauses.push(`dues_paid_at = CURRENT_TIMESTAMP`)
+    } else {
+      setClauses.push(`dues_paid_year = NULL`, `dues_paid_by = NULL`, `dues_paid_at = NULL`)
+    }
+    auditDetails.dues_paid = body.dues_paid
   }
 
   if (setClauses.length === 0) return badRequest('No recognized fields to update')

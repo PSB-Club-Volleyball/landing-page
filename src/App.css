@@ -765,6 +765,21 @@ main {
   font-size: 0.76rem;
   color: var(--muted);
 }
+.waiver-download-note {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--gold-fg);
+  background: var(--gold-tint);
+  border-radius: var(--radius-xs);
+  padding: 0.5rem 0.65rem;
+}
+.waiver-download-note a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
 .signup-confirm {
   text-align: center;

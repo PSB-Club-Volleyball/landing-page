@@ -136,6 +136,7 @@ export interface AuthUser {
   provider: string
   status: UserStatus
   role: UserRole
+  waiverSignedYear: number | null
 }
 
 export interface LoginSettings {
@@ -155,6 +156,8 @@ export interface PendingUser {
   team: Team | null
   waiver_signed_year: number | null
   waiver_signed_at: string | null
+  dues_paid_year: number | null
+  dues_paid_at: string | null
   requested_at: string
   decided_at: string | null
   decided_by: number | null

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Secrets
+secrets
+
 # Cloudflare / wrangler local state and secrets
 .wrangler
 .dev.vars

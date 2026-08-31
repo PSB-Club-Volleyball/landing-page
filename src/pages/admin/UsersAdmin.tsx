@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import type { AuthUser, PendingUser, Team, UserRole } from '../../types'
 
@@ -12,12 +12,14 @@ const ROLE_LABELS: Record<UserRole, string> = {
 function UserRow({
   user,
   isOwner,
+  currentUserEmail,
   onSaved,
   onError,
   onDecide,
 }: {
   user: PendingUser
   isOwner: boolean
+  currentUserEmail: string
   onSaved: () => void
   onError: (msg: string) => void
   onDecide: (status: 'approved' | 'denied') => void
@@ -28,9 +30,11 @@ function UserRow({
   const [team, setTeam] = useState<Team | ''>(user.team ?? '')
   const [saving, setSaving] = useState(false)
   const [waiverSaving, setWaiverSaving] = useState(false)
+  const [duesSaving, setDuesSaving] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const waiverCurrent = user.waiver_signed_year === currentYear
+  const duesCurrent = user.dues_paid_year === currentYear
 
   async function toggleWaiver() {
     setWaiverSaving(true)
@@ -46,8 +50,27 @@ function UserRow({
     }
   }
 
-  // Only the owner may touch a row that's currently admin, or grant admin to anyone.
-  const locked = !isOwner && user.role === 'admin'
+  async function toggleDues() {
+    setDuesSaving(true)
+    try {
+      // Same "expired means renew" logic as the waiver toggle — only a
+      // currently-valid payment toggles off.
+      await adminApi.users.update(user.id, { dues_paid: !duesCurrent })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setDuesSaving(false)
+    }
+  }
+
+  // Only the owner may touch role, approval status, or admin-verified fields
+  // (waiver/dues) on a row that's currently admin — even the admin's own row.
+  const ownerOnly = !isOwner && user.role === 'admin'
+  // But an admin can still update their own basic profile (name/position/
+  // team) without owner involvement.
+  const isSelf = user.email.toLowerCase() === currentUserEmail.toLowerCase()
+  const locked = ownerOnly && !isSelf
   const roleOptions: Exclude<UserRole, 'owner'>[] = isOwner
     ? ['outsider', 'club_member', 'admin']
     : ['outsider', 'club_member']
@@ -63,7 +86,7 @@ function UserRow({
     try {
       const trimmedName = name.trim()
       await adminApi.users.update(user.id, {
-        role,
+        ...(role !== user.role ? { role } : {}),
         ...(trimmedName !== (user.name ?? '') ? { name: trimmedName } : {}),
         position: position || null,
         team: team || null,
@@ -95,7 +118,7 @@ function UserRow({
         <span className={`status-chip status-${user.status}`}>{user.status}</span>
       </td>
       <td>
-        {locked ? (
+        {ownerOnly ? (
           <span className={`role-chip role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
         ) : (
           <select
@@ -141,18 +164,36 @@ function UserRow({
         )}
       </td>
       <td>
+        {/* Waivers are required of everyone who sets foot on the court,
+            outsiders included — not just club members and admins. */}
+        <span className="row-actions">
+          <span className={waiverCurrent ? 'waiver-chip' : 'waiver-chip no'}>
+            {user.waiver_signed_year
+              ? waiverCurrent
+                ? `Signed ${user.waiver_signed_year}`
+                : `Expired ${user.waiver_signed_year}`
+              : 'Not signed'}
+          </span>
+          {!ownerOnly && (
+            <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
+              {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
+            </button>
+          )}
+        </span>
+      </td>
+      <td>
         {role === 'club_member' || role === 'admin' ? (
           <span className="row-actions">
-            <span className={waiverCurrent ? 'waiver-chip' : 'waiver-chip no'}>
-              {user.waiver_signed_year
-                ? waiverCurrent
-                  ? `Signed ${user.waiver_signed_year}`
-                  : `Expired ${user.waiver_signed_year}`
-                : 'Not signed'}
+            <span className={duesCurrent ? 'waiver-chip' : 'waiver-chip no'}>
+              {user.dues_paid_year
+                ? duesCurrent
+                  ? `Paid ${user.dues_paid_year}`
+                  : `Expired ${user.dues_paid_year}`
+                : 'Not paid'}
             </span>
-            {!locked && (
-              <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
-                {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
+            {!ownerOnly && (
+              <button type="button" disabled={duesSaving} onClick={toggleDues}>
+                {duesSaving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
               </button>
             )}
           </span>
@@ -167,12 +208,12 @@ function UserRow({
               {saving ? 'Saving…' : 'Save'}
             </button>
           )}
-          {!locked && user.status !== 'denied' && (
+          {!ownerOnly && user.status !== 'denied' && (
             <button type="button" className="danger" onClick={() => onDecide('denied')}>
               Deny
             </button>
           )}
-          {!locked && user.status === 'denied' && (
+          {!ownerOnly && user.status === 'denied' && (
             <button type="button" onClick={() => onDecide('approved')}>
               Re-approve
             </button>
@@ -182,6 +223,10 @@ function UserRow({
     </tr>
   )
 }
+
+// Non-owner rows in the main table are grouped by role, each group under
+// its own header row, so e.g. all club members sit together.
+const ROLE_GROUP_ORDER: UserRole[] = ['admin', 'club_member', 'outsider']
 
 function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange: () => void }) {
   const isOwner = currentUser.role === 'owner'
@@ -230,6 +275,10 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
   const decided = users.filter((u) => u.status !== 'pending')
   const owner = users.find((u) => u.role === 'owner')
   const others = decided.filter((u) => u.role !== 'owner')
+  const roleGroups = ROLE_GROUP_ORDER.map((role) => ({
+    role,
+    members: others.filter((u) => u.role === role),
+  })).filter((g) => g.members.length > 0)
   const transferCandidates = users.filter((u) => u.status === 'approved' && u.role !== 'owner')
 
   return (
@@ -241,7 +290,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
       <p className="admin-note">
         Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
         someone to club member or admin below.
-        {!isOwner && ' Only the owner can grant admin or change another admin.'}
+        {!isOwner && " Only the owner can grant admin or change another admin's account — you can still edit your own name, position, and team."}
       </p>
       {loading && <p>Loading&hellip;</p>}
 
@@ -281,6 +330,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                 <th>Position</th>
                 <th>Team</th>
                 <th>Waiver</th>
+                <th>Dues</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -295,21 +345,29 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                   <td>
                     <span className="role-chip role-owner">Owner</span>
                   </td>
-                  <td colSpan={3}>
+                  <td colSpan={4}>
                     <span className="admin-note">Transfer ownership to change</span>
                   </td>
                   <td />
                 </tr>
               )}
-              {others.map((u) => (
-                <UserRow
-                  key={u.id}
-                  user={u}
-                  isOwner={isOwner}
-                  onSaved={refresh}
-                  onError={setError}
-                  onDecide={(status) => decide(u.id, status)}
-                />
+              {roleGroups.map((g) => (
+                <Fragment key={g.role}>
+                  <tr className="role-group-header">
+                    <td colSpan={8}>{ROLE_LABELS[g.role]}</td>
+                  </tr>
+                  {g.members.map((u) => (
+                    <UserRow
+                      key={u.id}
+                      user={u}
+                      isOwner={isOwner}
+                      currentUserEmail={currentUser.email}
+                      onSaved={refresh}
+                      onError={setError}
+                      onDecide={(status) => decide(u.id, status)}
+                    />
+                  ))}
+                </Fragment>
               ))}
             </tbody>
           </table>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
-import { clearCancelToken, storeCancelToken } from '../lib/cancelTokens'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
+
+const WAIVER_URL = '/liability-waiver.pdf'
 
 function FieldInput({
   field,
@@ -59,17 +60,14 @@ function SignupModal({
   onClose,
   onCancelled,
   existingSignupId,
-  existingCancelToken,
   existingSignupStatus,
 }: {
   event: PublicClubEvent
   onClose: () => void
   onCancelled?: () => void
-  // When the visitor already signed up (a matching session, or a token saved
-  // in this browser), open straight into the "manage my RSVP" view instead
-  // of the signup form.
+  // When the visitor already signed up (matched via a logged-in session),
+  // open straight into the "manage my RSVP" view instead of the signup form.
   existingSignupId?: number
-  existingCancelToken?: string | null
   existingSignupStatus?: SignupStatus | null
 }) {
   const [form, setForm] = useState<FormWithFields | null>(null)
@@ -83,9 +81,16 @@ function SignupModal({
   const [confirmed, setConfirmed] = useState(Boolean(existingSignupId))
   const [confirmedSignupId, setConfirmedSignupId] = useState<number | null>(existingSignupId ?? null)
   const [signupStatus, setSignupStatus] = useState<SignupStatus | null>(existingSignupStatus ?? null)
-  const [cancelToken, setCancelToken] = useState<string | null>(existingCancelToken ?? null)
+  // Only held in memory for the rest of this page view (to allow an
+  // immediate "changed my mind" cancel right after submitting) — never
+  // persisted, since a guest signup has no account and nothing is kept in
+  // the browser. Managing it later happens via the link emailed at signup.
+  const [cancelToken, setCancelToken] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [signupCancelled, setSignupCancelled] = useState(false)
+  // Only a logged-in account can confirm a waiver's on file; a walk-up
+  // signup has no way to know, so it defaults to showing the download link.
+  const [waiverOnFile, setWaiverOnFile] = useState(false)
 
   useEffect(() => {
     if (!event.form_id) return
@@ -108,6 +113,7 @@ function SignupModal({
       if (cancelled || !res.user) return
       setName((prev) => prev || res.user!.name || '')
       setEmail((prev) => prev || res.user!.email)
+      setWaiverOnFile(res.user!.waiverSignedYear === new Date().getFullYear())
     })
     return () => {
       cancelled = true
@@ -128,7 +134,6 @@ function SignupModal({
     setSubmitError(null)
     try {
       const res = await submitSignup(event.id, { name, email, answers, company })
-      storeCancelToken(event.id, res.id, res.cancel_token)
       setConfirmedSignupId(res.id)
       setCancelToken(res.cancel_token)
       setSignupStatus(res.status)
@@ -145,7 +150,6 @@ function SignupModal({
     setCancelling(true)
     try {
       await cancelSignup(event.id, confirmedSignupId, cancelToken ?? undefined)
-      clearCancelToken(event.id)
       setSignupCancelled(true)
       onCancelled?.()
     } catch (err) {
@@ -206,7 +210,7 @@ function SignupModal({
                     {cancelling ? 'Cancelling…' : 'Cancel my RSVP'}
                   </button>
                   <br />
-                  (saved in this browser &mdash; a logged-in account can also cancel from the event card)
+                  (also emailed to you &mdash; a logged-in account can also cancel from the event card)
                 </p>
               </>
             )}
@@ -244,6 +248,17 @@ function SignupModal({
                     <input tabIndex={-1} autoComplete="off" value={company} onChange={(e) => setCompany(e.target.value)} />
                   </label>
                 </div>
+
+                {!waiverOnFile && (
+                  <p className="waiver-download-note">
+                    Haven&rsquo;t signed a liability waiver yet? You don&rsquo;t need one to {verb.toLowerCase()} &mdash;
+                    just{' '}
+                    <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+                      download and print it
+                    </a>{' '}
+                    and bring the signed copy to the event.
+                  </p>
+                )}
 
                 {form?.fields.map((field) => (
                   <label className="field" key={field.id}>

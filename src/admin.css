@@ -764,6 +764,19 @@
   color: #b23b2c;
 }
 
+.role-group-header td {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--page-fg) 5%, var(--page-bg));
+  padding: 0.5rem 0.9rem;
+}
+.data-table tbody tr.role-group-header:hover {
+  background: color-mix(in srgb, var(--page-fg) 5%, var(--page-bg));
+}
+
 @media (max-width: 700px) {
   .admin-nav-toggle {
     display: flex;

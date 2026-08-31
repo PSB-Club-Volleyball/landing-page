@@ -2,7 +2,7 @@ import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
 import { fetchFormFields } from '../../_lib/forms'
 import { randomToken } from '../../_lib/crypto'
-import { sendRsvpConfirmationEmail, sendRsvpRequestEmail } from '../../_lib/eventEmails'
+import { buildCancelUrl, sendRsvpConfirmationEmail, sendRsvpRequestEmail } from '../../_lib/eventEmails'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -107,10 +107,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   }
 
   const eventInfo = { title: event.title, start_time: event.start_time, location_name: event.location_name }
+  const cancelUrl = buildCancelUrl(env, eventId, signupId, cancelToken)
   if (status === 'pending') {
-    await sendRsvpRequestEmail(env, email, name, eventInfo)
+    await sendRsvpRequestEmail(env, email, name, eventInfo, cancelUrl)
   } else {
-    await sendRsvpConfirmationEmail(env, email, name, eventInfo)
+    await sendRsvpConfirmationEmail(env, email, name, eventInfo, cancelUrl)
   }
 
   return json({ ok: true, id: signupId, cancel_token: cancelToken, status }, { status: 201 })

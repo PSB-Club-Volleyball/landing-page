@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import SignupModal from '../components/SignupModal'
 import { getEvents } from '../lib/api'
-import { getCancelToken } from '../lib/cancelTokens'
 import type { PublicClubEvent, SignupStatus } from '../types'
 
 const TYPE_LABELS: Record<string, string> = {
@@ -28,7 +27,7 @@ function EventCard({
 }: {
   event: PublicClubEvent
   onOpenSignup: (e: PublicClubEvent) => void
-  onManageSignup: (e: PublicClubEvent, signupId: number, token: string | null, status: SignupStatus | null) => void
+  onManageSignup: (e: PublicClubEvent, signupId: number, status: SignupStatus | null) => void
 }) {
   const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
   const isFull = spotsLeft !== null && spotsLeft <= 0
@@ -38,13 +37,12 @@ function EventCard({
       ? 'RSVP'
       : 'Sign up'
 
-  const stored = getCancelToken(event.id)
-  const mySignupId = event.my_signup_id ?? stored?.signupId ?? null
-  const myToken = event.my_signup_id ? null : (stored?.token ?? null)
-  // A stored (localStorage) signup with no matching my_signup_id means the
-  // account/session view can't confirm its status — treat it as approved,
-  // same as before gating existed.
-  const myStatus: SignupStatus | null = event.my_signup_id ? event.my_signup_status : 'approved'
+  // A guest (no account) signup isn't tracked here at all — nothing is kept
+  // in the browser, so managing/cancelling it happens via the link emailed
+  // at signup time. Only a logged-in account whose email matches gets the
+  // "manage" button on the card.
+  const mySignupId = event.my_signup_id
+  const myStatus: SignupStatus | null = event.my_signup_status
 
   return (
     <div className={`event-card${event.status === 'cancelled' ? ' cancelled' : ''}`}>
@@ -68,7 +66,7 @@ function EventCard({
             <button
               className="btn btn-outline"
               type="button"
-              onClick={() => onManageSignup(event, mySignupId, myToken, myStatus)}
+              onClick={() => onManageSignup(event, mySignupId, myStatus)}
             >
               {myStatus === 'pending'
                 ? 'Request pending · Manage'
@@ -99,7 +97,6 @@ function Events() {
   const [manage, setManage] = useState<{
     event: PublicClubEvent
     signupId: number
-    token: string | null
     status: SignupStatus | null
   } | null>(null)
 
@@ -152,7 +149,7 @@ function Events() {
                       key={event.id}
                       event={event}
                       onOpenSignup={setSignupEvent}
-                      onManageSignup={(e, signupId, token, status) => setManage({ event: e, signupId, token, status })}
+                      onManageSignup={(e, signupId, status) => setManage({ event: e, signupId, status })}
                     />
                   ))}
                 </div>
@@ -174,7 +171,6 @@ function Events() {
           <SignupModal
             event={manage.event}
             existingSignupId={manage.signupId}
-            existingCancelToken={manage.token}
             existingSignupStatus={manage.status}
             onCancelled={refresh}
             onClose={() => {
