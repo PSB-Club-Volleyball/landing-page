@@ -1,6 +1,6 @@
 import type { Env } from '../../_lib/env'
 
-export type ProviderName = 'google'
+export type ProviderName = 'google' | 'microsoft'
 
 export interface ProviderConfig {
   authUrl: string
@@ -20,6 +20,20 @@ export function getProvider(name: string, env: Env): ProviderConfig | null {
       scope: 'openid email profile',
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+    }
+  }
+  if (name === 'microsoft') {
+    return {
+      // /common allows both personal Microsoft accounts and work/school (Entra ID)
+      // accounts to sign in, matching Google's "anyone with an account" behavior.
+      authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+      tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      // Microsoft's OIDC userinfo endpoint, which returns the same sub/email/name
+      // claim shape as Google's — normalizeProfile needs no provider-specific case.
+      userinfoUrl: 'https://graph.microsoft.com/oidc/userinfo',
+      scope: 'openid email profile',
+      clientId: env.MICROSOFT_CLIENT_ID,
+      clientSecret: env.MICROSOFT_CLIENT_SECRET,
     }
   }
   return null
