@@ -8,7 +8,7 @@ import { getSessionUser } from './_lib/session'
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const events = await env.DB.prepare(
     `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
-            e.location_name, e.location_address, e.status, e.recurrence_days, e.recurrence_until,
+            e.location_name, e.location_address, e.status,
             e.signup_enabled, e.form_id, e.capacity,
             (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id) AS signup_count
      FROM events e

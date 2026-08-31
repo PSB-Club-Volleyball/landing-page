@@ -32,8 +32,6 @@ export interface ClubEvent {
   location_name: string | null
   location_address: string | null
   status: EventStatus
-  recurrence_days: string | null
-  recurrence_until: string | null
   signup_enabled: boolean
   form_id: number | null
   capacity: number | null
@@ -41,17 +39,22 @@ export interface ClubEvent {
 
 // Public-facing event with the signup summary the Events page needs to
 // decide what to render (a plain count vs. a "spots left" chip), plus the
-// visitor's own signup id if they're logged in and already signed up.
+// visitor's own signup id if they're logged in and already signed up. Every
+// event is a real, individually-dated occurrence — a recurring event just
+// means several of these were created together (see AdminEventRow.series_id).
 export interface PublicClubEvent extends ClubEvent {
   signup_count: number
   my_signup_id: number | null
 }
 
 // Admin's Events-tab row: same event, joined with the attached form's name
-// and its signup count for the table.
+// and its signup count for the table. series_id groups occurrence rows that
+// were created together from one "repeats weekly on..." submission; it's
+// admin-only bookkeeping and carries no meaning to the public page.
 export interface AdminEventRow extends ClubEvent {
   form_name: string | null
   signup_count: number
+  series_id: number | null
 }
 
 export type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'checkbox'
