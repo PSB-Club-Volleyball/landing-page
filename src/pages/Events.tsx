@@ -4,7 +4,6 @@ import { getEvents } from '../lib/api'
 import { getCancelToken } from '../lib/cancelTokens'
 import type { PublicClubEvent } from '../types'
 
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const TYPE_LABELS: Record<string, string> = {
   practice: 'Practice',
   tournament: 'Tournament',
@@ -15,20 +14,6 @@ const TYPE_LABELS: Record<string, string> = {
 
 const dayHeaderFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
-const monthDayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' })
-
-function formatRecurrence(event: PublicClubEvent) {
-  const days = event.recurrence_days!
-    .split(',')
-    .map((d) => WEEKDAY_LABELS[Number(d)])
-    .join(', ')
-  const start = timeFormatter.format(new Date(event.start_time))
-  const time = event.end_time ? `${start} – ${timeFormatter.format(new Date(event.end_time))}` : start
-  const until = event.recurrence_until
-    ? ` through ${monthDayFormatter.format(new Date(`${event.recurrence_until}T00:00`))}`
-    : ''
-  return `Every ${days}, ${time}${until}`
-}
 
 function formatTimeRange(event: PublicClubEvent) {
   const start = timeFormatter.format(new Date(event.start_time))
@@ -59,7 +44,7 @@ function EventCard({
         <p className="event-card-title">{event.title}</p>
         <span className="event-card-type">{TYPE_LABELS[event.event_type] ?? event.event_type}</span>
       </div>
-      <div className="event-card-when">{event.recurrence_days ? formatRecurrence(event) : formatTimeRange(event)}</div>
+      <div className="event-card-when">{formatTimeRange(event)}</div>
       {event.location_name && <div className="event-card-where">{event.location_name}</div>}
       {event.status === 'cancelled' && <p className="event-card-desc">Cancelled</p>}
       {event.status !== 'cancelled' && event.description && <p className="event-card-desc">{event.description}</p>}
@@ -107,11 +92,8 @@ function Events() {
 
   useEffect(refresh, [])
 
-  const recurring = (events ?? []).filter((e) => e.recurrence_days)
-  const oneTime = (events ?? []).filter((e) => !e.recurrence_days)
-
   const groups = new Map<string, PublicClubEvent[]>()
-  for (const event of oneTime) {
+  for (const event of events ?? []) {
     const dayKey = event.start_time.slice(0, 10)
     if (!groups.has(dayKey)) groups.set(dayKey, [])
     groups.get(dayKey)!.push(event)
@@ -136,24 +118,6 @@ function Events() {
         {!error && events !== null && events.length > 0 && (
           <>
             <p className="events-page-note">RSVP or sign up below &mdash; no account needed.</p>
-
-            {recurring.length > 0 && (
-              <div className="day-group">
-                <div className="day-label">
-                  Recurring <span className="day-label-count">{recurring.length}</span>
-                </div>
-                <div className="card-grid">
-                  {recurring.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onOpenSignup={setSignupEvent}
-                      onManageSignup={(e, signupId, token) => setManage({ event: e, signupId, token })}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
 
             {[...groups.entries()].map(([dayKey, dayEvents]) => (
               <div className="day-group" key={dayKey}>

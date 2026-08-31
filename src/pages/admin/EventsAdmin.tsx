@@ -46,8 +46,9 @@ function eventToDraft(e: AdminEventRow): Draft {
     location_name: e.location_name ?? '',
     status: e.status,
     description: e.description ?? '',
-    recurrence_days: e.recurrence_days ?? '',
-    recurrence_until: e.recurrence_until ?? '',
+    // Recurrence is create-time only (see events.ts) — an existing row never carries it.
+    recurrence_days: '',
+    recurrence_until: '',
     signup_enabled: e.signup_enabled,
     form_id: e.form_id !== null ? String(e.form_id) : '',
     capacity: e.capacity !== null ? String(e.capacity) : '',
@@ -264,6 +265,11 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
     }
   }
 
+  const seriesCounts = new Map<number, number>()
+  for (const ev of events) {
+    if (ev.series_id) seriesCounts.set(ev.series_id, (seriesCounts.get(ev.series_id) ?? 0) + 1)
+  }
+
   return (
     <>
       <div className="admin-main-head">
@@ -373,7 +379,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               <th>Type</th>
               <th>Starts</th>
               <th>Status</th>
-              <th>Repeats</th>
+              <th>Series</th>
               <th>Signups</th>
               <th>Actions</th>
             </tr>
@@ -445,7 +451,6 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                             </select>
                           </label>
                         </div>
-                        <RecurrenceFields draft={editDraft} onChange={setEditDraft} />
                       </fieldset>
                       <SignupFields draft={editDraft} onChange={setEditDraft} forms={forms} />
                       <div className="form-actions">
@@ -468,14 +473,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                     <td>
                       <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
                     </td>
-                    <td>
-                      {ev.recurrence_days
-                        ? ev.recurrence_days
-                            .split(',')
-                            .map((d) => WEEKDAY_LABELS[Number(d)])
-                            .join(', ')
-                        : '—'}
-                    </td>
+                    <td>{ev.series_id ? `Series of ${seriesCounts.get(ev.series_id) ?? 1}` : '—'}</td>
                     <td>
                       {ev.signup_enabled ? (
                         <button
