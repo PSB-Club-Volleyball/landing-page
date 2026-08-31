@@ -1,6 +1,7 @@
 import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
 import { fetchFormFields } from '../../_lib/forms'
+import { randomToken } from '../../_lib/crypto'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -8,10 +9,13 @@ interface SignupInput {
   name: string
   email: string
   answers?: Record<string, string>
+  waiver_accepted?: boolean
   company?: string // honeypot — real users never see or fill this field
 }
 
-// POST /api/events/:id/signups -> RSVP or sign up as a guest, no auth
+// POST /api/events/:id/signups -> RSVP or sign up as a guest, no auth.
+// Returns a cancel_token the client shows once (this app sends no outbound
+// email) — a logged-in account whose email matches can also cancel without it.
 export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
@@ -27,6 +31,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const body = await request.json<Partial<SignupInput>>().catch(() => null)
   if (!body || !body.name?.trim() || !body.email?.trim()) return badRequest('name and email are required')
   if (!EMAIL_PATTERN.test(body.email.trim())) return badRequest('Enter a valid email')
+  if (!body.waiver_accepted) return badRequest('You must accept the waiver to sign up')
 
   // Honeypot: real visitors never populate this hidden field. Pretend success
   // so a bot has no signal to react to, but skip the write entirely.
@@ -52,25 +57,33 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     fields.filter((f) => answers[f.id] !== undefined).map((f) => [f.id, String(answers[f.id])])
   )
 
+  const cancelToken = randomToken(24)
+  let signupId: number
+
   try {
-    await env.DB.prepare(
-      `INSERT INTO event_signups (event_id, name, email, answers) VALUES (?1, ?2, ?3, ?4)`
+    const result = await env.DB.prepare(
+      `INSERT INTO event_signups (event_id, name, email, answers, waiver_accepted, cancel_token) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
     )
       .bind(
         eventId,
         body.name.trim(),
         body.email.trim().toLowerCase(),
-        Object.keys(filteredAnswers).length ? JSON.stringify(filteredAnswers) : null
+        Object.keys(filteredAnswers).length ? JSON.stringify(filteredAnswers) : null,
+        1,
+        cancelToken
       )
       .run()
+    signupId = Number(result.meta.last_row_id)
   } catch (e) {
-    // idx_event_signups_event_email is the only thing that can reject this insert
-    // besides an infra failure — narrow to that case and let anything else surface.
+    // idx_event_signups_event_email is what this is meant to catch (a
+    // cancel_token collision could theoretically also trip the unique-index
+    // check, but at 24 random bytes that's not a real possibility) — narrow
+    // to a unique-constraint violation and let anything else surface.
     if (e instanceof Error && e.message.includes('UNIQUE constraint failed')) {
       return badRequest('You already signed up for this event with that email')
     }
     throw e
   }
 
-  return json({ ok: true }, { status: 201 })
+  return json({ ok: true, id: signupId, cancel_token: cancelToken }, { status: 201 })
 }

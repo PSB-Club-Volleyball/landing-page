@@ -1,6 +1,7 @@
 import type { Env } from './env'
 import { parseCookies, SESSION_COOKIE } from './cookies'
 import { sha256Hex } from './crypto'
+import type { UserRole } from './roles'
 
 export interface SessionUser {
   id: number
@@ -9,7 +10,7 @@ export interface SessionUser {
   avatarUrl: string | null
   provider: string
   status: 'pending' | 'approved' | 'denied'
-  role: 'member' | 'owner'
+  role: UserRole
 }
 
 export async function getSessionUser(request: Request, env: Env): Promise<SessionUser | null> {

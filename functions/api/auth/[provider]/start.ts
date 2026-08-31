@@ -1,10 +1,13 @@
 import type { Env } from '../../_lib/env'
-import { serializeCookie, OAUTH_STATE_COOKIE } from '../../_lib/cookies'
+import { serializeCookie, OAUTH_STATE_COOKIE, OAUTH_REDIRECT_COOKIE } from '../../_lib/cookies'
 import { randomToken } from '../../_lib/crypto'
 import { getProvider } from '../_lib/providers'
 
-// GET /api/auth/:provider/start -> redirects to the provider's consent screen (Google only)
-export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
+// GET /api/auth/:provider/start?redirect=/events -> redirects to the provider's
+// consent screen (Google only). `redirect` must be a same-origin path (checked
+// again on read at the callback) so signing in from any public page returns
+// there instead of always landing on /admin.
+export const onRequestGet: PagesFunction<Env> = async ({ request, params, env }) => {
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
   if (!provider) return new Response('Unknown auth provider', { status: 404 })
@@ -23,10 +26,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
     authorizeUrl.searchParams.set('prompt', 'select_account')
   }
 
+  const requestedRedirect = new URL(request.url).searchParams.get('redirect')
+  const redirectPath = requestedRedirect && requestedRedirect.startsWith('/') ? requestedRedirect : null
+
   const headers = new Headers({ Location: authorizeUrl.toString() })
-  headers.append(
-    'Set-Cookie',
-    serializeCookie(OAUTH_STATE_COOKIE, state, { maxAge: 600, path: '/api/auth' })
-  )
+  headers.append('Set-Cookie', serializeCookie(OAUTH_STATE_COOKIE, state, { maxAge: 600, path: '/api/auth' }))
+  if (redirectPath) {
+    headers.append('Set-Cookie', serializeCookie(OAUTH_REDIRECT_COOKIE, redirectPath, { maxAge: 600, path: '/api/auth' }))
+  }
   return new Response(null, { status: 302, headers })
 }

@@ -8,16 +8,20 @@ interface SignupRow {
   name: string
   email: string
   answers: string | null
+  waiver_accepted: number
   created_at: string
 }
 
-// GET /api/admin/events/:id/signups -> attendee list for the event's "View signups" panel
+// GET /api/admin/events/:id/signups -> attendee list for the event's "View signups"
+// panel. cancel_token is deliberately excluded — it's the submitter's private
+// self-cancel credential, not something the admin view needs to see.
 export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, params }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const signups = await env.DB.prepare(
-    `SELECT * FROM event_signups WHERE event_id = ?1 ORDER BY created_at ASC`
+    `SELECT id, event_id, name, email, answers, waiver_accepted, created_at
+     FROM event_signups WHERE event_id = ?1 ORDER BY created_at ASC`
   )
     .bind(eventId)
     .all<SignupRow>()
@@ -25,6 +29,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
   const parsed = (signups.results ?? []).map((row) => ({
     ...row,
     answers: row.answers ? (JSON.parse(row.answers) as Record<string, string>) : null,
+    waiver_accepted: Boolean(row.waiver_accepted),
   }))
 
   return json({ signups: parsed })

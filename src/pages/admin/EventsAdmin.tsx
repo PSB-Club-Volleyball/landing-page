@@ -138,16 +138,29 @@ function SignupFields({
   )
 }
 
-function SignupsPanel({ eventId }: { eventId: number }) {
+function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () => void }) {
   const [signups, setSignups] = useState<EventSignup[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+  function refresh() {
     adminApi.events
       .signups(eventId)
       .then((res) => setSignups(res.signups))
       .catch((e: Error) => setError(e.message))
-  }, [eventId])
+  }
+
+  useEffect(refresh, [eventId])
+
+  async function handleRemove(signupId: number) {
+    if (!confirm('Remove this person from the signup list?')) return
+    try {
+      await adminApi.events.removeSignup(eventId, signupId)
+      refresh()
+      onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
 
   if (error) return <p className="admin-error">{error}</p>
   if (!signups) return <p className="admin-note">Loading&hellip;</p>
@@ -159,8 +172,10 @@ function SignupsPanel({ eventId }: { eventId: number }) {
         <tr>
           <th>Name</th>
           <th>Email</th>
+          <th>Waiver</th>
           <th>Answers</th>
           <th>Submitted</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -169,11 +184,21 @@ function SignupsPanel({ eventId }: { eventId: number }) {
             <td>{s.name}</td>
             <td>{s.email}</td>
             <td>
+              <span className={s.waiver_accepted ? 'waiver-chip' : 'waiver-chip no'}>
+                {s.waiver_accepted ? 'Signed' : 'Not signed'}
+              </span>
+            </td>
+            <td>
               {s.answers
                 ? Object.values(s.answers).filter(Boolean).join(', ') || '—'
                 : '—'}
             </td>
             <td>{new Date(s.created_at).toLocaleDateString()}</td>
+            <td>
+              <button type="button" className="danger" onClick={() => handleRemove(s.id)}>
+                Remove
+              </button>
+            </td>
           </tr>
         ))}
       </tbody>
@@ -495,7 +520,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   {signupsOpenFor === ev.id && (
                     <tr>
                       <td colSpan={7}>
-                        <SignupsPanel eventId={ev.id} />
+                        <SignupsPanel eventId={ev.id} onChanged={refresh} />
                       </td>
                     </tr>
                   )}

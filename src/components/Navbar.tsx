@@ -3,6 +3,9 @@ import { NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
 import InstagramLink from './InstagramLink'
 import MenuIcon from './MenuIcon'
+import { getMe } from '../lib/api'
+import { logout } from '../lib/adminApi'
+import type { AuthUser } from '../types'
 
 const PAGES = [
   { to: '/', label: 'Home' },
@@ -11,13 +14,30 @@ const PAGES = [
   { to: '/photos', label: 'Photos' },
 ]
 
+function initials(user: AuthUser) {
+  const source = user.name || user.email
+  return source
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
 function Navbar() {
   const [open, setOpen] = useState(false)
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
   const location = useLocation()
 
   useEffect(() => {
     setOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    getMe()
+      .then((res) => setUser(res.user))
+      .catch(() => setUser(null))
+  }, [])
 
   return (
     <header className="navbar">
@@ -49,6 +69,32 @@ function Navbar() {
             </NavLink>
           ))}
         </nav>
+        <div className="nav-account">
+          {user === undefined && null}
+          {user === null && (
+            <a
+              className="nav-signin"
+              href={`/api/auth/google/start?redirect=${encodeURIComponent(location.pathname)}`}
+              onClick={() => setOpen(false)}
+            >
+              Sign in
+            </a>
+          )}
+          {user && (
+            <span className="nav-account-chip">
+              <span className="nav-avatar">{initials(user)}</span>
+              <button
+                type="button"
+                className="nav-signout"
+                onClick={() => {
+                  logout().then(() => window.location.reload())
+                }}
+              >
+                Sign out
+              </button>
+            </span>
+          )}
+        </div>
         <InstagramLink onClick={() => setOpen(false)} />
       </div>
     </header>

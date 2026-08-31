@@ -23,7 +23,7 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
   if (target.status !== 'approved') return badRequest('Ownership can only transfer to an approved user')
 
   await env.DB.batch([
-    env.DB.prepare(`UPDATE users SET role = 'member' WHERE id = ?1`).bind(data.user.id),
+    env.DB.prepare(`UPDATE users SET role = 'admin' WHERE id = ?1`).bind(data.user.id),
     env.DB.prepare(`UPDATE users SET role = 'owner' WHERE id = ?1`).bind(toUserId),
   ])
 

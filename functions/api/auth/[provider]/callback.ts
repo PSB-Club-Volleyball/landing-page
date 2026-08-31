@@ -1,28 +1,44 @@
 import type { Env } from '../../_lib/env'
-import { parseCookies, serializeCookie, OAUTH_STATE_COOKIE, SESSION_COOKIE, SESSION_TTL_SECONDS } from '../../_lib/cookies'
+import {
+  parseCookies,
+  serializeCookie,
+  OAUTH_STATE_COOKIE,
+  OAUTH_REDIRECT_COOKIE,
+  SESSION_COOKIE,
+  SESSION_TTL_SECONDS,
+} from '../../_lib/cookies'
 import { randomToken, sha256Hex } from '../../_lib/crypto'
 import { getProvider, normalizeProfile } from '../_lib/providers'
 
 // GET /api/auth/:provider/callback -> exchanges the auth code, upserts the
-// user (pending unless they're in ADMIN_BOOTSTRAP_EMAILS), opens a session.
+// user (auto-approved as an outsider unless they're in ADMIN_BOOTSTRAP_EMAILS,
+// in which case they land as admin/owner), opens a session.
 export const onRequestGet: PagesFunction<Env> = async ({ request, params, env }) => {
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
   if (!provider) return new Response('Unknown auth provider', { status: 404 })
 
-  const toAdmin = (query = '') =>
-    new Response(null, {
-      status: 302,
-      headers: { Location: `${env.PUBLIC_URL}/admin${query ? `?${query}` : ''}` },
-    })
-
   const url = new URL(request.url)
+  const cookies = parseCookies(request.headers.get('cookie'))
+  const requestedRedirect = cookies[OAUTH_REDIRECT_COOKIE]
+  const redirectTarget = requestedRedirect && requestedRedirect.startsWith('/') ? requestedRedirect : '/admin'
+
+  const clearOAuthCookies = (headers: Headers) => {
+    headers.append('Set-Cookie', serializeCookie(OAUTH_STATE_COOKIE, '', { maxAge: 0, path: '/api/auth' }))
+    headers.append('Set-Cookie', serializeCookie(OAUTH_REDIRECT_COOKIE, '', { maxAge: 0, path: '/api/auth' }))
+  }
+
+  const toRedirect = (query = '') => {
+    const headers = new Headers({ Location: `${env.PUBLIC_URL}${redirectTarget}${query ? `?${query}` : ''}` })
+    clearOAuthCookies(headers)
+    return new Response(null, { status: 302, headers })
+  }
+
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')
-  const cookies = parseCookies(request.headers.get('cookie'))
 
   if (!code || !state || !cookies[OAUTH_STATE_COOKIE] || cookies[OAUTH_STATE_COOKIE] !== state) {
-    return toAdmin('error=invalid_state')
+    return toRedirect('error=invalid_state')
   }
 
   const redirectUri = `${env.PUBLIC_URL}/api/auth/${providerName}/callback`
@@ -37,15 +53,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
       grant_type: 'authorization_code',
     }),
   })
-  if (!tokenResponse.ok) return toAdmin('error=token_exchange_failed')
+  if (!tokenResponse.ok) return toRedirect('error=token_exchange_failed')
   const tokenData = await tokenResponse.json<{ access_token: string }>()
 
   const profileResponse = await fetch(provider.userinfoUrl, {
     headers: { authorization: `Bearer ${tokenData.access_token}` },
   })
-  if (!profileResponse.ok) return toAdmin('error=profile_fetch_failed')
+  if (!profileResponse.ok) return toRedirect('error=profile_fetch_failed')
   const profile = normalizeProfile(await profileResponse.json<Record<string, unknown>>())
-  if (!profile) return toAdmin('error=missing_profile_fields')
+  if (!profile) return toRedirect('error=missing_profile_fields')
 
   const bootstrapEmails = env.ADMIN_BOOTSTRAP_EMAILS.split(',')
     .map((e) => e.trim().toLowerCase())
@@ -70,15 +86,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   let userId: number
   if (existing) {
     userId = existing.id
-    // Re-approve on every login, not just at account creation — otherwise a
-    // bootstrap email that landed as `pending` before it was added to (or
-    // corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck pending forever, with
-    // no other approved admin able to unstick it.
+    // Re-approve and re-assert admin rank on every login, not just at account
+    // creation — otherwise a bootstrap email that landed as `pending`/demoted
+    // before it was added to (or corrected in) ADMIN_BOOTSTRAP_EMAILS stays
+    // stuck, with no other admin able to unstick it. Never downgrades an
+    // existing owner.
     if (isBootstrap) {
       const approve = () =>
         env.DB.prepare(
           `UPDATE users SET name = ?1, avatar_url = ?2, email = ?3, status = 'approved',
-                  decided_at = COALESCE(decided_at, CURRENT_TIMESTAMP)${assignOwner ? `, role = 'owner'` : ''}
+                  decided_at = COALESCE(decided_at, CURRENT_TIMESTAMP),
+                  role = ${assignOwner ? `'owner'` : `CASE WHEN role = 'owner' THEN role ELSE 'admin' END`}
            WHERE id = ?4`
         )
           .bind(profile.name, profile.picture, profile.email, userId)
@@ -88,9 +106,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
       } catch (e) {
         // Lost the race to claim the owner role — another concurrent bootstrap
         // login won it between our "no owner yet" check and this write. That
-        // login is still otherwise valid, so retry once as a normal approved
-        // user instead of failing it; a genuinely different failure will still
-        // throw on retry since assignOwner no longer applies.
+        // login is still otherwise valid, so retry once as admin instead of
+        // failing it; a genuinely different failure will still throw on retry
+        // since assignOwner no longer applies.
         if (!assignOwner) throw e
         assignOwner = false
         await approve()
@@ -101,6 +119,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
         .run()
     }
   } else {
+    // Non-bootstrap signups are auto-approved as outsiders: there's nothing to
+    // review since an outsider has no admin permissions. An existing admin/
+    // owner promotes them to club_member/admin later from the Users tab.
     const insert = () =>
       env.DB.prepare(
         `INSERT INTO users (email, name, avatar_url, provider, provider_sub, status, decided_at, role)
@@ -112,9 +133,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
           profile.picture,
           providerName,
           profile.sub,
-          isBootstrap ? 'approved' : 'pending',
+          'approved',
           isBootstrap ? new Date().toISOString() : null,
-          assignOwner ? 'owner' : 'member'
+          assignOwner ? 'owner' : isBootstrap ? 'admin' : 'outsider'
         )
         .run()
     let inserted
@@ -136,8 +157,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
     .bind(userId, tokenHash, expiresAt)
     .run()
 
-  const headers = new Headers({ Location: `${env.PUBLIC_URL}/admin` })
+  const headers = new Headers({ Location: `${env.PUBLIC_URL}${redirectTarget}` })
   headers.append('Set-Cookie', serializeCookie(SESSION_COOKIE, sessionToken, { maxAge: SESSION_TTL_SECONDS, path: '/' }))
-  headers.append('Set-Cookie', serializeCookie(OAUTH_STATE_COOKIE, '', { maxAge: 0, path: '/api/auth' }))
+  clearOAuthCookies(headers)
   return new Response(null, { status: 302, headers })
 }
