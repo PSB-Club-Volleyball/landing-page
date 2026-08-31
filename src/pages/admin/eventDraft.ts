@@ -1,9 +1,15 @@
-import type { AdminEventRow, EventStatus } from '../../types'
+import type { AdminEventRow, EventStatus, EventVisibility } from '../../types'
 
 // Pure (non-component) helpers for the event form — kept out of eventForm.tsx
 // so that file can be components-only.
 
 export const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+export const VISIBILITY_LABELS: Record<EventVisibility, string> = {
+  public: 'Public',
+  club: 'Club members only',
+  eboard: 'E-board only',
+}
 
 // Shifts a "YYYY-MM-DDTHH:MM" wall-clock string by a number of calendar days
 // (month/year rollover included), leaving the time-of-day untouched. Done in
@@ -26,6 +32,7 @@ export const emptyDraft = {
   location_name: '',
   location_address: '',
   status: 'draft' as EventStatus,
+  visibility: 'public' as EventVisibility,
   description: '',
   recurrence_days: '' as string, // comma-separated weekday ints, e.g. "2,4,6"; empty = one-time
   recurrence_until: '',
@@ -47,6 +54,7 @@ export function toInput(draft: Draft) {
     location_name: draft.location_name || null,
     location_address: draft.location_address || null,
     status: draft.status,
+    visibility: draft.visibility,
     description: draft.description || null,
     recurrence_days: draft.recurrence_days || null,
     recurrence_until: draft.recurrence_days ? draft.recurrence_until || null : null,
@@ -74,6 +82,7 @@ export function eventToDraft(e: AdminEventRow): Draft {
     location_name: e.location_name ?? '',
     location_address: e.location_address ?? '',
     status: e.status,
+    visibility: e.visibility,
     description: e.description ?? '',
     // Recurrence is create-time only (see events.ts) — an existing row never carries it.
     recurrence_days: '',
