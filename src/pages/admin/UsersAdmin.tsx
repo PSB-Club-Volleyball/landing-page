@@ -157,24 +157,22 @@ function UserRow({
         )}
       </td>
       <td>
-        {role === 'club_member' || role === 'admin' ? (
-          <span className="row-actions">
-            <span className={waiverCurrent ? 'waiver-chip' : 'waiver-chip no'}>
-              {user.waiver_signed_year
-                ? waiverCurrent
-                  ? `Signed ${user.waiver_signed_year}`
-                  : `Expired ${user.waiver_signed_year}`
-                : 'Not signed'}
-            </span>
-            {!locked && (
-              <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
-                {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
-              </button>
-            )}
+        {/* Waivers are required of everyone who sets foot on the court,
+            outsiders included — not just club members and admins. */}
+        <span className="row-actions">
+          <span className={waiverCurrent ? 'waiver-chip' : 'waiver-chip no'}>
+            {user.waiver_signed_year
+              ? waiverCurrent
+                ? `Signed ${user.waiver_signed_year}`
+                : `Expired ${user.waiver_signed_year}`
+              : 'Not signed'}
           </span>
-        ) : (
-          '—'
-        )}
+          {!locked && (
+            <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
+              {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
+            </button>
+          )}
+        </span>
       </td>
       <td>
         {role === 'club_member' || role === 'admin' ? (
