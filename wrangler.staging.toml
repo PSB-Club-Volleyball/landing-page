@@ -1,0 +1,24 @@
+# Separate Cloudflare Pages project for the persistent staging site
+# (staging.behrendclubvolleyball.org), deployed from the `staging` branch.
+# Its D1 database and R2 bucket are entirely separate from both production
+# and the ephemeral PR-preview backend — see docs/backend-setup.md.
+
+name = "behrend-club-volleyball-staging"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "behrend-club-volleyball-staging"
+database_id = "a6911b14-456a-4f2c-953c-bf9bfaf48ddd"
+
+[[env.production.r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "behrend-club-volleyball-staging"
+
+# Secrets (OAuth client IDs/secrets) are set separately with
+# `wrangler pages secret put <NAME> --config wrangler.staging.toml --env production`.
+[env.production.vars]
+PUBLIC_URL = "https://staging.behrendclubvolleyball.org"
+ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"

@@ -1,15 +1,15 @@
-name: Deploy
+name: Deploy Staging
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
+  deploy-staging:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,4 +26,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=behrend-club-volleyball --branch=main
+          command: pages deploy dist --project-name=behrend-club-volleyball-staging --branch=staging --config=wrangler.staging.toml

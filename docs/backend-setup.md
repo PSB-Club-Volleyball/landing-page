@@ -5,6 +5,24 @@ backed by a D1 database (roster, board, events, media, users, sessions,
 audit log) and an R2 bucket for photos/video. Sign-in supports Google and
 Microsoft.
 
+There are three separate backends, each with its own D1 database and R2
+bucket so they never share data:
+
+| Environment | Site                                  | Pages project                    | Config file            | D1 database                     | R2 bucket                        |
+|-------------|----------------------------------------|-----------------------------------|-------------------------|----------------------------------|-----------------------------------|
+| Production  | `behrendclubvolleyball.org`            | `behrend-club-volleyball`         | `wrangler.toml` (`env.production`) | `behrend-club-volleyball`        | `behrend-club-volleyball`         |
+| Staging     | `staging.behrendclubvolleyball.org`    | `behrend-club-volleyball-staging` | `wrangler.staging.toml` | `behrend-club-volleyball-staging` | `behrend-club-volleyball-staging` |
+| Preview (ephemeral PR deploys) | `*.behrend-club-volleyball.pages.dev` | `behrend-club-volleyball` (preview env) | `wrangler.toml` (`env.preview`) | `behrend-club-volleyball-preview` | `behrend-club-volleyball-preview` |
+
+Cloudflare Pages only recognizes two environments per project —
+`production` and `preview`. Every push to `main` deploys to `production`;
+every other branch (including PRs) is a `preview` deployment and
+automatically picks up the `env.preview` bindings in `wrangler.toml`, so PR
+previews never touch production data. Staging needs its own persistent URL
+and its own isolated backend, so it lives in a **second Pages project**
+(`behrend-club-volleyball-staging`) whose production branch is `staging`,
+configured by `wrangler.staging.toml`.
+
 ## 1. Install the CLI and log in
 
 ```
@@ -12,69 +30,114 @@ npm install
 npx wrangler login
 ```
 
-## 2. Create the D1 database — done
+## 2. D1 databases — done
 
-The database exists (`behrend-club-volleyball`, id `eca8d67f-5fef-44c1-9f2c-6df039abfbb8`)
-and `wrangler.toml` already has it. What's left is applying the schema:
+All three databases already exist and `wrangler.toml` / `wrangler.staging.toml`
+have their IDs:
+
+- `behrend-club-volleyball` (production), id `eca8d67f-5fef-44c1-9f2c-6df039abfbb8`
+- `behrend-club-volleyball-staging`, id `a6911b14-456a-4f2c-953c-bf9bfaf48ddd`
+- `behrend-club-volleyball-preview`, id `e2b27718-eb68-40d2-a94e-9909066be0b5`
+
+What's left is applying the schema to each:
 
 ```
-npm run db:migrate:remote
+npm run db:migrate:remote    # production
+npm run db:migrate:staging   # staging
+npm run db:migrate:preview   # ephemeral PR-preview backend
 ```
 
-(`npm run db:migrate:local` runs the same migration against a local sqlite
-file for `wrangler pages dev`; that one doesn't touch the real database.)
+(`npm run db:migrate:local` runs the same migrations against a local sqlite
+file for `wrangler pages dev`; that one doesn't touch any real database.)
 This step needs to run from a machine that can actually reach the Cloudflare
 API — it can't be run from a sandboxed coding session with restricted
 network egress.
 
-## 3. Create the R2 bucket — done
+## 3. R2 buckets — done
 
-The bucket exists as `behrend-club-volleyball` (not `-media` — that's just
-what got typed when creating it) and `wrangler.toml`'s `bucket_name` matches.
-Nothing left to do here.
+All three buckets exist and the config files already reference them:
+`behrend-club-volleyball` (production), `behrend-club-volleyball-staging`,
+and `behrend-club-volleyball-preview`. Nothing left to do here.
 
-## 4. Register the Google OAuth app
+## 4. Create the staging Pages project and attach its domain
+
+The `behrend-club-volleyball` Pages project already exists (production +
+preview deploys). Staging needs its own project so it can have its own
+persistent custom domain and production-branch semantics:
+
+```
+npx wrangler pages project create behrend-club-volleyball-staging --production-branch=staging
+```
+
+Then in the Cloudflare dashboard → Pages → `behrend-club-volleyball-staging`
+→ **Custom domains**, add `staging.behrendclubvolleyball.org` (this adds the
+DNS record automatically if the zone is on the same Cloudflare account).
+
+Pushing to the `staging` branch (see `.github/workflows/deploy-staging.yml`)
+now deploys to this project.
+
+## 5. Register the Google OAuth app
 
 1. [Google Cloud Console](https://console.cloud.google.com/) → APIs & Services → Credentials.
 2. Create an OAuth client ID, application type **Web application**.
-3. Authorized redirect URI: `https://behrendclubvolleyball.org/api/auth/google/callback`
-   (add a second one for any preview/staging domain you use).
+3. Authorized redirect URIs — add one per environment you want working sign-in on:
+   - `https://behrendclubvolleyball.org/api/auth/google/callback` (production)
+   - `https://staging.behrendclubvolleyball.org/api/auth/google/callback` (staging)
+   - `http://localhost:8788/api/auth/google/callback` (local dev)
 4. Copy the Client ID and Client Secret.
 
-## 5. Register the Microsoft (Entra ID) app
+(PR preview deploys get a per-branch `*.pages.dev` URL that can't be
+pre-registered as a fixed redirect URI, so Google/Microsoft sign-in won't
+complete on preview deploys — everything else works against the isolated
+preview backend.)
+
+## 6. Register the Microsoft (Entra ID) app
 
 1. [Entra admin center](https://entra.microsoft.com/) → Identity → Applications
    → App registrations → New registration.
 2. Supported account types: **Accounts in any organizational directory and
    personal Microsoft accounts** (matches Google's "anyone with an account"
    behavior; the callback code already assumes this).
-3. Redirect URI: platform **Web**,
-   `https://behrendclubvolleyball.org/api/auth/microsoft/callback`
-   (add a second one for any preview/staging domain you use).
+3. Redirect URI: platform **Web**, add one per environment:
+   - `https://behrendclubvolleyball.org/api/auth/microsoft/callback`
+   - `https://staging.behrendclubvolleyball.org/api/auth/microsoft/callback`
+   - `http://localhost:8788/api/auth/microsoft/callback` (local dev)
 4. Copy the Application (client) ID from the app's Overview page.
 5. Certificates & secrets → New client secret → copy the secret **value**
    (not the secret ID) immediately, since it's hidden after you leave the page.
 
-## 6. Set the secrets
+## 7. Set the secrets
 
 Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`) already lives in
-`wrangler.toml`. The actual OAuth credentials are secrets — never commit them:
+`wrangler.toml` / `wrangler.staging.toml`. The actual OAuth credentials are
+secrets — never commit them, and set them separately per environment:
 
 ```
-npx wrangler pages secret put GOOGLE_CLIENT_ID
-npx wrangler pages secret put GOOGLE_CLIENT_SECRET
-npx wrangler pages secret put MICROSOFT_CLIENT_ID
-npx wrangler pages secret put MICROSOFT_CLIENT_SECRET
+# Production
+npx wrangler pages secret put GOOGLE_CLIENT_ID --env production
+npx wrangler pages secret put GOOGLE_CLIENT_SECRET --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_ID --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --env production
+
+# Staging (separate Pages project, so pass --config)
+npx wrangler pages secret put GOOGLE_CLIENT_ID --config wrangler.staging.toml --env production
+npx wrangler pages secret put GOOGLE_CLIENT_SECRET --config wrangler.staging.toml --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_ID --config wrangler.staging.toml --env production
+npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --config wrangler.staging.toml --env production
 ```
+
+PR previews use the shared `preview` environment; sign-in won't complete
+there (see the note in step 5), so preview secrets are optional.
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and fill in
 the same four values there instead (that file is gitignored).
 
-## 7. Check `ADMIN_BOOTSTRAP_EMAILS`
+## 8. Check `ADMIN_BOOTSTRAP_EMAILS`
 
 `wrangler.toml` has:
 
 ```toml
+[env.production.vars]
 ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
 ```
 
@@ -84,13 +147,21 @@ chicken-and-egg problem of "no one is approved yet to approve anyone."
 Everyone else who signs in afterward lands as `pending` until an approved
 user approves them from the Users tab in `/admin`. Add more emails
 (comma-separated) if more than one person should start out pre-approved.
+`wrangler.staging.toml` has its own copy of this var for the staging
+backend.
 
-## 8. Deploy
+## 9. Deploy
 
-The existing GitHub Actions (`deploy.yml` / `deploy-preview.yml`) already run
-`wrangler pages deploy`, which picks up `wrangler.toml`'s bindings and vars
-automatically. Nothing to change there — once the database/bucket/secrets
-above exist, the next push just works.
+- `main` → `.github/workflows/deploy.yml` deploys production.
+- `staging` → `.github/workflows/deploy-staging.yml` deploys the staging
+  Pages project.
+- Any PR → `.github/workflows/deploy-preview.yml` deploys an ephemeral
+  preview build against the shared preview backend and comments the URL on
+  the PR.
+
+All three already run `wrangler pages deploy`, which picks up the right
+config file/environment automatically. Nothing to change there — once the
+databases/buckets/secrets above exist, pushes just work.
 
 ## Local dev
 
@@ -98,9 +169,10 @@ above exist, the next push just works.
 npm run pages:dev
 ```
 
-Builds the SPA and serves it through `wrangler pages dev`, so
-`functions/api/**` runs against a local D1/R2 emulation
-(`npm run db:migrate:local` seeds the schema into it). OAuth won't complete
-locally unless `.dev.vars` has real credentials and the provider's redirect
-URI allow-list includes `http://localhost:8788/api/auth/<provider>/callback`
-(`google` or `microsoft`).
+Builds the SPA and serves it through `wrangler pages dev --env preview`, so
+`functions/api/**` runs against a local D1/R2 emulation seeded from the
+`preview` bindings (`npm run db:migrate:local` seeds the schema into it).
+OAuth won't complete locally unless `.dev.vars` has real credentials and the
+provider's redirect URI allow-list includes
+`http://localhost:8788/api/auth/<provider>/callback` (`google` or
+`microsoft`).
