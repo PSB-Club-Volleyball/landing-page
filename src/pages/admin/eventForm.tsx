@@ -1,6 +1,13 @@
 import { useAutosizeTextarea } from '../../lib/autosize'
-import type { EventStatus, FormTemplate } from '../../types'
-import { combineDateTime, splitDateTime, toggleWeekday, WEEKDAY_LABELS, type Draft } from './eventDraft'
+import type { EventStatus, EventVisibility, FormTemplate } from '../../types'
+import {
+  combineDateTime,
+  splitDateTime,
+  toggleWeekday,
+  VISIBILITY_LABELS,
+  WEEKDAY_LABELS,
+  type Draft,
+} from './eventDraft'
 
 // Shared event-form pieces used by both the Events list's "New event" modal
 // and the routed event page's Details tab. Every piece takes the whole Draft
@@ -250,6 +257,19 @@ export function EventFormFields({
               <option value="draft">Draft</option>
               <option value="published">Published</option>
               <option value="cancelled">Cancelled</option>
+            </select>
+          </label>
+          <label className="field">
+            Visibility <span className="field-hint">(who can see this event on the public site)</span>
+            <select
+              value={draft.visibility}
+              onChange={(e) => onChange({ ...draft, visibility: e.target.value as EventVisibility })}
+            >
+              {(Object.keys(VISIBILITY_LABELS) as EventVisibility[]).map((v) => (
+                <option key={v} value={v}>
+                  {VISIBILITY_LABELS[v]}
+                </option>
+              ))}
             </select>
           </label>
         </div>

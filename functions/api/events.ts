@@ -1,6 +1,7 @@
 import type { Env } from './_lib/env'
 import { json } from './_lib/http'
 import { getSessionUser } from './_lib/session'
+import { isAtLeast } from './_lib/roles'
 
 // GET /api/events -> published + cancelled events (drafts stay admin-only), soonest
 // first. Two things are filtered out here rather than in the admin table, since
@@ -12,22 +13,35 @@ import { getSessionUser } from './_lib/session'
 //    instead of all showing up front. One-time events aren't held back this
 //    way, and an admin can override this per-occurrence (released_early) —
 //    e.g. a tournament people need to RSVP for well ahead of the 7-day mark.
+// A third filter, visibility, depends on the visitor's role rather than the
+// event itself, so it's computed from the session before the query runs.
 // If the visitor is signed in, each event also carries their own signup (if
 // any) so the card can offer "cancel" instead of "RSVP" without a second request.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
+  const sessionUser = await getSessionUser(request, env)
+  const role = sessionUser?.role ?? 'outsider'
+  const allowedVisibilities = isAtLeast(role, 'admin')
+    ? ['public', 'club', 'eboard']
+    : isAtLeast(role, 'club_member')
+      ? ['public', 'club']
+      : ['public']
+  const visibilityPlaceholders = allowedVisibilities.map((_, i) => `?${i + 1}`).join(', ')
+
   const events = await env.DB.prepare(
     `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
-            e.location_name, e.location_address, e.status,
+            e.location_name, e.location_address, e.status, e.visibility,
             e.signup_enabled, e.rsvp_gated, e.form_id, e.capacity, e.tags, e.signup_deadline,
             (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id AND s.status = 'approved') AS signup_count
      FROM events e
      WHERE e.status IN ('published', 'cancelled')
+       AND e.visibility IN (${visibilityPlaceholders})
        AND datetime(COALESCE(e.end_time, e.start_time)) >= datetime('now')
        AND (e.series_id IS NULL OR e.released_early = 1 OR date(e.start_time) <= date('now', '+7 days'))
      ORDER BY e.start_time ASC`
-  ).all<Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; id: number }>()
+  )
+    .bind(...allowedVisibilities)
+    .all<Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; id: number }>()
 
-  const sessionUser = await getSessionUser(request, env)
   const mySignupsByEvent = new Map<number, { id: number; status: string }>()
   if (sessionUser) {
     const mine = await env.DB.prepare(`SELECT id, event_id, status FROM event_signups WHERE LOWER(email) = ?1`)

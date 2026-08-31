@@ -5,7 +5,7 @@ import AdminModal from '../../components/admin/AdminModal'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { useSelection } from '../../lib/useSelection'
-import { emptyDraft, eventToDraft, shiftDateTime, toInput, type Draft } from './eventDraft'
+import { emptyDraft, eventToDraft, shiftDateTime, toInput, VISIBILITY_LABELS, type Draft } from './eventDraft'
 import { EventFormFields } from './eventForm'
 import type { AdminEventRow, EventStatus, FormTemplate } from '../../types'
 
@@ -502,6 +502,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               <th>Type</th>
               <th>Starts</th>
               <th>Status</th>
+              <th>Visibility</th>
               <th>Series</th>
               <th>Signups</th>
               <th>Actions</th>
@@ -510,12 +511,12 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={8}>Loading&hellip;</td>
+                <td colSpan={9}>Loading&hellip;</td>
               </tr>
             )}
             {!loading && events.length === 0 && (
               <tr>
-                <td colSpan={8}>No events yet.</td>
+                <td colSpan={9}>No events yet.</td>
               </tr>
             )}
             {events.map((ev) => (
@@ -536,6 +537,9 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   ) : (
                     <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
                   )}
+                </td>
+                <td>
+                  <span className={`status-chip visibility-${ev.visibility}`}>{VISIBILITY_LABELS[ev.visibility]}</span>
                 </td>
                 <td>
                   {ev.series_id ? (
