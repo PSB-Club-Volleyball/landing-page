@@ -163,16 +163,6 @@ export interface PendingUser {
   decided_by: number | null
 }
 
-export type LaundryStage = 'clean' | 'dirty'
-
-export interface LaundryItem {
-  id: number
-  name: string
-  stage: LaundryStage
-  sort_order: number
-  updated_at: string
-}
-
 export interface AuditEntry {
   id: number
   action: 'create' | 'update' | 'delete'
