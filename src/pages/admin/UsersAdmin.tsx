@@ -62,10 +62,11 @@ function UserRow({
     }
   }
 
-  // Only the owner may touch role, approval status, or admin-verified fields
-  // (waiver/dues) on a row that's currently admin — even the admin's own row.
-  // Basic profile fields (name/position/team) are never guarded — any admin
-  // can edit any user's basic info, including another admin's.
+  // Only the owner may touch role or approval status on a row that's
+  // currently admin — even the admin's own row. Waiver/dues verification and
+  // basic profile fields (name/position/team) are never guarded — any admin
+  // can mark another admin's waiver/dues and edit their basic info,
+  // including their own.
   const ownerOnly = !isOwner && user.role === 'admin'
   const roleOptions: Exclude<UserRole, 'owner'>[] = isOwner
     ? ['outsider', 'club_member', 'admin']
@@ -164,11 +165,9 @@ function UserRow({
                 : `Expired ${user.waiver_signed_year}`
               : 'Not signed'}
           </span>
-          {!ownerOnly && (
-            <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
-              {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
-            </button>
-          )}
+          <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
+            {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
+          </button>
         </span>
       </td>
       <td>
@@ -181,11 +180,9 @@ function UserRow({
                   : `Expired ${user.dues_paid_year}`
                 : 'Not paid'}
             </span>
-            {!ownerOnly && (
-              <button type="button" disabled={duesSaving} onClick={toggleDues}>
-                {duesSaving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
-              </button>
-            )}
+            <button type="button" disabled={duesSaving} onClick={toggleDues}>
+              {duesSaving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
+            </button>
           </span>
         ) : (
           '—'
@@ -279,7 +276,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
         Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
         someone to club member or admin below.
         {!isOwner &&
-          " Only the owner can grant admin, or change another admin's role, approval status, waiver, or dues — anyone's name, position, and team can still be edited by an admin."}
+          " Only the owner can grant admin, or change another admin's role or approval status — anyone's name, position, team, waiver, and dues can still be edited by an admin."}
       </p>
       {loading && <p>Loading&hellip;</p>}
 
