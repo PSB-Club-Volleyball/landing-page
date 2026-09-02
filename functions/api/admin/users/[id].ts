@@ -22,11 +22,11 @@ interface UsersPatchInput {
 // waiver or dues as on file for the current year — the latter is an annual,
 // admin-verified thing (e.g. a signed paper form or cash/check received),
 // never something the member self-attests to. Granting 'admin', or touching
-// status/role/waiver/dues on a row that's currently admin, is owner-only —
-// an admin can't create or remove other admins, or approve/deny, re-role, or
-// re-verify another admin's (or their own) waiver/dues. Basic profile fields
-// (name/position/team) on an admin row are NOT guarded — any admin can edit
-// any user's basic info, including another admin's.
+// status/role on a row that's currently admin, is owner-only — an admin
+// can't create or remove other admins, or approve/deny or re-role another
+// admin. Waiver/dues verification and basic profile fields
+// (name/position/team) on an admin row are NOT guarded — any admin can mark
+// another admin's waiver/dues and edit their basic info, including their own.
 // Nobody can set role to 'owner' here or touch the owner's own row; see
 // functions/api/admin/owner/transfer.ts for the only way to move ownership.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
@@ -36,19 +36,18 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const body = await request.json<UsersPatchInput>().catch(() => null)
   if (!body) return badRequest('Invalid JSON body')
 
-  // Fetched once regardless of which fields are being changed — status,
-  // role, waiver, and dues on a row that's currently admin are owner-only,
-  // regardless of which other fields are also present in the same request.
+  // Fetched once regardless of which fields are being changed — status and
+  // role on a row that's currently admin are owner-only, regardless of
+  // which other fields are also present in the same request.
   const target = await env.DB.prepare(`SELECT id, role FROM users WHERE id = ?1`).bind(id).first<{
     id: number
     role: string
   }>()
   if (!target) return notFound('User not found')
   if (target.role === 'admin' && data.user.role !== 'owner') {
-    const touchesGuardedField =
-      body.role !== undefined || body.status !== undefined || body.waiver_signed !== undefined || body.dues_paid !== undefined
+    const touchesGuardedField = body.role !== undefined || body.status !== undefined
     if (touchesGuardedField) {
-      return badRequest("Only the owner can change an admin's access, role, waiver, or dues status")
+      return badRequest("Only the owner can change an admin's access or role")
     }
   }
 
