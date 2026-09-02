@@ -6,6 +6,7 @@ import type {
   FormFieldInput,
   FormTemplate,
   FormWithFields,
+  LaundryItem,
   LoginSettings,
   MediaItem,
   PendingUser,
@@ -70,6 +71,15 @@ export const adminApi = {
     update: (id: number, input: { name: string; fields: FormFieldInput[] }) =>
       request<{ ok: true }>(`/api/admin/forms/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: number) => request<{ ok: true }>(`/api/admin/forms/${id}`, { method: 'DELETE' }),
+  },
+  laundry: {
+    list: () => request<{ items: LaundryItem[] }>('/api/admin/laundry'),
+    create: (name: string) =>
+      request<{ id: number }>('/api/admin/laundry', { method: 'POST', body: JSON.stringify({ name }) }),
+    update: (id: number, input: Partial<Pick<LaundryItem, 'name' | 'stage' | 'sort_order'>>) =>
+      request<{ ok: true }>(`/api/admin/laundry/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    remove: (id: number) => request<{ ok: true }>(`/api/admin/laundry/${id}`, { method: 'DELETE' }),
+    cleanAll: () => request<{ ok: true; count: number }>('/api/admin/laundry/clean-all', { method: 'POST' }),
   },
   media: {
     list: () => request<{ media: MediaItem[] }>('/api/admin/media'),
