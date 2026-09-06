@@ -6,11 +6,12 @@ import { requireOwner } from './_lib/permissions'
 import { getLoginSettings } from '../auth/_lib/settings'
 import { ensureRosterEntry } from './_lib/roster'
 
-// GET /api/admin/settings -> current login-provider toggles (owner only)
-export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env, data }) => {
-  const denied = requireOwner(data)
-  if (denied) return denied
-
+// GET /api/admin/settings -> login-provider toggles + current season. Any
+// admin can read this (the provider toggles are already public via
+// /api/auth/providers, and the Board tab — open to any admin — needs
+// current_season to know which season to assign roles for); only the owner
+// can change any of it.
+export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env }) => {
   const settings = await getLoginSettings(env)
   return json(settings)
 }

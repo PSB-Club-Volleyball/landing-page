@@ -88,7 +88,7 @@ function RoleSlot({
   onUnassign,
 }: {
   role: string
-  season: string
+  season: string | null
   assigned: BoardMember | null
   people: Person[]
   isOwner: boolean
@@ -158,7 +158,9 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft)
   const [clubMembers, setClubMembers] = useState<PendingUser[]>([])
   const [players, setPlayers] = useState<Player[]>([])
-  const [season, setSeason] = useState('')
+  // The role-slot section always assigns into whatever season is set as
+  // current (Settings tab) — no separate season picker here to keep in sync.
+  const [season, setSeason] = useState<string | null>(null)
   const selection = useSelection()
   const [bulkBusy, setBulkBusy] = useState(false)
 
@@ -166,10 +168,7 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
     setLoading(true)
     adminApi.board
       .list()
-      .then((res) => {
-        setMembers(res.board)
-        setSeason((current) => current || res.board[0]?.season || '')
-      })
+      .then((res) => setMembers(res.board))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false))
   }
@@ -184,11 +183,16 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
       .list()
       .then((res) => setPlayers(res.players))
       .catch(() => {})
+    adminApi.settings
+      .get()
+      .then((res) => setSeason(res.current_season))
+      .catch(() => {})
   }, [])
 
   const people: Person[] = [...clubMembers.map(userToPerson), ...players.map(playerToPerson)]
 
   async function assignRole(role: string, person: Person) {
+    if (!season) return
     try {
       await adminApi.board.create({
         season,
@@ -239,14 +243,11 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
         <h2>Board</h2>
       </div>
       {error && <p className="admin-error">{error}</p>}
-      <div className="admin-form">
-        <input
-          placeholder="Season (2025-2026)"
-          value={season}
-          onChange={(e) => setSeason(e.target.value)}
-          style={{ flex: '1 1 140px' }}
-        />
-      </div>
+      {!season && (
+        <p className="admin-note">
+          No current season is set — an owner can set one in Settings before role slots can be assigned.
+        </p>
+      )}
       <div className="board-roles">
         {FIXED_ROLES.map((role) => (
           <RoleSlot
