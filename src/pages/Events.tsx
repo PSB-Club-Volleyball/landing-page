@@ -118,7 +118,6 @@ function Events() {
     signupId: number
     status: SignupStatus | null
   } | null>(null)
-  const [activeTags, setActiveTags] = useState<Set<string>>(new Set())
 
   function refresh() {
     getEvents()
@@ -128,27 +127,8 @@ function Events() {
 
   useEffect(refresh, [])
 
-  const allTags = [
-    ...new Set((events ?? []).flatMap((e) => (e.tags ? e.tags.split(',').map((t) => t.trim()).filter(Boolean) : []))),
-  ].sort()
-
-  function toggleTag(tag: string) {
-    setActiveTags((prev) => {
-      const next = new Set(prev)
-      if (next.has(tag)) next.delete(tag)
-      else next.add(tag)
-      return next
-    })
-  }
-
-  const visibleEvents = (events ?? []).filter((e) => {
-    if (activeTags.size === 0) return true
-    const tags = e.tags ? e.tags.split(',').map((t) => t.trim()) : []
-    return tags.some((t) => activeTags.has(t))
-  })
-
   const groups = new Map<string, PublicClubEvent[]>()
-  for (const event of visibleEvents) {
+  for (const event of events ?? []) {
     const dayKey = event.start_time.slice(0, 10)
     if (!groups.has(dayKey)) groups.set(dayKey, [])
     groups.get(dayKey)!.push(event)
@@ -173,23 +153,6 @@ function Events() {
         {!error && events !== null && events.length > 0 && (
           <>
             <p className="events-page-note">RSVP or sign up below &mdash; no account needed.</p>
-
-            {allTags.length > 0 && (
-              <div className="tag-filter-row">
-                {allTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={`tag-chip tag-chip-btn${activeTags.has(tag) ? ' active' : ''}`}
-                    onClick={() => toggleTag(tag)}
-                  >
-                    {tag}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {visibleEvents.length === 0 && <p className="placeholder-note">No events match the selected tags.</p>}
 
             {[...groups.entries()].map(([dayKey, dayEvents]) => (
               <div className="day-group" key={dayKey}>
