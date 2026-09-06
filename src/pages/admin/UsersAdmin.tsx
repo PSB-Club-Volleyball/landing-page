@@ -1,5 +1,8 @@
 import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import BulkActionBar from '../../components/admin/BulkActionBar'
+import { runBulk, summarizeBulk } from '../../lib/bulk'
+import { useSelection } from '../../lib/useSelection'
 import type { AuthUser, PendingUser, Team, UserRole } from '../../types'
 
 const ROLE_LABELS: Record<UserRole, string> = {
@@ -12,12 +15,16 @@ const ROLE_LABELS: Record<UserRole, string> = {
 function UserRow({
   user,
   isOwner,
+  selected,
+  onToggleSelected,
   onSaved,
   onError,
   onDecide,
 }: {
   user: PendingUser
   isOwner: boolean
+  selected: boolean
+  onToggleSelected: () => void
   onSaved: () => void
   onError: (msg: string) => void
   onDecide: (status: 'approved' | 'denied') => void
@@ -98,6 +105,9 @@ function UserRow({
 
   return (
     <tr>
+      <td className="select-col">
+        <input type="checkbox" checked={selected} onChange={onToggleSelected} />
+      </td>
       <td>
         <input
           className="mini-input"
@@ -219,6 +229,9 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [transferTo, setTransferTo] = useState('')
+  const selection = useSelection()
+  const [bulkRole, setBulkRole] = useState<Exclude<UserRole, 'owner'>>('club_member')
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -240,6 +253,20 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
       setError((e as Error).message)
     }
   }
+
+  async function runSelectedBulk(verb: string, fn: (id: number) => Promise<unknown>) {
+    setBulkBusy(true)
+    const result = await runBulk([...selection.selected], fn)
+    setError(summarizeBulk(result, verb))
+    selection.clear()
+    refresh()
+    onChange()
+    setBulkBusy(false)
+  }
+
+  const applyBulkApprove = () => runSelectedBulk('Bulk approve', (id) => adminApi.users.decide(id, 'approved'))
+  const applyBulkDeny = () => runSelectedBulk('Bulk deny', (id) => adminApi.users.decide(id, 'denied'))
+  const applyBulkRole = () => runSelectedBulk('Bulk role change', (id) => adminApi.users.update(id, { role: bulkRole }))
 
   async function transferOwnership() {
     const target = users.find((u) => u.id === Number(transferTo))
@@ -285,6 +312,11 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
           <div className="ap-head">Pending approvals — {pending.length}</div>
           {pending.map((u) => (
             <div className="ap-row" key={u.id}>
+              <input
+                type="checkbox"
+                checked={selection.isSelected(u.id)}
+                onChange={() => selection.toggle(u.id)}
+              />
               <div className="ap-info">
                 <span className="ap-name">{u.name || u.email}</span>
                 <br />
@@ -304,11 +336,35 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
         </div>
       )}
 
+      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+        <button type="button" disabled={bulkBusy} onClick={applyBulkApprove}>
+          Approve selected
+        </button>
+        <button type="button" className="danger" disabled={bulkBusy} onClick={applyBulkDeny}>
+          Deny selected
+        </button>
+        <select value={bulkRole} onChange={(e) => setBulkRole(e.target.value as Exclude<UserRole, 'owner'>)}>
+          <option value="outsider">Outsider</option>
+          <option value="club_member">Club member</option>
+          {isOwner && <option value="admin">Admin</option>}
+        </select>
+        <button type="button" disabled={bulkBusy} onClick={applyBulkRole}>
+          Set role
+        </button>
+      </BulkActionBar>
+
       {!loading && (
         <div className="data-table" style={{ marginTop: '1.5rem' }}>
           <table>
             <thead>
               <tr>
+                <th className="select-col">
+                  <input
+                    type="checkbox"
+                    checked={others.length > 0 && others.every((u) => selection.isSelected(u.id))}
+                    onChange={() => selection.toggleAll(others.map((u) => u.id))}
+                  />
+                </th>
                 <th>Name</th>
                 <th>Email</th>
                 <th>Status</th>
@@ -323,6 +379,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
             <tbody>
               {owner && (
                 <tr>
+                  <td />
                   <td>{owner.name || '—'}</td>
                   <td>{owner.email}</td>
                   <td>
@@ -340,13 +397,15 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
               {roleGroups.map((g) => (
                 <Fragment key={g.role}>
                   <tr className="role-group-header">
-                    <td colSpan={8}>{ROLE_LABELS[g.role]}</td>
+                    <td colSpan={9}>{ROLE_LABELS[g.role]}</td>
                   </tr>
                   {g.members.map((u) => (
                     <UserRow
                       key={u.id}
                       user={u}
                       isOwner={isOwner}
+                      selected={selection.isSelected(u.id)}
+                      onToggleSelected={() => selection.toggle(u.id)}
                       onSaved={refresh}
                       onError={setError}
                       onDecide={(status) => decide(u.id, status)}
