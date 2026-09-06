@@ -6,7 +6,7 @@ async function getJson<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
-export function getRoster(season?: string): Promise<{ players: Player[] }> {
+export function getRoster(season?: string): Promise<{ players: Player[]; visible: boolean }> {
   return getJson(season ? `/api/roster?season=${encodeURIComponent(season)}` : '/api/roster')
 }
 

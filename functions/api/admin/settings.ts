@@ -20,12 +20,14 @@ interface SettingsInput {
   google_enabled: boolean
   microsoft_enabled: boolean
   current_season?: string | null
+  roster_visible?: boolean
 }
 
 // PUT /api/admin/settings -> toggle which OAuth providers accept new sign-ins,
-// and set the current season used to auto-add approved club members/admins
-// to the roster (see admin/_lib/roster.ts). At least one sign-in provider
-// must stay enabled, or nobody could ever sign in again.
+// set the current season used to auto-add approved club members/admins to
+// the roster (see admin/_lib/roster.ts), and show/hide the public roster
+// page's player list. At least one sign-in provider must stay enabled, or
+// nobody could ever sign in again.
 export const onRequestPut: PagesFunction<Env, string, AdminData> = async ({ request, env, data }) => {
   const denied = requireOwner(data)
   if (denied) return denied
@@ -39,11 +41,12 @@ export const onRequestPut: PagesFunction<Env, string, AdminData> = async ({ requ
   }
 
   const season = body.current_season?.trim() || null
+  const rosterVisible = body.roster_visible ?? true
 
   await env.DB.prepare(
-    `UPDATE login_settings SET google_enabled = ?1, microsoft_enabled = ?2, current_season = ?3 WHERE id = 1`
+    `UPDATE login_settings SET google_enabled = ?1, microsoft_enabled = ?2, current_season = ?3, roster_visible = ?4 WHERE id = 1`
   )
-    .bind(body.google_enabled ? 1 : 0, body.microsoft_enabled ? 1 : 0, season)
+    .bind(body.google_enabled ? 1 : 0, body.microsoft_enabled ? 1 : 0, season, rosterVisible ? 1 : 0)
     .run()
 
   await logAudit(env, data.user.id, 'update', 'login_settings', null, body)

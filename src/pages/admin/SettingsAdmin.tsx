@@ -107,6 +107,19 @@ function SettingsAdmin() {
               {saving ? 'Saving…' : 'Save season'}
             </button>
           </div>
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={settings.roster_visible}
+              disabled={saving}
+              onChange={(e) => save(settings, { ...settings, roster_visible: e.target.checked })}
+            />
+            Show the player roster on the public site
+          </label>
+          <p className="admin-note">
+            Turning this off hides the player list on the Roster page (e.g. before tryouts are finalized) — the Board
+            section stays visible, and no roster data is deleted.
+          </p>
         </fieldset>
       )}
     </>
