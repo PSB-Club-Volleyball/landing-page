@@ -628,23 +628,6 @@ main {
   border-radius: var(--radius-xs);
   padding: 0.1rem 0.45rem;
 }
-.tag-filter-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: -0.3rem 0 0.2rem;
-}
-.tag-chip-btn {
-  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
-  background: none;
-  cursor: pointer;
-  font: inherit;
-}
-.tag-chip-btn.active {
-  border-color: var(--ace);
-  color: var(--ace);
-  background: color-mix(in srgb, var(--ace) 10%, transparent);
-}
 
 .event-card-signup {
   margin-top: 0.2rem;
