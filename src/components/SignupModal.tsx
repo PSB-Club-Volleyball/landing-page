@@ -270,8 +270,8 @@ function SignupModal({
 
                 {pages[pageIndex]?.fields.map((field) => (
                   <label className="field" key={field.id}>
+                    {field.required && <span className="req">* </span>}
                     {field.label}
-                    {field.required && <span className="req"> *</span>}
                     {field.description && <span className="field-desc">{field.description}</span>}
                     <FieldInput
                       field={field}

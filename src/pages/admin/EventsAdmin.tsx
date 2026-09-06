@@ -108,7 +108,7 @@ function EventDateTimeFields({ draft, onChange }: { draft: Draft; onChange: (dra
   return (
     <>
       <label className="field">
-        Date <span className="req">*</span>
+        <span className="req">*</span> Date
         <input
           type="date"
           required
@@ -123,7 +123,7 @@ function EventDateTimeFields({ draft, onChange }: { draft: Draft; onChange: (dra
         />
       </label>
       <label className="field">
-        Start time <span className="req">*</span>
+        <span className="req">*</span> Start time
         <input
           type="time"
           required
@@ -792,7 +792,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
             <legend>Details</legend>
             <div className="grid2">
               <label className="field">
-                Title <span className="req">*</span>
+                <span className="req">*</span> Title
                 <input
                   required
                   value={createDraft.title}
@@ -800,7 +800,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 />
               </label>
               <label className="field">
-                Type <span className="req">*</span>
+                <span className="req">*</span> Type
                 <select
                   required
                   value={createDraft.event_type}
@@ -1015,7 +1015,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               <legend>Details</legend>
               <div className="grid2">
                 <label className="field">
-                  Title <span className="req">*</span>
+                  <span className="req">*</span> Title
                   <input
                     required
                     value={editDraft.title}
@@ -1023,7 +1023,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   />
                 </label>
                 <label className="field">
-                  Type <span className="req">*</span>
+                  <span className="req">*</span> Type
                   <input
                     required
                     value={editDraft.event_type}
