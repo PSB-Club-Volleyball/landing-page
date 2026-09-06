@@ -13,6 +13,7 @@ function boardName(b: BoardMember) {
 
 function Roster() {
   const [players, setPlayers] = useState<Player[] | null>(null)
+  const [rosterVisible, setRosterVisible] = useState(true)
   const [board, setBoard] = useState<BoardMember[] | null>(null)
   const [error, setError] = useState(false)
 
@@ -23,6 +24,7 @@ function Roster() {
       .then(([rosterRes, boardRes]) => {
         if (cancelled) return
         setPlayers(rosterRes.players)
+        setRosterVisible(rosterRes.visible)
         setBoard(boardRes.board)
       })
       .catch(() => {
@@ -43,13 +45,16 @@ function Roster() {
             Couldn&rsquo;t load the roster right now &mdash; try refreshing.
           </p>
         )}
-        {!error && players !== null && players.length === 0 && (
+        {!error && players !== null && !rosterVisible && (
+          <p className="placeholder-note">The roster isn&rsquo;t posted yet &mdash; check back soon.</p>
+        )}
+        {!error && players !== null && rosterVisible && players.length === 0 && (
           <p className="placeholder-note">
             Player roster for the season is still being finalized. Check back
             once tryouts wrap up.
           </p>
         )}
-        {players !== null && players.length > 0 && (
+        {players !== null && rosterVisible && players.length > 0 && (
           <ul className="roster-grid">
             {players.map((p) => (
               <li key={p.id} className="player-card">
