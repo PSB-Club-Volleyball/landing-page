@@ -1,5 +1,5 @@
 import InstagramLink from './InstagramLink'
-import { CONTACT_EMAIL, GROUPME_URL } from '../constants'
+import { CONTACT_EMAIL, GROUPME_URL, WAIVER_URL } from '../constants'
 
 function Footer() {
   return (
@@ -13,6 +13,9 @@ function Footer() {
         rel="noreferrer"
       >
         Join our GroupMe
+      </a>
+      <a className="groupme-link" href={WAIVER_URL} target="_blank" rel="noreferrer">
+        Liability waiver
       </a>
       <span>{CONTACT_EMAIL}</span>
     </footer>
