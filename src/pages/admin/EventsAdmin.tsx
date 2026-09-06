@@ -3,6 +3,7 @@ import { adminApi } from '../../lib/adminApi'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { useSelection } from '../../lib/useSelection'
+import { useAutosizeTextarea } from '../../lib/autosize'
 import type { AdminEventRow, EventSignup, EventStatus, FormTemplate } from '../../types'
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -367,6 +368,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft)
   const [creating, setCreating] = useState(false)
   const [createDraft, setCreateDraft] = useState<Draft>(emptyDraft)
+  const descriptionRef = useAutosizeTextarea(createDraft.description)
   const [signupsOpenFor, setSignupsOpenFor] = useState<number | null>(null)
   const selection = useSelection()
   const [bulkStatus, setBulkStatus] = useState<EventStatus>('published')
@@ -505,6 +507,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
             <label className="field">
               Description
               <textarea
+                ref={descriptionRef}
                 rows={2}
                 value={createDraft.description}
                 onChange={(e) => setCreateDraft({ ...createDraft, description: e.target.value })}

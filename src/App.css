@@ -936,6 +936,11 @@ main {
   outline-offset: 1px;
   border-color: var(--ace);
 }
+.field textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 2.4em;
+}
 .field input[type='checkbox'] {
   width: auto;
   align-self: flex-start;
