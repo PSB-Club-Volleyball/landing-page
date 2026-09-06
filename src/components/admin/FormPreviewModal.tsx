@@ -56,11 +56,11 @@ function FormPreviewModal({
             }}
           >
             <label className="field">
-              <span className="req">*</span> Name
+              <span><span className="req">*</span> Name</span>
               <input type="text" disabled placeholder="(collected automatically)" />
             </label>
             <label className="field">
-              <span className="req">*</span> Email
+              <span><span className="req">*</span> Email</span>
               <input type="email" disabled placeholder="(collected automatically)" />
             </label>
 
@@ -79,8 +79,10 @@ function FormPreviewModal({
 
             {pages[pageIndex]?.fields.map((field) => (
               <label className="field" key={field.id}>
-                {field.required && <span className="req">* </span>}
-                {field.label || '(untitled field)'}
+                <span>
+                  {field.required && <span className="req">* </span>}
+                  {field.label || '(untitled field)'}
+                </span>
                 {field.description && <span className="field-desc">{field.description}</span>}
                 <FieldInput
                   field={field}

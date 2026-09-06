@@ -319,7 +319,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
         <AdminModal title={editingId === 'new' ? 'New form' : 'Edit form'} onClose={closeBuilder} wide>
           <form className="builder-card" onSubmit={handleSave}>
             <label className="field">
-              <span className="req">*</span> Form name
+              <span><span className="req">*</span> Form name</span>
               <input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
             </label>
 
