@@ -58,7 +58,24 @@ function EventCard({
         <span className="event-card-type">{TYPE_LABELS[event.event_type] ?? event.event_type}</span>
       </div>
       <div className="event-card-when">{formatTimeRange(event)}</div>
-      {event.location_name && <div className="event-card-where">{event.location_name}</div>}
+      {event.location_name && (
+        <div className="event-card-where">
+          {event.location_name}
+          {event.location_address && (
+            <>
+              {' · '}
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location_address)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="directions-link"
+              >
+                Directions
+              </a>
+            </>
+          )}
+        </div>
+      )}
       {tags.length > 0 && (
         <div className="event-card-tags">
           {tags.map((t) => (

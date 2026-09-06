@@ -609,6 +609,12 @@ main {
   font-size: 0.82rem;
   color: var(--muted);
 }
+.directions-link {
+  color: var(--ace);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .event-card-desc {
   margin: 0;
   font-size: 0.82rem;
