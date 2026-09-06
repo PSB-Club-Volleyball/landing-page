@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import AdminModal from '../../components/admin/AdminModal'
+import FormPreviewModal from '../../components/admin/FormPreviewModal'
 import type { FieldType, FormFieldInput, FormTemplate } from '../../types'
 
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
@@ -50,28 +52,83 @@ function emptyDraft(): Draft {
   return { name: '', fields: [newField()], max_responses: '', confirmation_message: '' }
 }
 
+function FieldRowHead({
+  index,
+  typeLabel,
+  onRemove,
+}: {
+  index: number
+  typeLabel: string
+  onRemove: () => void
+}) {
+  return (
+    <div className="field-row-head">
+      <span className="field-row-number">Field {index + 1}</span>
+      <span className="field-row-type-badge">{typeLabel}</span>
+      <button className="rm-field" type="button" aria-label="Remove field" onClick={onRemove}>
+        &times;
+      </button>
+    </div>
+  )
+}
+
 function FieldRow({
   field,
+  index,
   onChange,
   onRemove,
 }: {
   field: FormFieldInput
+  index: number
   onChange: (f: FormFieldInput) => void
   onRemove: () => void
 }) {
   if (field.field_type === 'section') {
     return (
       <div className="field-row field-row-section">
-        <label className="field">
-          <span className="mini-label">Section title</span>
+        <FieldRowHead index={index} typeLabel={FIELD_TYPE_LABELS[field.field_type]} onRemove={onRemove} />
+        <div className="field-row-grid">
+          <label className="field">
+            <span className="mini-label">Section title</span>
+            <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required />
+          </label>
+          <label className="field">
+            <span className="mini-label">Description</span>
+            <input
+              value={field.description ?? ''}
+              onChange={(e) => onChange({ ...field, description: e.target.value || null })}
+            />
+          </label>
+          <label className="field">
+            <span className="mini-label">Type</span>
+            <select
+              value={field.field_type}
+              onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
+            >
+              {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </div>
+    )
+  }
+
+  const isChoice = CHOICE_TYPES.includes(field.field_type)
+  const isRange = RANGE_TYPES.includes(field.field_type)
+  const isLength = LENGTH_TYPES.includes(field.field_type)
+  const isPattern = PATTERN_TYPES.includes(field.field_type)
+
+  return (
+    <div className="field-row">
+      <FieldRowHead index={index} typeLabel={FIELD_TYPE_LABELS[field.field_type]} onRemove={onRemove} />
+      <div className="field-row-grid">
+        <label className="field field-row-label">
+          <span className="mini-label">Label</span>
           <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required />
-        </label>
-        <label className="field">
-          <span className="mini-label">Description</span>
-          <input
-            value={field.description ?? ''}
-            onChange={(e) => onChange({ ...field, description: e.target.value || null })}
-          />
         </label>
         <label className="field">
           <span className="mini-label">Type</span>
@@ -86,84 +143,54 @@ function FieldRow({
             ))}
           </select>
         </label>
-        <button className="rm-field" type="button" aria-label="Remove field" onClick={onRemove}>
-          &times;
-        </button>
-      </div>
-    )
-  }
-
-  const isChoice = CHOICE_TYPES.includes(field.field_type)
-  const isRange = RANGE_TYPES.includes(field.field_type)
-  const isLength = LENGTH_TYPES.includes(field.field_type)
-  const isPattern = PATTERN_TYPES.includes(field.field_type)
-
-  return (
-    <div className="field-row">
-      <label className="field">
-        <span className="mini-label">Label</span>
-        <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required />
-      </label>
-      <label className="field">
-        <span className="mini-label">Type</span>
-        <select
-          value={field.field_type}
-          onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
-        >
-          {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        <span className="mini-label">Help text</span>
-        <input
-          value={field.description ?? ''}
-          placeholder="Shown under the label"
-          onChange={(e) => onChange({ ...field, description: e.target.value || null })}
-        />
-      </label>
-      <label className="field">
-        <span className="mini-label">Options {isChoice && <span className="field-hint">(separate with |)</span>}</span>
-        <input
-          value={field.options ?? ''}
-          placeholder={isChoice ? 'S | M | L | XL' : '—'}
-          disabled={!isChoice}
-          onChange={(e) => onChange({ ...field, options: e.target.value })}
-        />
-      </label>
-      {(isRange || isLength) && (
-        <>
-          <label className="field">
-            <span className="mini-label">{isRange ? 'Min value' : 'Min length'}</span>
-            <input
-              type="number"
-              value={field.min_value ?? ''}
-              onChange={(e) => onChange({ ...field, min_value: e.target.value === '' ? null : Number(e.target.value) })}
-            />
-          </label>
-          <label className="field">
-            <span className="mini-label">{isRange ? 'Max value' : 'Max length'}</span>
-            <input
-              type="number"
-              value={field.max_value ?? ''}
-              onChange={(e) => onChange({ ...field, max_value: e.target.value === '' ? null : Number(e.target.value) })}
-            />
-          </label>
-        </>
-      )}
-      {isPattern && (
         <label className="field">
-          <span className="mini-label">Pattern <span className="field-hint">(regex, optional)</span></span>
+          <span className="mini-label">Help text</span>
           <input
-            value={field.pattern ?? ''}
-            placeholder="e.g. ^\\d{10}$"
-            onChange={(e) => onChange({ ...field, pattern: e.target.value || null })}
+            value={field.description ?? ''}
+            placeholder="Shown under the label"
+            onChange={(e) => onChange({ ...field, description: e.target.value || null })}
           />
         </label>
-      )}
+        <label className="field">
+          <span className="mini-label">Options {isChoice && <span className="field-hint">(separate with |)</span>}</span>
+          <input
+            value={field.options ?? ''}
+            placeholder={isChoice ? 'S | M | L | XL' : '—'}
+            disabled={!isChoice}
+            onChange={(e) => onChange({ ...field, options: e.target.value })}
+          />
+        </label>
+        {(isRange || isLength) && (
+          <>
+            <label className="field">
+              <span className="mini-label">{isRange ? 'Min value' : 'Min length'}</span>
+              <input
+                type="number"
+                value={field.min_value ?? ''}
+                onChange={(e) => onChange({ ...field, min_value: e.target.value === '' ? null : Number(e.target.value) })}
+              />
+            </label>
+            <label className="field">
+              <span className="mini-label">{isRange ? 'Max value' : 'Max length'}</span>
+              <input
+                type="number"
+                value={field.max_value ?? ''}
+                onChange={(e) => onChange({ ...field, max_value: e.target.value === '' ? null : Number(e.target.value) })}
+              />
+            </label>
+          </>
+        )}
+        {isPattern && (
+          <label className="field">
+            <span className="mini-label">Pattern <span className="field-hint">(regex, optional)</span></span>
+            <input
+              value={field.pattern ?? ''}
+              placeholder="e.g. ^\\d{10}$"
+              onChange={(e) => onChange({ ...field, pattern: e.target.value || null })}
+            />
+          </label>
+        )}
+      </div>
       <label className="req-toggle">
         <input
           type="checkbox"
@@ -172,9 +199,6 @@ function FieldRow({
         />
         Required
       </label>
-      <button className="rm-field" type="button" aria-label="Remove field" onClick={onRemove}>
-        &times;
-      </button>
     </div>
   )
 }
@@ -185,6 +209,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | 'new' | null>(null)
   const [draft, setDraft] = useState<Draft>(emptyDraft())
+  const [previewing, setPreviewing] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -197,8 +222,14 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
 
   useEffect(refresh, [])
 
+  function closeBuilder() {
+    setEditingId(null)
+    setPreviewing(false)
+  }
+
   function startCreate() {
     setDraft(emptyDraft())
+    setPreviewing(false)
     setEditingId('new')
   }
 
@@ -212,6 +243,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
         max_responses: form.max_responses !== null ? String(form.max_responses) : '',
         confirmation_message: form.confirmation_message ?? '',
       })
+      setPreviewing(false)
       setEditingId(id)
     } catch (e) {
       setError((e as Error).message)
@@ -255,7 +287,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
       } else if (editingId !== null) {
         await adminApi.forms.update(editingId, payload)
       }
-      setEditingId(null)
+      closeBuilder()
       refresh()
     } catch (err) {
       setError((err as Error).message)
@@ -284,64 +316,79 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
       {error && <p className="admin-error">{error}</p>}
 
       {editingId !== null && (
-        <form className="builder-card" onSubmit={handleSave}>
-          <label className="field">
-            Form name <span className="req">*</span>
-            <input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
-          </label>
+        <AdminModal title={editingId === 'new' ? 'New form' : 'Edit form'} onClose={closeBuilder} wide>
+          <form className="builder-card" onSubmit={handleSave}>
+            <label className="field">
+              Form name <span className="req">*</span>
+              <input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+            </label>
 
-          <div className="field-rows">
-            {draft.fields.map((field, i) => (
-              <FieldRow
-                key={field.id}
-                field={field}
-                onChange={(next) => updateField(i, next)}
-                onRemove={() => removeField(i)}
-              />
-            ))}
-          </div>
-
-          <div className="form-actions form-actions-start">
-            <button className="add-field-btn" type="button" onClick={addField}>
-              + Add field
-            </button>
-            <button className="add-field-btn" type="button" onClick={addSection}>
-              + Add section break
-            </button>
-          </div>
-
-          <fieldset className="signup-fieldset">
-            <legend>Responses</legend>
-            <div className="grid2">
-              <label className="field">
-                Response limit <span className="field-hint">(optional &mdash; total across all events using this form)</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={draft.max_responses}
-                  onChange={(e) => setDraft({ ...draft, max_responses: e.target.value })}
+            <div className="field-rows">
+              {draft.fields.map((field, i) => (
+                <FieldRow
+                  key={field.id}
+                  field={field}
+                  index={i}
+                  onChange={(next) => updateField(i, next)}
+                  onRemove={() => removeField(i)}
                 />
-              </label>
-              <label className="field">
-                Confirmation message <span className="field-hint">(optional &mdash; shown after submit)</span>
-                <input
-                  value={draft.confirmation_message}
-                  placeholder="Default: “You’re in!”"
-                  onChange={(e) => setDraft({ ...draft, confirmation_message: e.target.value })}
-                />
-              </label>
+              ))}
             </div>
-          </fieldset>
 
-          <div className="form-actions">
-            <button className="btn btn-outline" type="button" onClick={() => setEditingId(null)}>
-              Cancel
-            </button>
-            <button className="btn btn-ace" type="submit">
-              Save form
-            </button>
-          </div>
-        </form>
+            <div className="form-actions form-actions-start">
+              <button className="add-field-btn" type="button" onClick={addField}>
+                + Add field
+              </button>
+              <button className="add-field-btn" type="button" onClick={addSection}>
+                + Add section break
+              </button>
+            </div>
+
+            <fieldset className="signup-fieldset">
+              <legend>Responses</legend>
+              <div className="grid2">
+                <label className="field">
+                  Response limit <span className="field-hint">(optional &mdash; total across all events using this form)</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={draft.max_responses}
+                    onChange={(e) => setDraft({ ...draft, max_responses: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  Confirmation message <span className="field-hint">(optional &mdash; shown after submit)</span>
+                  <input
+                    value={draft.confirmation_message}
+                    placeholder="Default: “You’re in!”"
+                    onChange={(e) => setDraft({ ...draft, confirmation_message: e.target.value })}
+                  />
+                </label>
+              </div>
+            </fieldset>
+
+            <div className="form-actions">
+              <button className="btn btn-outline" type="button" onClick={() => setPreviewing(true)}>
+                Preview
+              </button>
+              <span className="form-actions-spacer" />
+              <button className="btn btn-outline" type="button" onClick={closeBuilder}>
+                Cancel
+              </button>
+              <button className="btn btn-ace" type="submit">
+                Save form
+              </button>
+            </div>
+          </form>
+        </AdminModal>
+      )}
+      {editingId !== null && previewing && (
+        <FormPreviewModal
+          name={draft.name}
+          fields={draft.fields.map((f, i) => ({ ...f, id: f.id ?? -(i + 1) }))}
+          confirmationMessage={draft.confirmation_message}
+          onClose={() => setPreviewing(false)}
+        />
       )}
 
       <div className="data-table">
