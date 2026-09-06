@@ -3,9 +3,26 @@ import { adminApi } from '../../lib/adminApi'
 import AdminModal from '../../components/admin/AdminModal'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
+import { downloadCsv, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
 import { useAutosizeTextarea } from '../../lib/autosize'
 import type { AdminEventRow, EventSignup, EventStatus, FormTemplate } from '../../types'
+
+function exportSignupsCsv(eventTitle: string, signups: EventSignup[]) {
+  const csv = toCsv(
+    ['Name', 'Email', 'Answers', 'Status', 'Checked in', 'Submitted'],
+    signups.map((s) => [
+      s.name,
+      s.email,
+      s.answers ? Object.values(s.answers).filter(Boolean).join('; ') : '',
+      s.status,
+      s.checked_in_at ? new Date(s.checked_in_at).toLocaleString() : '',
+      new Date(s.created_at).toLocaleString(),
+    ])
+  )
+  const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  downloadCsv(`${safeTitle || 'event'}-signups.csv`, csv)
+}
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -244,7 +261,15 @@ function SignupFields({
   )
 }
 
-function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () => void }) {
+function SignupsPanel({
+  eventId,
+  eventTitle,
+  onChanged,
+}: {
+  eventId: number
+  eventTitle: string
+  onChanged: () => void
+}) {
   const [signups, setSignups] = useState<EventSignup[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -292,7 +317,15 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
   if (signups.length === 0) return <p className="admin-note">No one has signed up yet.</p>
 
   return (
-    <table className="signups-table">
+    <>
+      <button
+        className="btn btn-outline btn-sm signups-download-btn"
+        type="button"
+        onClick={() => exportSignupsCsv(eventTitle, signups)}
+      >
+        Download CSV
+      </button>
+      <table className="signups-table">
       <thead>
         <tr>
           <th>Name</th>
@@ -359,7 +392,8 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
           </tr>
         ))}
       </tbody>
-    </table>
+      </table>
+    </>
   )
 }
 
@@ -992,7 +1026,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   {signupsOpenFor === ev.id && (
                     <tr>
                       <td colSpan={8}>
-                        <SignupsPanel eventId={ev.id} onChanged={refresh} />
+                        <SignupsPanel eventId={ev.id} eventTitle={ev.title} onChanged={refresh} />
                       </td>
                     </tr>
                   )}
