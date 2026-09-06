@@ -2,6 +2,7 @@ import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
 import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
+import { ensureRosterEntry } from '../_lib/roster'
 
 const SETTABLE_ROLES = ['outsider', 'club_member', 'admin'] as const
 type SettableRole = (typeof SETTABLE_ROLES)[number]
@@ -39,9 +40,10 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   // Fetched once regardless of which fields are being changed — status and
   // role on a row that's currently admin are owner-only, regardless of
   // which other fields are also present in the same request.
-  const target = await env.DB.prepare(`SELECT id, role FROM users WHERE id = ?1`).bind(id).first<{
+  const target = await env.DB.prepare(`SELECT id, role, status FROM users WHERE id = ?1`).bind(id).first<{
     id: number
     role: string
+    status: string
   }>()
   if (!target) return notFound('User not found')
   if (target.role === 'admin' && data.user.role !== 'owner') {
@@ -146,5 +148,12 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   }
 
   await logAudit(env, data.user.id, 'update', 'users', id, auditDetails)
+
+  const finalRole = body.role ?? target.role
+  const finalStatus = body.status ?? target.status
+  if (finalStatus === 'approved' && (finalRole === 'club_member' || finalRole === 'admin')) {
+    await ensureRosterEntry(env, id)
+  }
+
   return json({ ok: true })
 }

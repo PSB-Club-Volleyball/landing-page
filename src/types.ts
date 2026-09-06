@@ -8,6 +8,7 @@ export interface Player {
   class_year: string | null
   photo_key: string | null
   sort_order: number
+  user_id: number | null // set when this row was auto-added from an approved club member/admin account
 }
 
 export interface BoardMember {
@@ -167,6 +168,7 @@ export interface AuthUser {
 export interface LoginSettings {
   google_enabled: boolean
   microsoft_enabled: boolean
+  current_season: string | null
 }
 
 export interface PendingUser {
