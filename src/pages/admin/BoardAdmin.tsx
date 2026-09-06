@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import BulkActionBar from '../../components/admin/BulkActionBar'
+import { runBulk, summarizeBulk } from '../../lib/bulk'
+import { useSelection } from '../../lib/useSelection'
 import type { BoardMember, PendingUser, Player } from '../../types'
 
 const emptyDraft = { season: '', role: '', first_name: '', last_name: '', email: '' }
@@ -156,6 +159,8 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   const [clubMembers, setClubMembers] = useState<PendingUser[]>([])
   const [players, setPlayers] = useState<Player[]>([])
   const [season, setSeason] = useState('')
+  const selection = useSelection()
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -218,6 +223,16 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
     }
   }
 
+  async function handleBulkDelete() {
+    if (!confirm(`Remove ${selection.selected.size} board member(s)?`)) return
+    setBulkBusy(true)
+    const result = await runBulk([...selection.selected], (id) => adminApi.board.remove(id))
+    setError(summarizeBulk(result, 'Bulk delete'))
+    selection.clear()
+    refresh()
+    setBulkBusy(false)
+  }
+
   return (
     <>
       <div className="admin-main-head">
@@ -246,10 +261,24 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
           />
         ))}
       </div>
+      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+        {isOwner && (
+          <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
+            Delete selected
+          </button>
+        )}
+      </BulkActionBar>
       <div className="data-table">
         <table>
           <thead>
             <tr>
+              <th className="select-col">
+                <input
+                  type="checkbox"
+                  checked={members.length > 0 && members.every((m) => selection.isSelected(m.id))}
+                  onChange={() => selection.toggleAll(members.map((m) => m.id))}
+                />
+              </th>
               <th>Role</th>
               <th>Name</th>
               <th>Email</th>
@@ -260,17 +289,20 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={5}>Loading&hellip;</td>
+                <td colSpan={6}>Loading&hellip;</td>
               </tr>
             )}
             {!loading && members.length === 0 && (
               <tr>
-                <td colSpan={5}>No board members yet.</td>
+                <td colSpan={6}>No board members yet.</td>
               </tr>
             )}
             {members.map((m) =>
               editingId === m.id ? (
                 <tr key={m.id}>
+                  <td className="select-col">
+                    <input type="checkbox" checked={selection.isSelected(m.id)} onChange={() => selection.toggle(m.id)} />
+                  </td>
                   <td>
                     <input
                       value={editDraft.role}
@@ -317,6 +349,9 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
                 </tr>
               ) : (
                 <tr key={m.id}>
+                  <td className="select-col">
+                    <input type="checkbox" checked={selection.isSelected(m.id)} onChange={() => selection.toggle(m.id)} />
+                  </td>
                   <td>{m.role}</td>
                   <td>
                     {m.first_name} {m.last_name}

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import BulkActionBar from '../../components/admin/BulkActionBar'
+import { runBulk, summarizeBulk } from '../../lib/bulk'
+import { useSelection } from '../../lib/useSelection'
 import type { Player } from '../../types'
 
 const emptyDraft = {
@@ -42,6 +45,9 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft)
   const [creating, setCreating] = useState(false)
   const [createDraft, setCreateDraft] = useState<Draft>(emptyDraft)
+  const selection = useSelection()
+  const [bulkSeason, setBulkSeason] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -83,6 +89,27 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
     } catch (e) {
       setError((e as Error).message)
     }
+  }
+
+  async function applyBulkSeason() {
+    if (!bulkSeason.trim()) return
+    setBulkBusy(true)
+    const targets = players.filter((p) => selection.isSelected(p.id))
+    const result = await runBulk(targets, (p) => adminApi.roster.update(p.id, { season: bulkSeason.trim() }))
+    setError(summarizeBulk(result, 'Bulk season update'))
+    selection.clear()
+    refresh()
+    setBulkBusy(false)
+  }
+
+  async function handleBulkDelete() {
+    if (!confirm(`Remove ${selection.selected.size} player(s)? This can't be undone.`)) return
+    setBulkBusy(true)
+    const result = await runBulk([...selection.selected], (id) => adminApi.roster.remove(id))
+    setError(summarizeBulk(result, 'Bulk delete'))
+    selection.clear()
+    refresh()
+    setBulkBusy(false)
   }
 
   return (
@@ -131,10 +158,33 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
           </button>
         </div>
       )}
+      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+        <input
+          placeholder="Season (2025-2026)"
+          value={bulkSeason}
+          onChange={(e) => setBulkSeason(e.target.value)}
+          style={{ width: '9rem' }}
+        />
+        <button type="button" disabled={bulkBusy || !bulkSeason.trim()} onClick={applyBulkSeason}>
+          Set season
+        </button>
+        {isOwner && (
+          <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
+            Delete selected
+          </button>
+        )}
+      </BulkActionBar>
       <div className="data-table">
         <table>
           <thead>
             <tr>
+              <th className="select-col">
+                <input
+                  type="checkbox"
+                  checked={players.length > 0 && players.every((p) => selection.isSelected(p.id))}
+                  onChange={() => selection.toggleAll(players.map((p) => p.id))}
+                />
+              </th>
               <th>#</th>
               <th>Name</th>
               <th>Position</th>
@@ -146,17 +196,20 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6}>Loading&hellip;</td>
+                <td colSpan={7}>Loading&hellip;</td>
               </tr>
             )}
             {!loading && players.length === 0 && (
               <tr>
-                <td colSpan={6}>No players yet.</td>
+                <td colSpan={7}>No players yet.</td>
               </tr>
             )}
             {players.map((p) =>
               editingId === p.id ? (
                 <tr key={p.id}>
+                  <td className="select-col">
+                    <input type="checkbox" checked={selection.isSelected(p.id)} onChange={() => selection.toggle(p.id)} />
+                  </td>
                   <td>
                     <input
                       value={editDraft.jersey_number}
@@ -210,6 +263,9 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
                 </tr>
               ) : (
                 <tr key={p.id}>
+                  <td className="select-col">
+                    <input type="checkbox" checked={selection.isSelected(p.id)} onChange={() => selection.toggle(p.id)} />
+                  </td>
                   <td className="num-cell">{p.jersey_number ?? '—'}</td>
                   <td>
                     {p.first_name} {p.last_name}

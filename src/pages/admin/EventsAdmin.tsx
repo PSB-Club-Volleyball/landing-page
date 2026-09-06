@@ -1,8 +1,24 @@
 import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import BulkActionBar from '../../components/admin/BulkActionBar'
+import { runBulk, summarizeBulk } from '../../lib/bulk'
+import { useSelection } from '../../lib/useSelection'
 import type { AdminEventRow, EventSignup, EventStatus, FormTemplate } from '../../types'
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+// Shifts a "YYYY-MM-DDTHH:MM" wall-clock string by a number of calendar days
+// (month/year rollover included), leaving the time-of-day untouched. Done in
+// UTC purely as a trick to get correct calendar-date math without the local
+// timezone nudging the date across midnight — the string itself never
+// carries a timezone (see EventDateTimeFields above).
+function shiftDateTime(dt: string, days: number): string {
+  const [datePart, timePart] = dt.split('T')
+  const [y, m, d] = datePart.split('-').map(Number)
+  const utc = new Date(Date.UTC(y, m - 1, d))
+  utc.setUTCDate(utc.getUTCDate() + days)
+  return `${utc.toISOString().slice(0, 10)}T${timePart ?? ''}`
+}
 
 const emptyDraft = {
   title: '',
@@ -352,6 +368,11 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const [creating, setCreating] = useState(false)
   const [createDraft, setCreateDraft] = useState<Draft>(emptyDraft)
   const [signupsOpenFor, setSignupsOpenFor] = useState<number | null>(null)
+  const selection = useSelection()
+  const [bulkStatus, setBulkStatus] = useState<EventStatus>('published')
+  const [bulkTags, setBulkTags] = useState('')
+  const [bulkShiftDays, setBulkShiftDays] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -366,6 +387,39 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   useEffect(() => {
     adminApi.forms.list().then((res) => setForms(res.forms)).catch(() => {})
   }, [])
+
+  async function runSelectedBulk(verb: string, fn: (ev: AdminEventRow) => Promise<unknown>) {
+    const targets = events.filter((e) => selection.isSelected(e.id))
+    setBulkBusy(true)
+    const result = await runBulk(targets, fn)
+    setError(summarizeBulk(result, verb))
+    selection.clear()
+    refresh()
+    setBulkBusy(false)
+  }
+
+  const applyBulkStatus = () => runSelectedBulk('Bulk status update', (ev) => adminApi.events.update(ev.id, { status: bulkStatus }))
+
+  const applyBulkTags = () => {
+    const tags = bulkTags.split(',').map((t) => t.trim()).filter(Boolean).join(', ') || null
+    return runSelectedBulk('Bulk tag update', (ev) => adminApi.events.update(ev.id, { tags }))
+  }
+
+  const applyBulkShift = () => {
+    const days = Number(bulkShiftDays)
+    if (!Number.isFinite(days) || days === 0) return
+    return runSelectedBulk('Bulk reschedule', (ev) =>
+      adminApi.events.update(ev.id, {
+        start_time: shiftDateTime(ev.start_time, days),
+        end_time: ev.end_time ? shiftDateTime(ev.end_time, days) : null,
+      })
+    )
+  }
+
+  const applyBulkDelete = () => {
+    if (!confirm(`Delete ${selection.selected.size} event(s)? This can't be undone.`)) return
+    return runSelectedBulk('Bulk delete', (ev) => adminApi.events.remove(ev.id))
+  }
 
   function startDuplicate(ev: AdminEventRow) {
     setCreateDraft({ ...eventToDraft(ev), start_time: '', end_time: '', status: 'draft' })
@@ -500,10 +554,51 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           </div>
         </form>
       )}
+      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+        <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as EventStatus)}>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <button type="button" disabled={bulkBusy} onClick={applyBulkStatus}>
+          Set status
+        </button>
+        <input
+          placeholder="Tags (comma-separated)"
+          value={bulkTags}
+          onChange={(e) => setBulkTags(e.target.value)}
+          style={{ width: '11rem' }}
+        />
+        <button type="button" disabled={bulkBusy} onClick={applyBulkTags}>
+          Set tags
+        </button>
+        <input
+          type="number"
+          placeholder="Shift by days"
+          value={bulkShiftDays}
+          onChange={(e) => setBulkShiftDays(e.target.value)}
+          style={{ width: '7rem' }}
+        />
+        <button type="button" disabled={bulkBusy || !bulkShiftDays} onClick={applyBulkShift}>
+          Reschedule
+        </button>
+        {isOwner && (
+          <button type="button" className="danger" disabled={bulkBusy} onClick={applyBulkDelete}>
+            Delete selected
+          </button>
+        )}
+      </BulkActionBar>
       <div className="data-table">
         <table>
           <thead>
             <tr>
+              <th className="select-col">
+                <input
+                  type="checkbox"
+                  checked={events.length > 0 && events.every((e) => selection.isSelected(e.id))}
+                  onChange={() => selection.toggleAll(events.map((e) => e.id))}
+                />
+              </th>
               <th>Title</th>
               <th>Type</th>
               <th>Starts</th>
@@ -516,18 +611,18 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7}>Loading&hellip;</td>
+                <td colSpan={8}>Loading&hellip;</td>
               </tr>
             )}
             {!loading && events.length === 0 && (
               <tr>
-                <td colSpan={7}>No events yet.</td>
+                <td colSpan={8}>No events yet.</td>
               </tr>
             )}
             {events.map((ev) =>
               editingId === ev.id ? (
                 <tr key={ev.id}>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <form
                       className="event-form event-form-inline"
                       onSubmit={(e) => {
@@ -592,6 +687,9 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               ) : (
                 <Fragment key={ev.id}>
                   <tr>
+                    <td className="select-col">
+                      <input type="checkbox" checked={selection.isSelected(ev.id)} onChange={() => selection.toggle(ev.id)} />
+                    </td>
                     <td>{ev.title}</td>
                     <td>{ev.event_type}</td>
                     <td>{new Date(ev.start_time).toLocaleString()}</td>
@@ -640,7 +738,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   </tr>
                   {signupsOpenFor === ev.id && (
                     <tr>
-                      <td colSpan={7}>
+                      <td colSpan={8}>
                         <SignupsPanel eventId={ev.id} onChanged={refresh} />
                       </td>
                     </tr>
