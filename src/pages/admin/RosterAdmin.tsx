@@ -1,9 +1,35 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
+import { csvRowsToObjects, downloadCsv, parseCsv, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
 import type { Player } from '../../types'
+
+const ROSTER_CSV_COLUMNS: Record<string, string> = {
+  season: 'season',
+  'first name': 'first_name',
+  first_name: 'first_name',
+  'last name': 'last_name',
+  last_name: 'last_name',
+  '#': 'jersey_number',
+  number: 'jersey_number',
+  jersey: 'jersey_number',
+  jersey_number: 'jersey_number',
+  'jersey #': 'jersey_number',
+  position: 'position',
+  class: 'class_year',
+  'class year': 'class_year',
+  class_year: 'class_year',
+}
+
+function exportRosterCsv(players: Player[]) {
+  const csv = toCsv(
+    ['Season', 'First name', 'Last name', 'Jersey #', 'Position', 'Class'],
+    players.map((p) => [p.season, p.first_name, p.last_name, p.jersey_number, p.position, p.class_year])
+  )
+  downloadCsv('roster.csv', csv)
+}
 
 const emptyDraft = {
   season: '',
@@ -48,6 +74,8 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
   const selection = useSelection()
   const [bulkSeason, setBulkSeason] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   function refresh() {
     setLoading(true)
@@ -112,13 +140,67 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
     setBulkBusy(false)
   }
 
+  async function handleImportFile(file: File) {
+    setImporting(true)
+    setError(null)
+    try {
+      const rows = parseCsv(await file.text())
+      const records = csvRowsToObjects(rows, ROSTER_CSV_COLUMNS)
+      const toImport = records.filter((r) => r.season && r.first_name && r.last_name)
+      if (toImport.length === 0) {
+        setError('No rows with a season, first name, and last name were found in that file.')
+        return
+      }
+      const result = await runBulk(toImport, (r) =>
+        adminApi.roster.create({
+          season: r.season,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          jersey_number: r.jersey_number ? Number(r.jersey_number) : null,
+          position: r.position || null,
+          class_year: r.class_year || null,
+        })
+      )
+      setError(summarizeBulk(result, 'Import'))
+      refresh()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setImporting(false)
+    }
+  }
+
   return (
     <>
       <div className="admin-main-head">
         <h2>Roster</h2>
-        <button className="add-btn" type="button" onClick={() => setCreating((v) => !v)}>
-          {creating ? 'Cancel' : '+ Add player'}
-        </button>
+        <span className="admin-head-actions">
+          <button className="btn btn-outline btn-sm" type="button" onClick={() => exportRosterCsv(players)}>
+            Download CSV
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            type="button"
+            disabled={importing}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {importing ? 'Importing…' : 'Import CSV'}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) handleImportFile(file)
+            }}
+          />
+          <button className="add-btn" type="button" onClick={() => setCreating((v) => !v)}>
+            {creating ? 'Cancel' : '+ Add player'}
+          </button>
+        </span>
       </div>
       {error && <p className="admin-error">{error}</p>}
       {creating && (

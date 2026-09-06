@@ -2,8 +2,20 @@ import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
+import { downloadCsv, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
 import type { AuthUser, PendingUser, Team, UserRole } from '../../types'
+
+// No CSV import here: accounts are created by signing in (OAuth), not by an
+// admin typing rows into a spreadsheet, so there's no legitimate "create a
+// user from a CSV" action to offer.
+function exportUsersCsv(users: PendingUser[]) {
+  const csv = toCsv(
+    ['Name', 'Email', 'Status', 'Role', 'Position', 'Team', 'Waiver signed year', 'Dues paid year'],
+    users.map((u) => [u.name, u.email, u.status, u.role, u.position, u.team, u.waiver_signed_year, u.dues_paid_year])
+  )
+  downloadCsv('users.csv', csv)
+}
 
 const ROLE_LABELS: Record<UserRole, string> = {
   outsider: 'Outsider',
@@ -297,6 +309,11 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
     <>
       <div className="admin-main-head">
         <h2>Users</h2>
+        <span className="admin-head-actions">
+          <button className="btn btn-outline btn-sm" type="button" onClick={() => exportUsersCsv(users)}>
+            Download CSV
+          </button>
+        </span>
       </div>
       {error && <p className="admin-error">{error}</p>}
       <p className="admin-note">
