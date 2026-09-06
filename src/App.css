@@ -609,6 +609,12 @@ main {
   font-size: 0.82rem;
   color: var(--muted);
 }
+.directions-link {
+  color: var(--ace);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 .event-card-desc {
   margin: 0;
   font-size: 0.82rem;
@@ -935,6 +941,11 @@ main {
   outline: 2px solid var(--ace);
   outline-offset: 1px;
   border-color: var(--ace);
+}
+.field textarea {
+  resize: none;
+  overflow: hidden;
+  min-height: 2.4em;
 }
 .field input[type='checkbox'] {
   width: auto;

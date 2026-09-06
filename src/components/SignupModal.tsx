@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
+import { useAutosizeTextarea } from '../lib/autosize'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
 
 const WAIVER_URL = '/liability-waiver.pdf'
@@ -26,12 +27,14 @@ function FieldInput({
     required: field.required,
     value,
   }
+  const textareaRef = useAutosizeTextarea(value)
 
   if (field.field_type === 'textarea') {
     return (
       <textarea
         {...commonProps}
-        rows={3}
+        ref={textareaRef}
+        rows={1}
         minLength={field.min_value ?? undefined}
         maxLength={field.max_value ?? undefined}
         onChange={(e) => onChange(e.target.value)}
