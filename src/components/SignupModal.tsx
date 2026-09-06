@@ -1,15 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
 
 const WAIVER_URL = '/liability-waiver.pdf'
+
+type FormFieldType = FormWithFields['fields'][number]
+
+function toggleInList(current: string, option: string): string {
+  const items = current ? current.split('|') : []
+  const next = items.includes(option) ? items.filter((i) => i !== option) : [...items, option]
+  return next.join('|')
+}
 
 function FieldInput({
   field,
   value,
   onChange,
 }: {
-  field: FormWithFields['fields'][number]
+  field: FormFieldType
   value: string
   onChange: (v: string) => void
 }) {
@@ -18,9 +26,19 @@ function FieldInput({
     required: field.required,
     value,
   }
+
   if (field.field_type === 'textarea') {
-    return <textarea {...commonProps} rows={3} onChange={(e) => onChange(e.target.value)} />
+    return (
+      <textarea
+        {...commonProps}
+        rows={3}
+        minLength={field.min_value ?? undefined}
+        maxLength={field.max_value ?? undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    )
   }
+
   if (field.field_type === 'select') {
     const options = (field.options ?? '').split('|').map((o) => o.trim()).filter(Boolean)
     return (
@@ -36,6 +54,42 @@ function FieldInput({
       </select>
     )
   }
+
+  if (field.field_type === 'radio') {
+    const options = (field.options ?? '').split('|').map((o) => o.trim()).filter(Boolean)
+    return (
+      <div className="choice-group" role="radiogroup">
+        {options.map((opt) => (
+          <label key={opt} className="choice-option">
+            <input
+              type="radio"
+              name={commonProps.id}
+              required={field.required}
+              checked={value === opt}
+              onChange={() => onChange(opt)}
+            />
+            {opt}
+          </label>
+        ))}
+      </div>
+    )
+  }
+
+  if (field.field_type === 'checkbox_group') {
+    const options = (field.options ?? '').split('|').map((o) => o.trim()).filter(Boolean)
+    const selected = value ? value.split('|') : []
+    return (
+      <div className="choice-group">
+        {options.map((opt) => (
+          <label key={opt} className="choice-option">
+            <input type="checkbox" checked={selected.includes(opt)} onChange={() => onChange(toggleInList(value, opt))} />
+            {opt}
+          </label>
+        ))}
+      </div>
+    )
+  }
+
   if (field.field_type === 'checkbox') {
     return (
       <input
@@ -46,13 +100,76 @@ function FieldInput({
       />
     )
   }
+
+  if (field.field_type === 'linear_scale') {
+    const min = field.min_value ?? 1
+    const max = field.max_value ?? 5
+    const scale = Array.from({ length: max - min + 1 }, (_, i) => min + i)
+    return (
+      <div className="scale-group" role="radiogroup">
+        <span className="scale-end">{min}</span>
+        {scale.map((n) => (
+          <label key={n} className="scale-option">
+            <input
+              type="radio"
+              name={commonProps.id}
+              required={field.required}
+              checked={value === String(n)}
+              onChange={() => onChange(String(n))}
+            />
+            {n}
+          </label>
+        ))}
+        <span className="scale-end">{max}</span>
+      </div>
+    )
+  }
+
+  const inputType =
+    field.field_type === 'number'
+      ? 'number'
+      : field.field_type === 'date'
+        ? 'date'
+        : field.field_type === 'time'
+          ? 'time'
+          : field.field_type === 'email'
+            ? 'email'
+            : field.field_type === 'phone'
+              ? 'tel'
+              : 'text'
+
   return (
     <input
       {...commonProps}
-      type={field.field_type === 'number' ? 'number' : 'text'}
+      type={inputType}
+      min={field.field_type === 'number' ? (field.min_value ?? undefined) : undefined}
+      max={field.field_type === 'number' ? (field.max_value ?? undefined) : undefined}
+      minLength={field.field_type === 'text' ? (field.min_value ?? undefined) : undefined}
+      maxLength={field.field_type === 'text' ? (field.max_value ?? undefined) : undefined}
+      pattern={field.pattern ?? undefined}
       onChange={(e) => onChange(e.target.value)}
     />
   )
+}
+
+interface Page {
+  heading: FormFieldType | null
+  fields: FormFieldType[]
+}
+
+// Fields are laid out in submit order; a 'section' field is a page break —
+// it renders as a heading, and everything after it (up to the next section)
+// becomes a new page, mirroring Google Forms' section-per-page behavior.
+function buildPages(fields: FormFieldType[]): Page[] {
+  const pages: Page[] = [{ heading: null, fields: [] }]
+  for (const field of fields) {
+    if (field.field_type === 'section') {
+      pages.push({ heading: field, fields: [] })
+    } else {
+      pages[pages.length - 1].fields.push(field)
+    }
+  }
+  return pages.filter((p) => p.heading || p.fields.length > 0)
 }
 
 function SignupModal({
@@ -76,6 +193,8 @@ function SignupModal({
   const [email, setEmail] = useState('')
   const [company, setCompany] = useState('') // honeypot
   const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageError, setPageError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [confirmed, setConfirmed] = useState(Boolean(existingSignupId))
@@ -128,8 +247,33 @@ function SignupModal({
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  const pages = useMemo(() => buildPages(form?.fields ?? []), [form])
+  const onLastPage = pageIndex >= pages.length - 1
+
+  function currentPageMissingField(): string | null {
+    for (const field of pages[pageIndex]?.fields ?? []) {
+      if (field.required && !String(answers[field.id] ?? '').trim()) return field.label
+    }
+    return null
+  }
+
+  function goNext() {
+    const missing = currentPageMissingField()
+    if (missing) {
+      setPageError(`"${missing}" is required`)
+      return
+    }
+    setPageError(null)
+    setPageIndex((i) => i + 1)
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    const missing = currentPageMissingField()
+    if (missing) {
+      setPageError(`"${missing}" is required`)
+      return
+    }
     setSubmitting(true)
     setSubmitError(null)
     try {
@@ -197,11 +341,26 @@ function SignupModal({
                   </button>
                 </p>
               </>
+            ) : signupStatus === 'waitlist' ? (
+              <>
+                <h4>You&rsquo;re on the waitlist</h4>
+                <p>
+                  {event.title} is full, so you&rsquo;ve been added to the waitlist. We&rsquo;ll email you right away if a
+                  spot opens up.
+                </p>
+                {submitError && <p className="admin-error">{submitError}</p>}
+                <p className="cancel-note">
+                  Changed your mind?{' '}
+                  <button className="link-btn" type="button" disabled={cancelling} onClick={handleCancel}>
+                    {cancelling ? 'Cancelling…' : 'Leave the waitlist'}
+                  </button>
+                </p>
+              </>
             ) : (
               <>
                 <h4>You&rsquo;re in!</h4>
                 <p>
-                  You&rsquo;re signed up for {event.title}. See you at {event.location_name || 'the event'}.
+                  {form?.confirmation_message || `You're signed up for ${event.title}. See you at ${event.location_name || 'the event'}.`}
                 </p>
                 {submitError && <p className="admin-error">{submitError}</p>}
                 <p className="cancel-note">
@@ -233,37 +392,54 @@ function SignupModal({
             {loadError && <p className="admin-error">{loadError}</p>}
 
             {!loadError && (
-              <form className="signup-form" onSubmit={handleSubmit}>
-                <label className="field">
-                  Name
-                  <input type="text" required value={name} onChange={(e) => setName(e.target.value)} />
-                </label>
-                <label className="field">
-                  Email
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-                </label>
-                <div className="signup-honeypot" aria-hidden="true">
-                  <label>
-                    Leave blank
-                    <input tabIndex={-1} autoComplete="off" value={company} onChange={(e) => setCompany(e.target.value)} />
-                  </label>
-                </div>
+              <form className="signup-form" onSubmit={onLastPage ? handleSubmit : (e) => e.preventDefault()}>
+                {pageIndex === 0 && (
+                  <>
+                    <label className="field">
+                      Name
+                      <input type="text" required value={name} onChange={(e) => setName(e.target.value)} />
+                    </label>
+                    <label className="field">
+                      Email
+                      <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                    </label>
+                    <div className="signup-honeypot" aria-hidden="true">
+                      <label>
+                        Leave blank
+                        <input tabIndex={-1} autoComplete="off" value={company} onChange={(e) => setCompany(e.target.value)} />
+                      </label>
+                    </div>
 
-                {!waiverOnFile && (
-                  <p className="waiver-download-note">
-                    Haven&rsquo;t signed a liability waiver yet? You don&rsquo;t need one to {verb.toLowerCase()} &mdash;
-                    just{' '}
-                    <a href={WAIVER_URL} target="_blank" rel="noreferrer">
-                      download and print it
-                    </a>{' '}
-                    and bring the signed copy to the event.
-                  </p>
+                    {!waiverOnFile && (
+                      <p className="waiver-download-note">
+                        Haven&rsquo;t signed a liability waiver yet? You don&rsquo;t need one to {verb.toLowerCase()} &mdash;
+                        just{' '}
+                        <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+                          download and print it
+                        </a>{' '}
+                        and bring the signed copy to the event.
+                      </p>
+                    )}
+                  </>
                 )}
 
-                {form?.fields.map((field) => (
+                {pages.length > 1 && (
+                  <p className="signup-page-indicator">
+                    Page {pageIndex + 1} of {pages.length}
+                  </p>
+                )}
+                {pages[pageIndex]?.heading && (
+                  <div className="signup-section-heading">
+                    <h5>{pages[pageIndex].heading!.label}</h5>
+                    {pages[pageIndex].heading!.description && <p>{pages[pageIndex].heading!.description}</p>}
+                  </div>
+                )}
+
+                {pages[pageIndex]?.fields.map((field) => (
                   <label className="field" key={field.id}>
                     {field.label}
                     {field.required && <span className="req"> *</span>}
+                    {field.description && <span className="field-desc">{field.description}</span>}
                     <FieldInput
                       field={field}
                       value={answers[field.id] ?? ''}
@@ -272,15 +448,36 @@ function SignupModal({
                   </label>
                 ))}
 
+                {pageError && <p className="admin-error">{pageError}</p>}
                 {submitError && <p className="admin-error">{submitError}</p>}
 
                 <div className="signup-modal-ft">
                   <span className="signup-note">
                     {spotsLeft !== null ? `${Math.max(spotsLeft, 0)} spots left` : ''}
                   </span>
-                  <button className="btn btn-ace" type="submit" disabled={submitting || (event.form_id != null && !form)}>
-                    {submitting ? 'Submitting…' : `Confirm ${verb}`}
-                  </button>
+                  <span className="signup-modal-ft-actions">
+                    {pageIndex > 0 && (
+                      <button
+                        className="btn btn-outline"
+                        type="button"
+                        onClick={() => {
+                          setPageError(null)
+                          setPageIndex((i) => i - 1)
+                        }}
+                      >
+                        Back
+                      </button>
+                    )}
+                    {onLastPage ? (
+                      <button className="btn btn-ace" type="submit" disabled={submitting || (event.form_id != null && !form)}>
+                        {submitting ? 'Submitting…' : `Confirm ${verb}`}
+                      </button>
+                    ) : (
+                      <button className="btn btn-ace" type="button" onClick={goNext}>
+                        Next
+                      </button>
+                    )}
+                  </span>
                 </div>
               </form>
             )}

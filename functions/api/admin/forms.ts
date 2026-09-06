@@ -19,6 +19,8 @@ export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env 
 interface FormInput {
   name: string
   fields: FormFieldInput[]
+  max_responses?: number | null
+  confirmation_message?: string | null
 }
 
 // POST /api/admin/forms -> create a form with its fields in one go
@@ -29,17 +31,33 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
   const fieldsError = validateFields(body.fields)
   if (fieldsError) return badRequest(fieldsError)
 
-  const result = await env.DB.prepare(`INSERT INTO forms (name) VALUES (?1)`).bind(body.name.trim()).run()
+  const result = await env.DB.prepare(
+    `INSERT INTO forms (name, max_responses, confirmation_message) VALUES (?1, ?2, ?3)`
+  )
+    .bind(body.name.trim(), body.max_responses ?? null, body.confirmation_message?.trim() || null)
+    .run()
   const formId = Number(result.meta.last_row_id)
 
   const fields = body.fields as FormFieldInput[]
   await env.DB.batch(
-    fields.map((f, i) =>
-      env.DB.prepare(
-        `INSERT INTO form_fields (form_id, label, field_type, options, required, sort_order)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
-      ).bind(formId, f.label.trim(), f.field_type, f.field_type === 'select' ? (f.options ?? null) : null, f.required ? 1 : 0, i)
-    )
+    fields.map((f, i) => {
+      const hasOptions = f.field_type === 'select' || f.field_type === 'radio' || f.field_type === 'checkbox_group'
+      return env.DB.prepare(
+        `INSERT INTO form_fields (form_id, label, field_type, options, required, sort_order, description, min_value, max_value, pattern)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`
+      ).bind(
+        formId,
+        f.label.trim(),
+        f.field_type,
+        hasOptions ? (f.options ?? null) : null,
+        f.field_type === 'section' ? 0 : f.required ? 1 : 0,
+        i,
+        f.description?.trim() || null,
+        f.field_type === 'section' ? null : (f.min_value ?? null),
+        f.field_type === 'section' ? null : (f.max_value ?? null),
+        f.field_type === 'section' ? null : (f.pattern?.trim() || null)
+      )
+    })
   )
 
   await logAudit(env, data.user.id, 'create', 'forms', formId, { name: body.name, field_count: fields.length })

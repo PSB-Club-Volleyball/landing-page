@@ -20,6 +20,7 @@ const FIELDS = [
   'rsvp_gated',
   'form_id',
   'capacity',
+  'tags',
 ] as const
 
 // PUT /api/admin/events/:id -> partial update, any subset of FIELDS

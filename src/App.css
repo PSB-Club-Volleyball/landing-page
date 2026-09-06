@@ -615,6 +615,36 @@ main {
   color: var(--muted);
   line-height: 1.5;
 }
+.event-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.tag-chip {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--page-fg) 8%, transparent);
+  border-radius: var(--radius-xs);
+  padding: 0.1rem 0.45rem;
+}
+.tag-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: -0.3rem 0 0.2rem;
+}
+.tag-chip-btn {
+  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+.tag-chip-btn.active {
+  border-color: var(--ace);
+  color: var(--ace);
+  background: color-mix(in srgb, var(--ace) 10%, transparent);
+}
 
 .event-card-signup {
   margin-top: 0.2rem;
@@ -763,6 +793,61 @@ main {
 }
 .signup-note {
   font-size: 0.76rem;
+  color: var(--muted);
+}
+.signup-modal-ft-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.signup-page-indicator {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.signup-section-heading {
+  margin: 0.2rem 0;
+}
+.signup-section-heading h5 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+}
+.signup-section-heading p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.field-desc {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+.choice-group,
+.scale-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.9rem;
+  align-items: center;
+}
+.choice-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+.scale-option {
+  display: inline-flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.78rem;
+  font-weight: 400;
+}
+.scale-end {
+  font-size: 0.72rem;
   color: var(--muted);
 }
 .waiver-download-note {

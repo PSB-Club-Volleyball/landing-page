@@ -18,6 +18,7 @@ const emptyDraft = {
   rsvp_gated: false,
   form_id: '' as string, // '' = none chosen yet
   capacity: '' as string,
+  tags: '' as string, // comma-separated
 }
 type Draft = typeof emptyDraft
 
@@ -36,6 +37,13 @@ function toInput(draft: Draft) {
     rsvp_gated: draft.signup_enabled && draft.rsvp_gated,
     form_id: draft.signup_enabled && draft.form_id ? Number(draft.form_id) : null,
     capacity: draft.signup_enabled && draft.capacity ? Number(draft.capacity) : null,
+    tags: draft.tags
+      ? draft.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .join(', ') || null
+      : null,
   }
 }
 
@@ -55,6 +63,7 @@ function eventToDraft(e: AdminEventRow): Draft {
     rsvp_gated: e.rsvp_gated,
     form_id: e.form_id !== null ? String(e.form_id) : '',
     capacity: e.capacity !== null ? String(e.capacity) : '',
+    tags: e.tags ?? '',
   }
 }
 
@@ -238,11 +247,20 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
     }
   }
 
-  async function handleDecide(signupId: number, status: 'approved' | 'denied') {
+  async function handleDecide(signupId: number, status: 'approved' | 'denied' | 'waitlist') {
     try {
       await adminApi.events.decideSignup(eventId, signupId, status)
       refresh()
       onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  async function handleToggleCheckedIn(signupId: number, checkedIn: boolean) {
+    try {
+      await adminApi.events.setCheckedIn(eventId, signupId, checkedIn)
+      refresh()
     } catch (e) {
       setError((e as Error).message)
     }
@@ -260,6 +278,7 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
           <th>Email</th>
           <th>Answers</th>
           <th>Status</th>
+          <th>Checked in</th>
           <th>Submitted</th>
           <th></th>
         </tr>
@@ -277,6 +296,17 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
             <td>
               <span className={`status-chip status-${s.status}`}>{s.status}</span>
             </td>
+            <td>
+              {s.status === 'approved' && (
+                <button
+                  type="button"
+                  className={s.checked_in_at ? 'signups-toggle checked-in' : 'signups-toggle'}
+                  onClick={() => handleToggleCheckedIn(s.id, !s.checked_in_at)}
+                >
+                  {s.checked_in_at ? `✓ ${new Date(s.checked_in_at).toLocaleTimeString()}` : 'Check in'}
+                </button>
+              )}
+            </td>
             <td>{new Date(s.created_at).toLocaleDateString()}</td>
             <td>
               <span className="row-actions">
@@ -289,6 +319,16 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
                       Deny
                     </button>
                   </>
+                )}
+                {s.status === 'waitlist' && (
+                  <button type="button" onClick={() => handleDecide(s.id, 'approved')}>
+                    Promote
+                  </button>
+                )}
+                {s.status === 'approved' && (
+                  <button type="button" onClick={() => handleDecide(s.id, 'waitlist')}>
+                    Move to waitlist
+                  </button>
                 )}
                 <button type="button" className="danger" onClick={() => handleRemove(s.id)}>
                   Remove
@@ -416,6 +456,10 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 onChange={(e) => setCreateDraft({ ...createDraft, description: e.target.value })}
               />
             </label>
+            <label className="field">
+              Tags <span className="field-hint">(comma-separated, e.g. "beginner friendly, social")</span>
+              <input value={createDraft.tags} onChange={(e) => setCreateDraft({ ...createDraft, tags: e.target.value })} />
+            </label>
           </fieldset>
 
           <fieldset>
@@ -511,6 +555,10 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                             />
                           </label>
                         </div>
+                        <label className="field">
+                          Tags <span className="field-hint">(comma-separated)</span>
+                          <input value={editDraft.tags} onChange={(e) => setEditDraft({ ...editDraft, tags: e.target.value })} />
+                        </label>
                       </fieldset>
                       <fieldset>
                         <legend>When &amp; where</legend>

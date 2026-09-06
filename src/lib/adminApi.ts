@@ -54,10 +54,15 @@ export const adminApi = {
       request<{ ok: true }>(`/api/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: number) => request<{ ok: true }>(`/api/admin/events/${id}`, { method: 'DELETE' }),
     signups: (id: number) => request<{ signups: EventSignup[] }>(`/api/admin/events/${id}/signups`),
-    decideSignup: (eventId: number, signupId: number, status: Extract<SignupStatus, 'approved' | 'denied'>) =>
+    decideSignup: (eventId: number, signupId: number, status: Extract<SignupStatus, 'approved' | 'denied' | 'waitlist'>) =>
       request<{ ok: true }>(`/api/admin/events/${eventId}/signups/${signupId}`, {
         method: 'PUT',
         body: JSON.stringify({ status }),
+      }),
+    setCheckedIn: (eventId: number, signupId: number, checkedIn: boolean) =>
+      request<{ ok: true }>(`/api/admin/events/${eventId}/signups/${signupId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ checked_in: checkedIn }),
       }),
     removeSignup: (eventId: number, signupId: number) =>
       request<{ ok: true }>(`/api/admin/events/${eventId}/signups/${signupId}`, { method: 'DELETE' }),
