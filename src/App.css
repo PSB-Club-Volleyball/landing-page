@@ -568,6 +568,14 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  cursor: pointer;
+}
+.event-card:hover {
+  border-color: color-mix(in srgb, var(--page-fg) 30%, transparent);
+}
+.event-card:focus-visible {
+  outline: 2px solid var(--ace);
+  outline-offset: 2px;
 }
 .event-card.cancelled {
   opacity: 0.6;
@@ -620,6 +628,11 @@ main {
   font-size: 0.82rem;
   color: var(--muted);
   line-height: 1.5;
+}
+.see-more-btn {
+  font-size: 0.82rem;
+  margin-left: 0.3rem;
+  white-space: nowrap;
 }
 .event-card-tags {
   display: flex;
@@ -718,7 +731,7 @@ main {
   z-index: 60;
 }
 .signup-modal {
-  width: min(420px, 100%);
+  width: min(560px, 100%);
   max-height: 90vh;
   overflow-y: auto;
   background: var(--page-bg);
@@ -812,6 +825,34 @@ main {
   font-size: 0.75rem;
   font-weight: 400;
   color: var(--muted);
+}
+
+.event-detail-modal {
+  width: min(640px, 100%);
+}
+.event-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+.event-detail-desc {
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.event-detail-desc p {
+  margin: 0 0 0.8rem;
+}
+.event-detail-desc p:last-child {
+  margin-bottom: 0;
+}
+.event-detail-desc ul {
+  margin: 0 0 0.8rem;
+  padding-left: 1.2rem;
+}
+.event-detail-desc a {
+  color: var(--ace);
 }
 .choice-group,
 .scale-group {

@@ -1,48 +1,29 @@
 import { useEffect, useState } from 'react'
+import EventDetailModal from '../components/EventDetailModal'
 import SignupModal from '../components/SignupModal'
 import { getEvents } from '../lib/api'
+import { directionsUrl, EVENT_TYPE_LABELS, formatEventDate, formatTimeRange, getSignupState } from '../lib/eventFormat'
+import { plainTextPreview } from '../lib/markdown'
 import type { PublicClubEvent, SignupStatus } from '../types'
 
-const TYPE_LABELS: Record<string, string> = {
-  practice: 'Practice',
-  tournament: 'Tournament',
-  open_gym: 'Open gym',
-  game: 'Game',
-  social: 'Social',
-}
-
-const dayHeaderFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
-const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
-
-function formatTimeRange(event: PublicClubEvent) {
-  const start = timeFormatter.format(new Date(event.start_time))
-  if (!event.end_time) return start
-  return `${start} – ${timeFormatter.format(new Date(event.end_time))}`
-}
+const DESCRIPTION_PREVIEW_LEN = 140
 
 function EventCard({
   event,
+  onOpenDetail,
   onOpenSignup,
   onManageSignup,
 }: {
   event: PublicClubEvent
+  onOpenDetail: (e: PublicClubEvent) => void
   onOpenSignup: (e: PublicClubEvent) => void
   onManageSignup: (e: PublicClubEvent, signupId: number, status: SignupStatus | null) => void
 }) {
-  const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
-  const isFull = spotsLeft !== null && spotsLeft <= 0
-  // A full, gated event still can't be requested past capacity (see
-  // functions/api/events/[id]/signups.ts) — but a full, ungated event opens
-  // the waitlist instead of turning people away.
-  const joinsWaitlist = isFull && !event.rsvp_gated
-  const verb = event.rsvp_gated
-    ? 'Request'
-    : event.event_type === 'game' || event.event_type === 'tournament'
-      ? 'RSVP'
-      : 'Sign up'
+  const { spotsLeft, isFull, joinsWaitlist, verb } = getSignupState(event)
   const tags = event.tags
     ? event.tags.split(',').map((t) => t.trim()).filter(Boolean)
     : []
+  const preview = event.description ? plainTextPreview(event.description, DESCRIPTION_PREVIEW_LEN) : null
 
   // A guest (no account) signup isn't tracked here at all — nothing is kept
   // in the browser, so managing/cancelling it happens via the link emailed
@@ -52,10 +33,22 @@ function EventCard({
   const myStatus: SignupStatus | null = event.my_signup_status
 
   return (
-    <div className={`event-card${event.status === 'cancelled' ? ' cancelled' : ''}`}>
+    <div
+      className={`event-card${event.status === 'cancelled' ? ' cancelled' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpenDetail(event)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onOpenDetail(event)
+        }
+      }}
+    >
       <div className="event-card-row1">
         <p className="event-card-title">{event.title}</p>
-        <span className="event-card-type">{TYPE_LABELS[event.event_type] ?? event.event_type}</span>
+        <span className="event-card-type">{EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}</span>
       </div>
       <div className="event-card-when">{formatTimeRange(event)}</div>
       {event.location_name && (
@@ -65,10 +58,11 @@ function EventCard({
             <>
               {' · '}
               <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location_address)}`}
+                href={directionsUrl(event.location_address)}
                 target="_blank"
                 rel="noreferrer"
                 className="directions-link"
+                onClick={(e) => e.stopPropagation()}
               >
                 Directions
               </a>
@@ -86,7 +80,23 @@ function EventCard({
         </div>
       )}
       {event.status === 'cancelled' && <p className="event-card-desc">Cancelled</p>}
-      {event.status !== 'cancelled' && event.description && <p className="event-card-desc">{event.description}</p>}
+      {event.status !== 'cancelled' && preview && (
+        <p className="event-card-desc">
+          {preview.text}
+          {preview.truncated && (
+            <button
+              className="link-btn see-more-btn"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenDetail(event)
+              }}
+            >
+              Click to see more
+            </button>
+          )}
+        </p>
+      )}
 
       {event.status !== 'cancelled' && event.signup_enabled && (
         <div className="event-card-signup">
@@ -100,7 +110,10 @@ function EventCard({
             <button
               className="btn btn-outline"
               type="button"
-              onClick={() => onManageSignup(event, mySignupId, myStatus)}
+              onClick={(e) => {
+                e.stopPropagation()
+                onManageSignup(event, mySignupId, myStatus)
+              }}
             >
               {myStatus === 'pending'
                 ? 'Request pending · Manage'
@@ -115,7 +128,10 @@ function EventCard({
               className={isFull && !joinsWaitlist ? 'btn btn-outline' : 'btn btn-ace'}
               type="button"
               disabled={isFull && !joinsWaitlist}
-              onClick={() => onOpenSignup(event)}
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenSignup(event)
+              }}
             >
               {joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
             </button>
@@ -129,6 +145,7 @@ function EventCard({
 function Events() {
   const [events, setEvents] = useState<PublicClubEvent[] | null>(null)
   const [error, setError] = useState(false)
+  const [detailEvent, setDetailEvent] = useState<PublicClubEvent | null>(null)
   const [signupEvent, setSignupEvent] = useState<PublicClubEvent | null>(null)
   const [manage, setManage] = useState<{
     event: PublicClubEvent
@@ -143,6 +160,16 @@ function Events() {
   }
 
   useEffect(refresh, [])
+
+  function openSignup(e: PublicClubEvent) {
+    setDetailEvent(null)
+    setSignupEvent(e)
+  }
+
+  function openManage(e: PublicClubEvent, signupId: number, status: SignupStatus | null) {
+    setDetailEvent(null)
+    setManage({ event: e, signupId, status })
+  }
 
   const groups = new Map<string, PublicClubEvent[]>()
   for (const event of events ?? []) {
@@ -174,7 +201,7 @@ function Events() {
             {[...groups.entries()].map(([dayKey, dayEvents]) => (
               <div className="day-group" key={dayKey}>
                 <div className="day-label">
-                  {dayHeaderFormatter.format(new Date(`${dayKey}T00:00`))}{' '}
+                  {formatEventDate(`${dayKey}T00:00`)}{' '}
                   <span className="day-label-count">
                     {dayEvents.length} event{dayEvents.length === 1 ? '' : 's'}
                   </span>
@@ -184,6 +211,7 @@ function Events() {
                     <EventCard
                       key={event.id}
                       event={event}
+                      onOpenDetail={setDetailEvent}
                       onOpenSignup={setSignupEvent}
                       onManageSignup={(e, signupId, status) => setManage({ event: e, signupId, status })}
                     />
@@ -194,6 +222,14 @@ function Events() {
           </>
         )}
 
+        {detailEvent && (
+          <EventDetailModal
+            event={detailEvent}
+            onClose={() => setDetailEvent(null)}
+            onOpenSignup={openSignup}
+            onManageSignup={openManage}
+          />
+        )}
         {signupEvent && (
           <SignupModal
             event={signupEvent}
