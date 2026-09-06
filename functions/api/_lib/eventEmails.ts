@@ -34,26 +34,34 @@ export function buildCancelUrl(env: Env, eventId: number, signupId: number, canc
   return `${env.PUBLIC_URL}/events/${eventId}/cancel/${signupId}?token=${encodeURIComponent(cancelToken)}`
 }
 
-function wrapHtml(heading: string, bodyLines: string[], detailLines: string[], cancel?: { url: string; label: string }): string {
+// Every email about an actual (not yet cancelled/denied) spot at an event
+// links the liability waiver — same file the site links from its footer
+// and the signup form (see WAIVER_URL in src/constants.ts) — so "did I ever
+// get the waiver" isn't something a guest has to go dig for later.
+function buildWaiverLink(env: Env): { url: string; label: string } {
+  return { url: `${env.PUBLIC_URL}/liability-waiver.pdf`, label: 'Download the liability waiver' }
+}
+
+function wrapHtml(heading: string, bodyLines: string[], detailLines: string[], links: { url: string; label: string }[] = []): string {
   const details = detailLines.map((l) => `<p style="margin:0 0 4px">${l}</p>`).join('')
   const body = bodyLines.map((l) => `<p style="margin:0 0 12px">${l}</p>`).join('')
-  const cancelHtml = cancel
-    ? `<p style="margin:16px 0 0"><a href="${cancel.url}" style="color:#1a56db">${cancel.label}</a></p>`
-    : ''
+  const linksHtml = links
+    .map((l) => `<p style="margin:16px 0 0"><a href="${l.url}" style="color:#1a56db">${l.label}</a></p>`)
+    .join('')
   return `
     <div style="font-family:sans-serif;color:#1a1a1a;max-width:480px">
       <h2 style="margin:0 0 16px">${heading}</h2>
       ${body}
       <div style="margin:16px 0;padding:12px 16px;background:#f4f4f4;border-radius:8px">${details}</div>
-      ${cancelHtml}
+      ${linksHtml}
       <p style="margin:16px 0 0;color:#666;font-size:13px">Behrend Club Volleyball</p>
     </div>
   `.trim()
 }
 
-function wrapText(heading: string, bodyLines: string[], detailLines: string[], cancel?: { url: string; label: string }): string {
+function wrapText(heading: string, bodyLines: string[], detailLines: string[], links: { url: string; label: string }[] = []): string {
   const lines = [heading, '', ...bodyLines, '', ...detailLines]
-  if (cancel) lines.push('', `${cancel.label}: ${cancel.url}`)
+  for (const l of links) lines.push('', `${l.label}: ${l.url}`)
   lines.push('', 'Behrend Club Volleyball')
   return lines.join('\n')
 }
@@ -63,12 +71,12 @@ function wrapText(heading: string, bodyLines: string[], detailLines: string[], c
 export function sendRsvpConfirmationEmail(env: Env, to: string, name: string, event: EventInfo, cancelUrl: string) {
   const details = eventDetailsLines(event)
   const body = [`Hi ${name},`, `You're confirmed for ${event.title}. See you there!`]
-  const cancel = { url: cancelUrl, label: 'Cancel your RSVP' }
+  const links = [buildWaiverLink(env), { url: cancelUrl, label: 'Cancel your RSVP' }]
   return sendEmail(env, {
     to,
     subject: `You're confirmed: ${event.title}`,
-    html: wrapHtml("You're confirmed", body, details, cancel),
-    text: wrapText("You're confirmed", body, details, cancel),
+    html: wrapHtml("You're confirmed", body, details, links),
+    text: wrapText("You're confirmed", body, details, links),
   })
 }
 
@@ -81,12 +89,12 @@ export function sendRsvpRequestEmail(env: Env, to: string, name: string, event: 
     `We received your request to attend ${event.title}. This event requires admin approval, so ` +
       `your spot isn't confirmed yet — we'll email you as soon as it's reviewed.`,
   ]
-  const cancel = { url: cancelUrl, label: 'Withdraw your request' }
+  const links = [buildWaiverLink(env), { url: cancelUrl, label: 'Withdraw your request' }]
   return sendEmail(env, {
     to,
     subject: `Request received: ${event.title}`,
-    html: wrapHtml('Request received', body, details, cancel),
-    text: wrapText('Request received', body, details, cancel),
+    html: wrapHtml('Request received', body, details, links),
+    text: wrapText('Request received', body, details, links),
   })
 }
 
@@ -94,12 +102,12 @@ export function sendRsvpRequestEmail(env: Env, to: string, name: string, event: 
 export function sendRsvpApprovedEmail(env: Env, to: string, name: string, event: EventInfo, cancelUrl: string) {
   const details = eventDetailsLines(event)
   const body = [`Hi ${name},`, `Your request to attend ${event.title} has been approved. See you there!`]
-  const cancel = { url: cancelUrl, label: 'Cancel your RSVP' }
+  const links = [buildWaiverLink(env), { url: cancelUrl, label: 'Cancel your RSVP' }]
   return sendEmail(env, {
     to,
     subject: `You're approved: ${event.title}`,
-    html: wrapHtml("You're approved", body, details, cancel),
-    text: wrapText("You're approved", body, details, cancel),
+    html: wrapHtml("You're approved", body, details, links),
+    text: wrapText("You're approved", body, details, links),
   })
 }
 
@@ -111,12 +119,12 @@ export function sendWaitlistEmail(env: Env, to: string, name: string, event: Eve
     `Hi ${name},`,
     `${event.title} is full, so you've been added to the waitlist. We'll email you right away if a spot opens up.`,
   ]
-  const cancel = { url: cancelUrl, label: 'Leave the waitlist' }
+  const links = [buildWaiverLink(env), { url: cancelUrl, label: 'Leave the waitlist' }]
   return sendEmail(env, {
     to,
     subject: `You're on the waitlist: ${event.title}`,
-    html: wrapHtml("You're on the waitlist", body, details, cancel),
-    text: wrapText("You're on the waitlist", body, details, cancel),
+    html: wrapHtml("You're on the waitlist", body, details, links),
+    text: wrapText("You're on the waitlist", body, details, links),
   })
 }
 
@@ -125,12 +133,12 @@ export function sendWaitlistEmail(env: Env, to: string, name: string, event: Eve
 export function sendWaitlistPromotedEmail(env: Env, to: string, name: string, event: EventInfo, cancelUrl: string) {
   const details = eventDetailsLines(event)
   const body = [`Hi ${name},`, `A spot opened up for ${event.title} and you're in! See you there.`]
-  const cancel = { url: cancelUrl, label: 'Cancel your RSVP' }
+  const links = [buildWaiverLink(env), { url: cancelUrl, label: 'Cancel your RSVP' }]
   return sendEmail(env, {
     to,
     subject: `You're in: ${event.title}`,
-    html: wrapHtml("You're in!", body, details, cancel),
-    text: wrapText("You're in!", body, details, cancel),
+    html: wrapHtml("You're in!", body, details, links),
+    text: wrapText("You're in!", body, details, links),
   })
 }
 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { WAIVER_URL } from '../constants'
 import { directionsUrl, EVENT_TYPE_LABELS, formatEventDate, formatTimeRange, getSignupState } from '../lib/eventFormat'
 import { renderMarkdown } from '../lib/markdown'
 import type { PublicClubEvent, SignupStatus } from '../types'
@@ -104,6 +105,16 @@ function EventDetailModal({
               </button>
             )}
           </div>
+        )}
+
+        {event.status !== 'cancelled' && event.signup_enabled && (
+          <p className="waiver-download-note">
+            Playing requires a signed liability waiver &mdash;{' '}
+            <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+              download and print it
+            </a>{' '}
+            ahead of time.
+          </p>
         )}
       </div>
     </div>

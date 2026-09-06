@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { WAIVER_URL } from '../constants'
 import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
 import { buildPages, FieldInput } from '../lib/formFields'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
-
-const WAIVER_URL = '/liability-waiver.pdf'
 
 function SignupModal({
   event,
@@ -205,6 +204,15 @@ function SignupModal({
                   (also emailed to you &mdash; a logged-in account can also cancel from the event card)
                 </p>
               </>
+            )}
+            {!signupCancelled && signupStatus !== 'denied' && (
+              <p className="waiver-download-note">
+                Don&rsquo;t forget to{' '}
+                <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+                  download and print the liability waiver
+                </a>{' '}
+                and bring the signed copy to the event.
+              </p>
             )}
             <button className="btn btn-outline btn-sm" type="button" onClick={onClose}>
               Close
