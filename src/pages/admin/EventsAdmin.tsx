@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import AdminModal from '../../components/admin/AdminModal'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { useSelection } from '../../lib/useSelection'
@@ -362,6 +363,309 @@ function SignupsPanel({ eventId, onChanged }: { eventId: number; onChanged: () =
   )
 }
 
+// Bulk-editing several events at once can only ever set every selected
+// event to the *same* value for a field, so per-event data (title, date/time,
+// recurrence) is excluded entirely rather than offered and silently
+// clobbered. Every includable field is opt-in via its own checkbox — left
+// unchecked (and greyed out), it's simply not part of the update.
+interface BulkDraft {
+  apply: {
+    event_type: boolean
+    description: boolean
+    tags: boolean
+    location: boolean
+    status: boolean
+    signup: boolean
+  }
+  event_type: string
+  description: string
+  tags: string
+  location_name: string
+  location_address: string
+  status: EventStatus
+  signup_enabled: boolean
+  rsvp_gated: boolean
+  form_id: string
+  capacity: string
+}
+
+function emptyBulkDraft(): BulkDraft {
+  return {
+    apply: { event_type: false, description: false, tags: false, location: false, status: false, signup: false },
+    event_type: 'practice',
+    description: '',
+    tags: '',
+    location_name: '',
+    location_address: '',
+    status: 'published',
+    signup_enabled: false,
+    rsvp_gated: false,
+    form_id: '',
+    capacity: '',
+  }
+}
+
+function bulkDraftToInput(draft: BulkDraft) {
+  const input: Partial<AdminEventRow> = {}
+  if (draft.apply.event_type) input.event_type = draft.event_type
+  if (draft.apply.description) input.description = draft.description || null
+  if (draft.apply.tags) {
+    input.tags =
+      draft.tags
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .join(', ') || null
+  }
+  if (draft.apply.location) {
+    input.location_name = draft.location_name || null
+    input.location_address = draft.location_address || null
+  }
+  if (draft.apply.status) input.status = draft.status
+  if (draft.apply.signup) {
+    input.signup_enabled = draft.signup_enabled
+    input.rsvp_gated = draft.signup_enabled && draft.rsvp_gated
+    input.form_id = draft.signup_enabled && draft.form_id ? Number(draft.form_id) : null
+    input.capacity = draft.signup_enabled && draft.capacity ? Number(draft.capacity) : null
+  }
+  return input
+}
+
+function BulkEditForm({
+  draft,
+  onChange,
+  forms,
+  count,
+  busy,
+  onCancel,
+  onApply,
+  onShift,
+  shiftDays,
+  onShiftDaysChange,
+  onDelete,
+  canDelete,
+}: {
+  draft: BulkDraft
+  onChange: (d: BulkDraft) => void
+  forms: FormTemplate[]
+  count: number
+  busy: boolean
+  onCancel: () => void
+  onApply: () => void
+  onShift: () => void
+  shiftDays: string
+  onShiftDaysChange: (v: string) => void
+  onDelete: () => void
+  canDelete: boolean
+}) {
+  const anyChecked = Object.values(draft.apply).some(Boolean)
+  return (
+    <div className="event-form">
+      <fieldset>
+        <legend>Can&rsquo;t be batch-edited</legend>
+        <div className="grid2">
+          <label className="field bulk-field-disabled">
+            Title
+            <input disabled value="(edit events individually)" readOnly />
+          </label>
+          <label className="field bulk-field-disabled">
+            Date &amp; time
+            <input disabled value="(edit events individually)" readOnly />
+          </label>
+        </div>
+        <div className="bulk-shift-row">
+          <label className="field">
+            Shift all selected by <span className="field-hint">(days, +/-)</span>
+            <input
+              type="number"
+              placeholder="e.g. 7 or -1"
+              value={shiftDays}
+              onChange={(e) => onShiftDaysChange(e.target.value)}
+            />
+          </label>
+          <button className="btn btn-outline" type="button" disabled={busy || !shiftDays} onClick={onShift}>
+            Reschedule {count} event{count === 1 ? '' : 's'}
+          </button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Fields to change</legend>
+
+        <label className="bulk-check-row">
+          <input
+            type="checkbox"
+            checked={draft.apply.event_type}
+            onChange={(e) => onChange({ ...draft, apply: { ...draft.apply, event_type: e.target.checked } })}
+          />
+          <span className="field bulk-check-field">
+            Type
+            <select
+              disabled={!draft.apply.event_type}
+              value={draft.event_type}
+              onChange={(e) => onChange({ ...draft, event_type: e.target.value })}
+            >
+              <option value="practice">Practice</option>
+              <option value="tournament">Tournament</option>
+              <option value="open_gym">Open gym</option>
+              <option value="game">Game</option>
+              <option value="social">Social</option>
+            </select>
+          </span>
+        </label>
+
+        <label className="bulk-check-row">
+          <input
+            type="checkbox"
+            checked={draft.apply.status}
+            onChange={(e) => onChange({ ...draft, apply: { ...draft.apply, status: e.target.checked } })}
+          />
+          <span className="field bulk-check-field">
+            Status
+            <select
+              disabled={!draft.apply.status}
+              value={draft.status}
+              onChange={(e) => onChange({ ...draft, status: e.target.value as EventStatus })}
+            >
+              <option value="draft">Draft</option>
+              <option value="published">Published</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </span>
+        </label>
+
+        <label className="bulk-check-row">
+          <input
+            type="checkbox"
+            checked={draft.apply.tags}
+            onChange={(e) => onChange({ ...draft, apply: { ...draft.apply, tags: e.target.checked } })}
+          />
+          <span className="field bulk-check-field">
+            Tags <span className="field-hint">(comma-separated &mdash; replaces existing tags)</span>
+            <input
+              disabled={!draft.apply.tags}
+              value={draft.tags}
+              onChange={(e) => onChange({ ...draft, tags: e.target.value })}
+            />
+          </span>
+        </label>
+
+        <label className="bulk-check-row">
+          <input
+            type="checkbox"
+            checked={draft.apply.description}
+            onChange={(e) => onChange({ ...draft, apply: { ...draft.apply, description: e.target.checked } })}
+          />
+          <span className="field bulk-check-field">
+            Description
+            <textarea
+              rows={2}
+              disabled={!draft.apply.description}
+              value={draft.description}
+              onChange={(e) => onChange({ ...draft, description: e.target.value })}
+            />
+          </span>
+        </label>
+
+        <label className="bulk-check-row">
+          <input
+            type="checkbox"
+            checked={draft.apply.location}
+            onChange={(e) => onChange({ ...draft, apply: { ...draft.apply, location: e.target.checked } })}
+          />
+          <span className="field bulk-check-field">
+            Location &amp; address
+            <div className="grid2">
+              <input
+                disabled={!draft.apply.location}
+                placeholder="Location name"
+                value={draft.location_name}
+                onChange={(e) => onChange({ ...draft, location_name: e.target.value })}
+              />
+              <input
+                disabled={!draft.apply.location}
+                placeholder="Address"
+                value={draft.location_address}
+                onChange={(e) => onChange({ ...draft, location_address: e.target.value })}
+              />
+            </div>
+          </span>
+        </label>
+
+        <label className="bulk-check-row">
+          <input
+            type="checkbox"
+            checked={draft.apply.signup}
+            onChange={(e) => onChange({ ...draft, apply: { ...draft.apply, signup: e.target.checked } })}
+          />
+          <span className="field bulk-check-field">
+            Signup settings
+            <label className="switch-row">
+              <input
+                type="checkbox"
+                disabled={!draft.apply.signup}
+                checked={draft.signup_enabled}
+                onChange={(e) => onChange({ ...draft, signup_enabled: e.target.checked })}
+              />
+              Enable RSVP / signup
+            </label>
+            {draft.signup_enabled && (
+              <>
+                <label className="switch-row">
+                  <input
+                    type="checkbox"
+                    disabled={!draft.apply.signup}
+                    checked={draft.rsvp_gated}
+                    onChange={(e) => onChange({ ...draft, rsvp_gated: e.target.checked })}
+                  />
+                  Require admin approval
+                </label>
+                <div className="grid2">
+                  <select
+                    disabled={!draft.apply.signup}
+                    value={draft.form_id}
+                    onChange={(e) => onChange({ ...draft, form_id: e.target.value })}
+                  >
+                    <option value="">No form &mdash; just name &amp; email</option>
+                    {forms.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    disabled={!draft.apply.signup}
+                    placeholder="Capacity (optional)"
+                    value={draft.capacity}
+                    onChange={(e) => onChange({ ...draft, capacity: e.target.value })}
+                  />
+                </div>
+              </>
+            )}
+          </span>
+        </label>
+      </fieldset>
+
+      <div className="form-actions">
+        {canDelete && (
+          <button className="btn btn-outline danger" type="button" disabled={busy} onClick={onDelete}>
+            Delete {count} event{count === 1 ? '' : 's'}
+          </button>
+        )}
+        <span className="form-actions-spacer" />
+        <button className="btn btn-outline" type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="btn btn-ace" type="button" disabled={busy || !anyChecked} onClick={onApply}>
+          Apply to {count} event{count === 1 ? '' : 's'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const [events, setEvents] = useState<AdminEventRow[]>([])
   const [forms, setForms] = useState<FormTemplate[]>([])
@@ -375,8 +679,8 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const editDescriptionRef = useAutosizeTextarea(editDraft.description)
   const [signupsOpenFor, setSignupsOpenFor] = useState<number | null>(null)
   const selection = useSelection()
-  const [bulkStatus, setBulkStatus] = useState<EventStatus>('published')
-  const [bulkTags, setBulkTags] = useState('')
+  const [bulkEditOpen, setBulkEditOpen] = useState(false)
+  const [bulkDraft, setBulkDraft] = useState<BulkDraft>(emptyBulkDraft)
   const [bulkShiftDays, setBulkShiftDays] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
 
@@ -404,13 +708,6 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
     setBulkBusy(false)
   }
 
-  const applyBulkStatus = () => runSelectedBulk('Bulk status update', (ev) => adminApi.events.update(ev.id, { status: bulkStatus }))
-
-  const applyBulkTags = () => {
-    const tags = bulkTags.split(',').map((t) => t.trim()).filter(Boolean).join(', ') || null
-    return runSelectedBulk('Bulk tag update', (ev) => adminApi.events.update(ev.id, { tags }))
-  }
-
   const applyBulkShift = () => {
     const days = Number(bulkShiftDays)
     if (!Number.isFinite(days) || days === 0) return
@@ -419,12 +716,20 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
         start_time: shiftDateTime(ev.start_time, days),
         end_time: ev.end_time ? shiftDateTime(ev.end_time, days) : null,
       })
-    )
+    ).then(() => setBulkShiftDays(''))
+  }
+
+  const applyBulkEdit = () => {
+    const input = bulkDraftToInput(bulkDraft)
+    return runSelectedBulk('Bulk update', (ev) => adminApi.events.update(ev.id, input)).then(() => {
+      setBulkEditOpen(false)
+      setBulkDraft(emptyBulkDraft())
+    })
   }
 
   const applyBulkDelete = () => {
     if (!confirm(`Delete ${selection.selected.size} event(s)? This can't be undone.`)) return
-    return runSelectedBulk('Bulk delete', (ev) => adminApi.events.remove(ev.id))
+    return runSelectedBulk('Bulk delete', (ev) => adminApi.events.remove(ev.id)).then(() => setBulkEditOpen(false))
   }
 
   function startDuplicate(ev: AdminEventRow) {
@@ -475,12 +780,13 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
     <>
       <div className="admin-main-head">
         <h2>Events</h2>
-        <button className="add-btn" type="button" onClick={() => setCreating((v) => !v)}>
-          {creating ? 'Cancel' : '+ Add event'}
+        <button className="add-btn" type="button" onClick={() => setCreating(true)}>
+          + Add event
         </button>
       </div>
       {error && <p className="admin-error">{error}</p>}
       {creating && (
+        <AdminModal title="New event" onClose={() => setCreating(false)} wide>
         <form className="event-form" onSubmit={handleCreate}>
           <fieldset>
             <legend>Details</legend>
@@ -570,34 +876,11 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
             </button>
           </div>
         </form>
+        </AdminModal>
       )}
       <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
-        <select value={bulkStatus} onChange={(e) => setBulkStatus(e.target.value as EventStatus)}>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
-        <button type="button" disabled={bulkBusy} onClick={applyBulkStatus}>
-          Set status
-        </button>
-        <input
-          placeholder="Tags (comma-separated)"
-          value={bulkTags}
-          onChange={(e) => setBulkTags(e.target.value)}
-          style={{ width: '11rem' }}
-        />
-        <button type="button" disabled={bulkBusy} onClick={applyBulkTags}>
-          Set tags
-        </button>
-        <input
-          type="number"
-          placeholder="Shift by days"
-          value={bulkShiftDays}
-          onChange={(e) => setBulkShiftDays(e.target.value)}
-          style={{ width: '7rem' }}
-        />
-        <button type="button" disabled={bulkBusy || !bulkShiftDays} onClick={applyBulkShift}>
-          Reschedule
+        <button type="button" disabled={bulkBusy} onClick={() => setBulkEditOpen(true)}>
+          Edit selected&hellip;
         </button>
         {isOwner && (
           <button type="button" className="danger" disabled={bulkBusy} onClick={applyBulkDelete}>
@@ -605,6 +888,24 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           </button>
         )}
       </BulkActionBar>
+      {bulkEditOpen && (
+        <AdminModal title={`Edit ${selection.selected.size} event${selection.selected.size === 1 ? '' : 's'}`} onClose={() => setBulkEditOpen(false)} wide>
+          <BulkEditForm
+            draft={bulkDraft}
+            onChange={setBulkDraft}
+            forms={forms}
+            count={selection.selected.size}
+            busy={bulkBusy}
+            onCancel={() => setBulkEditOpen(false)}
+            onApply={applyBulkEdit}
+            onShift={applyBulkShift}
+            shiftDays={bulkShiftDays}
+            onShiftDaysChange={setBulkShiftDays}
+            onDelete={applyBulkDelete}
+            canDelete={isOwner}
+          />
+        </AdminModal>
+      )}
       <div className="data-table">
         <table>
           <thead>
@@ -636,98 +937,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 <td colSpan={8}>No events yet.</td>
               </tr>
             )}
-            {events.map((ev) =>
-              editingId === ev.id ? (
-                <tr key={ev.id}>
-                  <td colSpan={8}>
-                    <form
-                      className="event-form event-form-inline"
-                      onSubmit={(e) => {
-                        e.preventDefault()
-                        handleSave(ev.id)
-                      }}
-                    >
-                      <fieldset>
-                        <legend>Details</legend>
-                        <div className="grid2">
-                          <label className="field">
-                            Title <span className="req">*</span>
-                            <input
-                              required
-                              value={editDraft.title}
-                              onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            Type <span className="req">*</span>
-                            <input
-                              required
-                              value={editDraft.event_type}
-                              onChange={(e) => setEditDraft({ ...editDraft, event_type: e.target.value })}
-                            />
-                          </label>
-                        </div>
-                        <label className="field">
-                          Description{' '}
-                          <span className="field-hint">(supports **bold**, *italic*, [links](url), and "- " lists)</span>
-                          <textarea
-                            ref={editDescriptionRef}
-                            rows={2}
-                            value={editDraft.description}
-                            onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
-                          />
-                        </label>
-                        <label className="field">
-                          Tags <span className="field-hint">(comma-separated)</span>
-                          <input value={editDraft.tags} onChange={(e) => setEditDraft({ ...editDraft, tags: e.target.value })} />
-                        </label>
-                      </fieldset>
-                      <fieldset>
-                        <legend>When &amp; where</legend>
-                        <div className="grid3">
-                          <EventDateTimeFields draft={editDraft} onChange={setEditDraft} />
-                        </div>
-                        <div className="grid2">
-                          <label className="field">
-                            Location
-                            <input
-                              value={editDraft.location_name}
-                              onChange={(e) => setEditDraft({ ...editDraft, location_name: e.target.value })}
-                            />
-                          </label>
-                          <label className="field">
-                            Address <span className="field-hint">(powers the &ldquo;Directions&rdquo; link)</span>
-                            <input
-                              value={editDraft.location_address}
-                              onChange={(e) => setEditDraft({ ...editDraft, location_address: e.target.value })}
-                            />
-                          </label>
-                        </div>
-                        <label className="field">
-                          Status
-                          <select
-                            value={editDraft.status}
-                            onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
-                          >
-                            <option value="draft">Draft</option>
-                            <option value="published">Published</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </label>
-                      </fieldset>
-                      <SignupFields draft={editDraft} onChange={setEditDraft} forms={forms} />
-                      <div className="form-actions">
-                        <button className="btn btn-outline" type="button" onClick={() => setEditingId(null)}>
-                          Cancel
-                        </button>
-                        <button className="btn btn-ace" type="submit">
-                          Save
-                        </button>
-                      </div>
-                    </form>
-                  </td>
-                </tr>
-              ) : (
+            {events.map((ev) => (
                 <Fragment key={ev.id}>
                   <tr>
                     <td className="select-col">
@@ -792,6 +1002,95 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           </tbody>
         </table>
       </div>
+      {editingId !== null && (
+        <AdminModal title="Edit event" onClose={() => setEditingId(null)} wide>
+          <form
+            className="event-form"
+            onSubmit={(e) => {
+              e.preventDefault()
+              handleSave(editingId)
+            }}
+          >
+            <fieldset>
+              <legend>Details</legend>
+              <div className="grid2">
+                <label className="field">
+                  Title <span className="req">*</span>
+                  <input
+                    required
+                    value={editDraft.title}
+                    onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  Type <span className="req">*</span>
+                  <input
+                    required
+                    value={editDraft.event_type}
+                    onChange={(e) => setEditDraft({ ...editDraft, event_type: e.target.value })}
+                  />
+                </label>
+              </div>
+              <label className="field">
+                Description{' '}
+                <span className="field-hint">(supports **bold**, *italic*, [links](url), and "- " lists)</span>
+                <textarea
+                  ref={editDescriptionRef}
+                  rows={2}
+                  value={editDraft.description}
+                  onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                Tags <span className="field-hint">(comma-separated)</span>
+                <input value={editDraft.tags} onChange={(e) => setEditDraft({ ...editDraft, tags: e.target.value })} />
+              </label>
+            </fieldset>
+            <fieldset>
+              <legend>When &amp; where</legend>
+              <div className="grid3">
+                <EventDateTimeFields draft={editDraft} onChange={setEditDraft} />
+              </div>
+              <div className="grid2">
+                <label className="field">
+                  Location
+                  <input
+                    value={editDraft.location_name}
+                    onChange={(e) => setEditDraft({ ...editDraft, location_name: e.target.value })}
+                  />
+                </label>
+                <label className="field">
+                  Address <span className="field-hint">(powers the &ldquo;Directions&rdquo; link)</span>
+                  <input
+                    value={editDraft.location_address}
+                    onChange={(e) => setEditDraft({ ...editDraft, location_address: e.target.value })}
+                  />
+                </label>
+              </div>
+              <label className="field">
+                Status
+                <select
+                  value={editDraft.status}
+                  onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+            </fieldset>
+            <SignupFields draft={editDraft} onChange={setEditDraft} forms={forms} />
+            <div className="form-actions">
+              <button className="btn btn-outline" type="button" onClick={() => setEditingId(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-ace" type="submit">
+                Save
+              </button>
+            </div>
+          </form>
+        </AdminModal>
+      )}
     </>
   )
 }
