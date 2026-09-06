@@ -458,6 +458,11 @@
   cursor: pointer;
   padding: 0;
 }
+.signups-toggle.checked-in {
+  color: #2c8a55;
+  text-decoration: none;
+  font-weight: 700;
+}
 .signups-table {
   width: 100%;
   border-collapse: collapse;
@@ -485,8 +490,8 @@
   gap: 0.6rem;
 }
 .field-row {
-  display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr auto auto;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: end;
   padding: 0.6rem;
@@ -495,6 +500,17 @@
 }
 .field-row .field {
   gap: 0.2rem;
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.field-row.field-row-section {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--page-fg) 4%, transparent);
+}
+.form-actions-start {
+  justify-content: flex-start;
+  border-top: none;
+  padding-top: 0;
 }
 .mini-label {
   font-size: 0.66rem;
@@ -701,6 +717,10 @@
 .status-chip.status-pending {
   background: var(--gold-tint);
   color: var(--gold-fg);
+}
+.status-chip.status-waitlist {
+  background: color-mix(in srgb, var(--ace) 14%, transparent);
+  color: var(--ace);
 }
 .status-chip.status-completed {
   background: color-mix(in srgb, var(--page-fg) 12%, transparent);

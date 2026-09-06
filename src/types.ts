@@ -21,7 +21,7 @@ export interface BoardMember {
 }
 
 export type EventStatus = 'draft' | 'published' | 'cancelled'
-export type SignupStatus = 'pending' | 'approved' | 'denied'
+export type SignupStatus = 'pending' | 'approved' | 'denied' | 'waitlist'
 
 export interface ClubEvent {
   id: number
@@ -39,6 +39,7 @@ export interface ClubEvent {
   rsvp_gated: boolean
   form_id: number | null
   capacity: number | null
+  tags: string | null // comma-separated, admin-entered
 }
 
 // Public-facing event with the signup summary the Events page needs to
@@ -64,16 +65,33 @@ export interface AdminEventRow extends ClubEvent {
   is_past: boolean
 }
 
-export type FieldType = 'text' | 'textarea' | 'select' | 'number' | 'checkbox'
+export type FieldType =
+  | 'text'
+  | 'textarea'
+  | 'select'
+  | 'radio'
+  | 'checkbox_group'
+  | 'number'
+  | 'checkbox'
+  | 'date'
+  | 'time'
+  | 'email'
+  | 'phone'
+  | 'linear_scale'
+  | 'section'
 
 export interface FormField {
   id: number
   form_id: number
   label: string
   field_type: FieldType
-  options: string | null // choices separated by "|", 'select' only
+  options: string | null // choices separated by "|" — 'select' | 'radio' | 'checkbox_group' only
   required: boolean
   sort_order: number
+  description: string | null // optional help text shown under the label
+  min_value: number | null // text/textarea: min length; number/linear_scale: min value
+  max_value: number | null // text/textarea: max length; number/linear_scale: max value
+  pattern: string | null // regex the answer must match (text/email/phone)
 }
 
 export interface FormTemplate {
@@ -83,6 +101,8 @@ export interface FormTemplate {
   updated_at: string
   used_count: number
   field_count: number
+  max_responses: number | null
+  confirmation_message: string | null
 }
 
 export interface FormWithFields extends FormTemplate {
@@ -96,6 +116,10 @@ export interface FormFieldInput {
   options: string | null
   required: boolean
   sort_order: number
+  description: string | null
+  min_value: number | null
+  max_value: number | null
+  pattern: string | null
 }
 
 export interface EventSignup {
@@ -105,6 +129,7 @@ export interface EventSignup {
   email: string
   answers: Record<string, string> | null
   status: SignupStatus
+  checked_in_at: string | null
   created_at: string
 }
 

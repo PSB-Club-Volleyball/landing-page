@@ -5,23 +5,49 @@ import type { FieldType, FormFieldInput, FormTemplate } from '../../types'
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   text: 'Short text',
   textarea: 'Long text',
-  select: 'Single choice',
+  select: 'Dropdown',
+  radio: 'Multiple choice',
+  checkbox_group: 'Checkboxes',
   number: 'Number',
   checkbox: 'Checkbox',
+  date: 'Date',
+  time: 'Time',
+  email: 'Email',
+  phone: 'Phone',
+  linear_scale: 'Linear scale',
+  section: 'Section break',
 }
+
+const CHOICE_TYPES: FieldType[] = ['select', 'radio', 'checkbox_group']
+const RANGE_TYPES: FieldType[] = ['number', 'linear_scale']
+const LENGTH_TYPES: FieldType[] = ['text', 'textarea']
+const PATTERN_TYPES: FieldType[] = ['text', 'email', 'phone']
 
 let tempId = -1
 function newField(): FormFieldInput {
-  return { id: tempId--, label: '', field_type: 'text', options: null, required: false, sort_order: 0 }
+  return {
+    id: tempId--,
+    label: '',
+    field_type: 'text',
+    options: null,
+    required: false,
+    sort_order: 0,
+    description: null,
+    min_value: null,
+    max_value: null,
+    pattern: null,
+  }
 }
 
 interface Draft {
   name: string
   fields: FormFieldInput[]
+  max_responses: string
+  confirmation_message: string
 }
 
 function emptyDraft(): Draft {
-  return { name: '', fields: [newField()] }
+  return { name: '', fields: [newField()], max_responses: '', confirmation_message: '' }
 }
 
 function FieldRow({
@@ -33,6 +59,45 @@ function FieldRow({
   onChange: (f: FormFieldInput) => void
   onRemove: () => void
 }) {
+  if (field.field_type === 'section') {
+    return (
+      <div className="field-row field-row-section">
+        <label className="field">
+          <span className="mini-label">Section title</span>
+          <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required />
+        </label>
+        <label className="field">
+          <span className="mini-label">Description</span>
+          <input
+            value={field.description ?? ''}
+            onChange={(e) => onChange({ ...field, description: e.target.value || null })}
+          />
+        </label>
+        <label className="field">
+          <span className="mini-label">Type</span>
+          <select
+            value={field.field_type}
+            onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
+          >
+            {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="rm-field" type="button" aria-label="Remove field" onClick={onRemove}>
+          &times;
+        </button>
+      </div>
+    )
+  }
+
+  const isChoice = CHOICE_TYPES.includes(field.field_type)
+  const isRange = RANGE_TYPES.includes(field.field_type)
+  const isLength = LENGTH_TYPES.includes(field.field_type)
+  const isPattern = PATTERN_TYPES.includes(field.field_type)
+
   return (
     <div className="field-row">
       <label className="field">
@@ -53,14 +118,52 @@ function FieldRow({
         </select>
       </label>
       <label className="field">
-        <span className="mini-label">Options {field.field_type === 'select' && <span className="field-hint">(separate with |)</span>}</span>
+        <span className="mini-label">Help text</span>
+        <input
+          value={field.description ?? ''}
+          placeholder="Shown under the label"
+          onChange={(e) => onChange({ ...field, description: e.target.value || null })}
+        />
+      </label>
+      <label className="field">
+        <span className="mini-label">Options {isChoice && <span className="field-hint">(separate with |)</span>}</span>
         <input
           value={field.options ?? ''}
-          placeholder={field.field_type === 'select' ? 'S | M | L | XL' : '—'}
-          disabled={field.field_type !== 'select'}
+          placeholder={isChoice ? 'S | M | L | XL' : '—'}
+          disabled={!isChoice}
           onChange={(e) => onChange({ ...field, options: e.target.value })}
         />
       </label>
+      {(isRange || isLength) && (
+        <>
+          <label className="field">
+            <span className="mini-label">{isRange ? 'Min value' : 'Min length'}</span>
+            <input
+              type="number"
+              value={field.min_value ?? ''}
+              onChange={(e) => onChange({ ...field, min_value: e.target.value === '' ? null : Number(e.target.value) })}
+            />
+          </label>
+          <label className="field">
+            <span className="mini-label">{isRange ? 'Max value' : 'Max length'}</span>
+            <input
+              type="number"
+              value={field.max_value ?? ''}
+              onChange={(e) => onChange({ ...field, max_value: e.target.value === '' ? null : Number(e.target.value) })}
+            />
+          </label>
+        </>
+      )}
+      {isPattern && (
+        <label className="field">
+          <span className="mini-label">Pattern <span className="field-hint">(regex, optional)</span></span>
+          <input
+            value={field.pattern ?? ''}
+            placeholder="e.g. ^\\d{10}$"
+            onChange={(e) => onChange({ ...field, pattern: e.target.value || null })}
+          />
+        </label>
+      )}
       <label className="req-toggle">
         <input
           type="checkbox"
@@ -103,7 +206,12 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
     setError(null)
     try {
       const { form } = await adminApi.forms.get(id)
-      setDraft({ name: form.name, fields: form.fields.map((f) => ({ ...f })) })
+      setDraft({
+        name: form.name,
+        fields: form.fields.map((f) => ({ ...f })),
+        max_responses: form.max_responses !== null ? String(form.max_responses) : '',
+        confirmation_message: form.confirmation_message ?? '',
+      })
       setEditingId(id)
     } catch (e) {
       setError((e as Error).message)
@@ -124,6 +232,10 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
     setDraft({ ...draft, fields: [...draft.fields, newField()] })
   }
 
+  function addSection() {
+    setDraft({ ...draft, fields: [...draft.fields, { ...newField(), field_type: 'section' }] })
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -134,6 +246,8 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
         id: f.id !== undefined && f.id > 0 ? f.id : undefined,
         sort_order: i,
       })),
+      max_responses: draft.max_responses ? Number(draft.max_responses) : null,
+      confirmation_message: draft.confirmation_message || null,
     }
     try {
       if (editingId === 'new') {
@@ -187,9 +301,37 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
             ))}
           </div>
 
-          <button className="add-field-btn" type="button" onClick={addField}>
-            + Add field
-          </button>
+          <div className="form-actions form-actions-start">
+            <button className="add-field-btn" type="button" onClick={addField}>
+              + Add field
+            </button>
+            <button className="add-field-btn" type="button" onClick={addSection}>
+              + Add section break
+            </button>
+          </div>
+
+          <fieldset className="signup-fieldset">
+            <legend>Responses</legend>
+            <div className="grid2">
+              <label className="field">
+                Response limit <span className="field-hint">(optional &mdash; total across all events using this form)</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={draft.max_responses}
+                  onChange={(e) => setDraft({ ...draft, max_responses: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                Confirmation message <span className="field-hint">(optional &mdash; shown after submit)</span>
+                <input
+                  value={draft.confirmation_message}
+                  placeholder="Default: “You’re in!”"
+                  onChange={(e) => setDraft({ ...draft, confirmation_message: e.target.value })}
+                />
+              </label>
+            </div>
+          </fieldset>
 
           <div className="form-actions">
             <button className="btn btn-outline" type="button" onClick={() => setEditingId(null)}>

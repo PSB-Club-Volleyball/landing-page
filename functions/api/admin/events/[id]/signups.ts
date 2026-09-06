@@ -9,6 +9,7 @@ interface SignupRow {
   email: string
   answers: string | null
   status: string
+  checked_in_at: string | null
   created_at: string
 }
 
@@ -20,7 +21,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const signups = await env.DB.prepare(
-    `SELECT id, event_id, name, email, answers, status, created_at
+    `SELECT id, event_id, name, email, answers, status, checked_in_at, created_at
      FROM event_signups WHERE event_id = ?1 ORDER BY created_at ASC`
   )
     .bind(eventId)

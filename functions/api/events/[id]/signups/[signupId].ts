@@ -2,6 +2,7 @@ import type { Env } from '../../../_lib/env'
 import { badRequest, forbidden, json, notFound } from '../../../_lib/http'
 import { getSessionUser } from '../../../_lib/session'
 import { sendCancellationConfirmationEmail } from '../../../_lib/eventEmails'
+import { promoteFromWaitlist } from '../../../_lib/waitlist'
 
 // DELETE /api/events/:id/signups/:signupId?token=... -> self-serve un-RSVP.
 // No auth required — authorized by either the private cancel_token emailed
@@ -13,7 +14,7 @@ export const onRequestDelete: PagesFunction<Env, 'id' | 'signupId'> = async ({ r
   if (!Number.isInteger(eventId) || !Number.isInteger(signupId)) return badRequest('Invalid id')
 
   const signup = await env.DB.prepare(
-    `SELECT s.id, s.name, s.email, s.cancel_token, e.title, e.start_time, e.location_name
+    `SELECT s.id, s.name, s.email, s.status, s.cancel_token, e.title, e.start_time, e.location_name
      FROM event_signups s JOIN events e ON e.id = s.event_id
      WHERE s.id = ?1 AND s.event_id = ?2`
   )
@@ -22,6 +23,7 @@ export const onRequestDelete: PagesFunction<Env, 'id' | 'signupId'> = async ({ r
       id: number
       name: string
       email: string
+      status: string
       cancel_token: string | null
       title: string
       start_time: string
@@ -41,6 +43,7 @@ export const onRequestDelete: PagesFunction<Env, 'id' | 'signupId'> = async ({ r
   if (!tokenMatches && !emailMatches) return forbidden("This isn't your signup to cancel")
 
   await env.DB.prepare(`DELETE FROM event_signups WHERE id = ?1`).bind(signupId).run()
+  if (signup.status === 'approved') await promoteFromWaitlist(env, eventId)
 
   await sendCancellationConfirmationEmail(env, signup.email, signup.name, {
     title: signup.title,

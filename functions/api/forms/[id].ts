@@ -8,7 +8,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env, params }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
 
-  const form = await env.DB.prepare(`SELECT id, name FROM forms WHERE id = ?1`).bind(id).first()
+  const form = await env.DB.prepare(`SELECT id, name, confirmation_message FROM forms WHERE id = ?1`).bind(id).first()
   if (!form) return notFound('Form not found')
 
   const fields = await fetchFormFields(env, id)

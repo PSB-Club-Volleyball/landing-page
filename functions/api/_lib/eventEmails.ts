@@ -103,6 +103,37 @@ export function sendRsvpApprovedEmail(env: Env, to: string, name: string, event:
   })
 }
 
+// Sent immediately when a guest signs up for a full (ungated, capacitated)
+// event — they've joined the waitlist rather than being turned away.
+export function sendWaitlistEmail(env: Env, to: string, name: string, event: EventInfo, cancelUrl: string) {
+  const details = eventDetailsLines(event)
+  const body = [
+    `Hi ${name},`,
+    `${event.title} is full, so you've been added to the waitlist. We'll email you right away if a spot opens up.`,
+  ]
+  const cancel = { url: cancelUrl, label: 'Leave the waitlist' }
+  return sendEmail(env, {
+    to,
+    subject: `You're on the waitlist: ${event.title}`,
+    html: wrapHtml("You're on the waitlist", body, details, cancel),
+    text: wrapText("You're on the waitlist", body, details, cancel),
+  })
+}
+
+// Sent when a spot opens up and a waitlisted signup is automatically
+// promoted to 'approved'.
+export function sendWaitlistPromotedEmail(env: Env, to: string, name: string, event: EventInfo, cancelUrl: string) {
+  const details = eventDetailsLines(event)
+  const body = [`Hi ${name},`, `A spot opened up for ${event.title} and you're in! See you there.`]
+  const cancel = { url: cancelUrl, label: 'Cancel your RSVP' }
+  return sendEmail(env, {
+    to,
+    subject: `You're in: ${event.title}`,
+    html: wrapHtml("You're in!", body, details, cancel),
+    text: wrapText("You're in!", body, details, cancel),
+  })
+}
+
 // Sent when a signup is cancelled/withdrawn (self-serve via the emailed
 // cancel link) so the guest has confirmation it went through.
 export function sendCancellationConfirmationEmail(env: Env, to: string, name: string, event: EventInfo) {

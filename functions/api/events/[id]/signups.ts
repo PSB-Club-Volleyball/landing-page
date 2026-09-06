@@ -1,8 +1,13 @@
 import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
-import { fetchFormFields } from '../../_lib/forms'
+import { fetchFormFields, validateAnswer } from '../../_lib/forms'
 import { randomToken } from '../../_lib/crypto'
-import { buildCancelUrl, sendRsvpConfirmationEmail, sendRsvpRequestEmail } from '../../_lib/eventEmails'
+import {
+  buildCancelUrl,
+  sendRsvpConfirmationEmail,
+  sendRsvpRequestEmail,
+  sendWaitlistEmail,
+} from '../../_lib/eventEmails'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -17,8 +22,10 @@ interface SignupInput {
 // Returns a cancel_token the client shows once — a logged-in account whose
 // email matches can also cancel without it. When the event is gated
 // (rsvp_gated), the signup starts out 'pending' until an admin approves it
-// instead of being confirmed immediately; either way a confirmation/request
-// email goes out right away.
+// instead of being confirmed immediately. When it's ungated and full, the
+// signup instead lands on the waitlist ('waitlist') and is promoted
+// automatically once a spot frees up (see _lib/waitlist.ts). Either way a
+// confirmation/request/waitlist email goes out right away.
 export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
@@ -54,21 +61,48 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const fields = event.form_id ? await fetchFormFields(env, event.form_id) : []
   const answers = body.answers ?? {}
   for (const field of fields) {
-    if (field.required && !String(answers[field.id] ?? '').trim()) {
-      return badRequest(`"${field.label}" is required`)
+    const error = validateAnswer(field, answers[field.id])
+    if (error) return badRequest(error)
+  }
+
+  if (event.form_id) {
+    const form = await env.DB.prepare(`SELECT max_responses FROM forms WHERE id = ?1`)
+      .bind(event.form_id)
+      .first<{ max_responses: number | null }>()
+    if (form?.max_responses != null) {
+      const responseCount = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM event_signups s JOIN events e ON e.id = s.event_id
+         WHERE e.form_id = ?1 AND s.status != 'denied'`
+      )
+        .bind(event.form_id)
+        .first<{ n: number }>()
+      if ((responseCount?.n ?? 0) >= form.max_responses) {
+        return badRequest('This form is no longer accepting responses')
+      }
     }
   }
 
-  if (event.capacity !== null) {
-    // Pending requests count against capacity too (not just approved ones)
-    // so a gated event can't be requested past capacity while decisions are
-    // still outstanding.
-    const count = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM event_signups WHERE event_id = ?1 AND status != 'denied'`
+  // Gated events keep the original "can't even request past capacity"
+  // behavior — a waitlist doesn't make sense when every signup still needs
+  // a manual decision. Ungated events waitlist instead of rejecting.
+  let status: 'pending' | 'approved' | 'waitlist' = 'approved'
+  if (event.rsvp_gated) {
+    if (event.capacity !== null) {
+      const count = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM event_signups WHERE event_id = ?1 AND status != 'denied'`
+      )
+        .bind(eventId)
+        .first<{ n: number }>()
+      if ((count?.n ?? 0) >= event.capacity) return badRequest('This event is full')
+    }
+    status = 'pending'
+  } else if (event.capacity !== null) {
+    const approvedCount = await env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM event_signups WHERE event_id = ?1 AND status = 'approved'`
     )
       .bind(eventId)
       .first<{ n: number }>()
-    if ((count?.n ?? 0) >= event.capacity) return badRequest('This event is full')
+    status = (approvedCount?.n ?? 0) < event.capacity ? 'approved' : 'waitlist'
   }
 
   const filteredAnswers = Object.fromEntries(
@@ -76,7 +110,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   )
 
   const cancelToken = randomToken(24)
-  const status = event.rsvp_gated ? 'pending' : 'approved'
   const name = body.name.trim()
   const email = body.email.trim().toLowerCase()
   let signupId: number
@@ -110,6 +143,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const cancelUrl = buildCancelUrl(env, eventId, signupId, cancelToken)
   if (status === 'pending') {
     await sendRsvpRequestEmail(env, email, name, eventInfo, cancelUrl)
+  } else if (status === 'waitlist') {
+    await sendWaitlistEmail(env, email, name, eventInfo, cancelUrl)
   } else {
     await sendRsvpConfirmationEmail(env, email, name, eventInfo, cancelUrl)
   }

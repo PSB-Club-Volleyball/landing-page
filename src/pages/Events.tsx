@@ -31,11 +31,18 @@ function EventCard({
 }) {
   const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
   const isFull = spotsLeft !== null && spotsLeft <= 0
+  // A full, gated event still can't be requested past capacity (see
+  // functions/api/events/[id]/signups.ts) — but a full, ungated event opens
+  // the waitlist instead of turning people away.
+  const joinsWaitlist = isFull && !event.rsvp_gated
   const verb = event.rsvp_gated
     ? 'Request'
     : event.event_type === 'game' || event.event_type === 'tournament'
       ? 'RSVP'
       : 'Sign up'
+  const tags = event.tags
+    ? event.tags.split(',').map((t) => t.trim()).filter(Boolean)
+    : []
 
   // A guest (no account) signup isn't tracked here at all — nothing is kept
   // in the browser, so managing/cancelling it happens via the link emailed
@@ -52,6 +59,15 @@ function EventCard({
       </div>
       <div className="event-card-when">{formatTimeRange(event)}</div>
       {event.location_name && <div className="event-card-where">{event.location_name}</div>}
+      {tags.length > 0 && (
+        <div className="event-card-tags">
+          {tags.map((t) => (
+            <span className="tag-chip" key={t}>
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
       {event.status === 'cancelled' && <p className="event-card-desc">Cancelled</p>}
       {event.status !== 'cancelled' && event.description && <p className="event-card-desc">{event.description}</p>}
 
@@ -60,7 +76,8 @@ function EventCard({
           <span className="event-card-signup-status">
             <b>{event.signup_count}</b> {verb === 'RSVP' ? 'going' : 'signed up'}
             {spotsLeft !== null && !isFull && <span className="cap-chip">{spotsLeft} left</span>}
-            {isFull && <span className="full-chip">full</span>}
+            {isFull && !joinsWaitlist && <span className="full-chip">full</span>}
+            {joinsWaitlist && <span className="cap-chip">waitlist open</span>}
           </span>
           {mySignupId ? (
             <button
@@ -72,16 +89,18 @@ function EventCard({
                 ? 'Request pending · Manage'
                 : myStatus === 'denied'
                   ? 'Not approved · Manage'
-                  : "You’re going · Manage"}
+                  : myStatus === 'waitlist'
+                    ? 'On waitlist · Manage'
+                    : "You’re going · Manage"}
             </button>
           ) : (
             <button
-              className={isFull ? 'btn btn-outline' : 'btn btn-ace'}
+              className={isFull && !joinsWaitlist ? 'btn btn-outline' : 'btn btn-ace'}
               type="button"
-              disabled={isFull}
+              disabled={isFull && !joinsWaitlist}
               onClick={() => onOpenSignup(event)}
             >
-              {isFull ? 'Full' : verb}
+              {joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
             </button>
           )}
         </div>
@@ -99,6 +118,7 @@ function Events() {
     signupId: number
     status: SignupStatus | null
   } | null>(null)
+  const [activeTags, setActiveTags] = useState<Set<string>>(new Set())
 
   function refresh() {
     getEvents()
@@ -108,8 +128,27 @@ function Events() {
 
   useEffect(refresh, [])
 
+  const allTags = [
+    ...new Set((events ?? []).flatMap((e) => (e.tags ? e.tags.split(',').map((t) => t.trim()).filter(Boolean) : []))),
+  ].sort()
+
+  function toggleTag(tag: string) {
+    setActiveTags((prev) => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag)
+      else next.add(tag)
+      return next
+    })
+  }
+
+  const visibleEvents = (events ?? []).filter((e) => {
+    if (activeTags.size === 0) return true
+    const tags = e.tags ? e.tags.split(',').map((t) => t.trim()) : []
+    return tags.some((t) => activeTags.has(t))
+  })
+
   const groups = new Map<string, PublicClubEvent[]>()
-  for (const event of events ?? []) {
+  for (const event of visibleEvents) {
     const dayKey = event.start_time.slice(0, 10)
     if (!groups.has(dayKey)) groups.set(dayKey, [])
     groups.get(dayKey)!.push(event)
@@ -134,6 +173,23 @@ function Events() {
         {!error && events !== null && events.length > 0 && (
           <>
             <p className="events-page-note">RSVP or sign up below &mdash; no account needed.</p>
+
+            {allTags.length > 0 && (
+              <div className="tag-filter-row">
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`tag-chip tag-chip-btn${activeTags.has(tag) ? ' active' : ''}`}
+                    onClick={() => toggleTag(tag)}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {visibleEvents.length === 0 && <p className="placeholder-note">No events match the selected tags.</p>}
 
             {[...groups.entries()].map(([dayKey, dayEvents]) => (
               <div className="day-group" key={dayKey}>

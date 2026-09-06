@@ -20,6 +20,8 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
 interface FormInput {
   name: string
   fields: FormFieldInput[]
+  max_responses?: number | null
+  confirmation_message?: string | null
 }
 
 // PUT /api/admin/forms/:id -> rename + replace field list. Fields carrying an
@@ -49,20 +51,29 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const removedIds = [...existingIds].filter((existingId) => !keptIds.has(existingId))
 
   const statements = [
-    env.DB.prepare(`UPDATE forms SET name = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2`).bind(body.name.trim(), id),
+    env.DB.prepare(
+      `UPDATE forms SET name = ?1, max_responses = ?2, confirmation_message = ?3, updated_at = CURRENT_TIMESTAMP WHERE id = ?4`
+    ).bind(body.name.trim(), body.max_responses ?? null, body.confirmation_message?.trim() || null, id),
     ...removedIds.map((fieldId) => env.DB.prepare(`DELETE FROM form_fields WHERE id = ?1 AND form_id = ?2`).bind(fieldId, id)),
     ...fields.map((f, i) => {
-      const options = f.field_type === 'select' ? (f.options ?? null) : null
+      const hasOptions = f.field_type === 'select' || f.field_type === 'radio' || f.field_type === 'checkbox_group'
+      const options = hasOptions ? (f.options ?? null) : null
+      const required = f.field_type === 'section' ? 0 : f.required ? 1 : 0
+      const description = f.description?.trim() || null
+      const minValue = f.field_type === 'section' ? null : (f.min_value ?? null)
+      const maxValue = f.field_type === 'section' ? null : (f.max_value ?? null)
+      const pattern = f.field_type === 'section' ? null : f.pattern?.trim() || null
       if (f.id !== undefined && existingIds.has(f.id)) {
         return env.DB.prepare(
-          `UPDATE form_fields SET label = ?1, field_type = ?2, options = ?3, required = ?4, sort_order = ?5
-           WHERE id = ?6 AND form_id = ?7`
-        ).bind(f.label.trim(), f.field_type, options, f.required ? 1 : 0, i, f.id, id)
+          `UPDATE form_fields SET label = ?1, field_type = ?2, options = ?3, required = ?4, sort_order = ?5,
+             description = ?6, min_value = ?7, max_value = ?8, pattern = ?9
+           WHERE id = ?10 AND form_id = ?11`
+        ).bind(f.label.trim(), f.field_type, options, required, i, description, minValue, maxValue, pattern, f.id, id)
       }
       return env.DB.prepare(
-        `INSERT INTO form_fields (form_id, label, field_type, options, required, sort_order)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
-      ).bind(id, f.label.trim(), f.field_type, options, f.required ? 1 : 0, i)
+        `INSERT INTO form_fields (form_id, label, field_type, options, required, sort_order, description, min_value, max_value, pattern)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)`
+      ).bind(id, f.label.trim(), f.field_type, options, required, i, description, minValue, maxValue, pattern)
     }),
   ]
   await env.DB.batch(statements)
