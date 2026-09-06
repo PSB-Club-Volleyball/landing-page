@@ -229,11 +229,11 @@ function SignupModal({
                 {pageIndex === 0 && (
                   <>
                     <label className="field">
-                      <span className="req">*</span> Name
+                      <span><span className="req">*</span> Name</span>
                       <input type="text" required value={name} onChange={(e) => setName(e.target.value)} />
                     </label>
                     <label className="field">
-                      <span className="req">*</span> Email
+                      <span><span className="req">*</span> Email</span>
                       <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                     </label>
                     <div className="signup-honeypot" aria-hidden="true">
@@ -270,8 +270,10 @@ function SignupModal({
 
                 {pages[pageIndex]?.fields.map((field) => (
                   <label className="field" key={field.id}>
-                    {field.required && <span className="req">* </span>}
-                    {field.label}
+                    <span>
+                      {field.required && <span className="req">* </span>}
+                      {field.label}
+                    </span>
                     {field.description && <span className="field-desc">{field.description}</span>}
                     <FieldInput
                       field={field}
