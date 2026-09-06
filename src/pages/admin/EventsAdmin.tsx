@@ -27,6 +27,7 @@ const emptyDraft = {
   start_time: '',
   end_time: '',
   location_name: '',
+  location_address: '',
   status: 'draft' as EventStatus,
   description: '',
   recurrence_days: '' as string, // comma-separated weekday ints, e.g. "2,4,6"; empty = one-time
@@ -46,6 +47,7 @@ function toInput(draft: Draft) {
     start_time: draft.start_time,
     end_time: draft.end_time || null,
     location_name: draft.location_name || null,
+    location_address: draft.location_address || null,
     status: draft.status,
     description: draft.description || null,
     recurrence_days: draft.recurrence_days || null,
@@ -71,6 +73,7 @@ function eventToDraft(e: AdminEventRow): Draft {
     start_time: e.start_time,
     end_time: e.end_time ?? '',
     location_name: e.location_name ?? '',
+    location_address: e.location_address ?? '',
     status: e.status,
     description: e.description ?? '',
     // Recurrence is create-time only (see events.ts) — an existing row never carries it.
@@ -369,6 +372,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const [creating, setCreating] = useState(false)
   const [createDraft, setCreateDraft] = useState<Draft>(emptyDraft)
   const descriptionRef = useAutosizeTextarea(createDraft.description)
+  const editDescriptionRef = useAutosizeTextarea(editDraft.description)
   const [signupsOpenFor, setSignupsOpenFor] = useState<number | null>(null)
   const selection = useSelection()
   const [bulkStatus, setBulkStatus] = useState<EventStatus>('published')
@@ -505,7 +509,8 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               </label>
             </div>
             <label className="field">
-              Description
+              Description{' '}
+              <span className="field-hint">(supports **bold**, *italic*, [links](url), and "- " lists)</span>
               <textarea
                 ref={descriptionRef}
                 rows={2}
@@ -524,13 +529,22 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
             <div className="grid3">
               <EventDateTimeFields draft={createDraft} onChange={setCreateDraft} />
             </div>
-            <label className="field">
-              Location
-              <input
-                value={createDraft.location_name}
-                onChange={(e) => setCreateDraft({ ...createDraft, location_name: e.target.value })}
-              />
-            </label>
+            <div className="grid2">
+              <label className="field">
+                Location
+                <input
+                  value={createDraft.location_name}
+                  onChange={(e) => setCreateDraft({ ...createDraft, location_name: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                Address <span className="field-hint">(powers the &ldquo;Directions&rdquo; link)</span>
+                <input
+                  value={createDraft.location_address}
+                  onChange={(e) => setCreateDraft({ ...createDraft, location_address: e.target.value })}
+                />
+              </label>
+            </div>
             <label className="field">
               Status
               <select
@@ -654,6 +668,16 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                           </label>
                         </div>
                         <label className="field">
+                          Description{' '}
+                          <span className="field-hint">(supports **bold**, *italic*, [links](url), and "- " lists)</span>
+                          <textarea
+                            ref={editDescriptionRef}
+                            rows={2}
+                            value={editDraft.description}
+                            onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+                          />
+                        </label>
+                        <label className="field">
                           Tags <span className="field-hint">(comma-separated)</span>
                           <input value={editDraft.tags} onChange={(e) => setEditDraft({ ...editDraft, tags: e.target.value })} />
                         </label>
@@ -662,6 +686,22 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                         <legend>When &amp; where</legend>
                         <div className="grid3">
                           <EventDateTimeFields draft={editDraft} onChange={setEditDraft} />
+                        </div>
+                        <div className="grid2">
+                          <label className="field">
+                            Location
+                            <input
+                              value={editDraft.location_name}
+                              onChange={(e) => setEditDraft({ ...editDraft, location_name: e.target.value })}
+                            />
+                          </label>
+                          <label className="field">
+                            Address <span className="field-hint">(powers the &ldquo;Directions&rdquo; link)</span>
+                            <input
+                              value={editDraft.location_address}
+                              onChange={(e) => setEditDraft({ ...editDraft, location_address: e.target.value })}
+                            />
+                          </label>
                         </div>
                         <label className="field">
                           Status
