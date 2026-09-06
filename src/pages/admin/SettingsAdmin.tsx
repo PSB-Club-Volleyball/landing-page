@@ -6,13 +6,33 @@ function SettingsAdmin() {
   const [settings, setSettings] = useState<LoginSettings | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [seasonDraft, setSeasonDraft] = useState('')
 
   useEffect(() => {
     adminApi.settings
       .get()
-      .then(setSettings)
+      .then((res) => {
+        setSettings(res)
+        setSeasonDraft(res.current_season ?? '')
+      })
       .catch((e: Error) => setError(e.message))
   }, [])
+
+  function saveSeason() {
+    if (!settings) return
+    const next = { ...settings, current_season: seasonDraft.trim() || null }
+    setSettings(next)
+    setSaving(true)
+    setError(null)
+    adminApi.settings
+      .update(next)
+      .catch((e: Error) => {
+        setSettings(settings)
+        setSeasonDraft(settings.current_season ?? '')
+        setError(e.message)
+      })
+      .finally(() => setSaving(false))
+  }
 
   function save(previous: LoginSettings, next: LoginSettings) {
     if (!next.google_enabled && !next.microsoft_enabled) {
@@ -63,6 +83,30 @@ function SettingsAdmin() {
             />
             Allow signing in with Microsoft
           </label>
+        </fieldset>
+      )}
+      {settings && (
+        <fieldset className="signup-fieldset" style={{ marginTop: '1rem' }}>
+          <legend>Roster</legend>
+          <p className="admin-note">
+            Setting the current season auto-adds every approved club member and admin to the roster for that season
+            (using their account name and position) — both right away and whenever someone new is approved or
+            promoted. It never removes anyone, and never overwrites a roster row added by hand.
+          </p>
+          <label className="field" style={{ maxWidth: '16rem' }}>
+            Current season
+            <input
+              placeholder="2025-2026"
+              value={seasonDraft}
+              disabled={saving}
+              onChange={(e) => setSeasonDraft(e.target.value)}
+            />
+          </label>
+          <div className="form-actions form-actions-start">
+            <button className="btn btn-ace" type="button" disabled={saving} onClick={saveSeason}>
+              {saving ? 'Saving…' : 'Save season'}
+            </button>
+          </div>
         </fieldset>
       )}
     </>
