@@ -584,25 +584,45 @@
 .field-row {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
-  padding: 0.8rem 0.9rem;
+  gap: 0;
   border: 1px solid color-mix(in srgb, var(--page-fg) 14%, transparent);
   border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--page-fg) 2.5%, transparent);
 }
-.field-row-head {
+.field-row.expanded {
+  gap: 0.7rem;
+  padding-bottom: 0.9rem;
+}
+.field-row-summary {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding-bottom: 0.6rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
+  gap: 0.6rem;
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.7rem 0.9rem;
 }
-.field-row-number {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.field-row.expanded .field-row-summary {
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
+  margin-bottom: 0.1rem;
+}
+.field-row-summary-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.field-row-summary-placeholder {
   color: var(--muted);
+  font-weight: 400;
+  font-style: italic;
 }
 .field-row-type-badge {
   font-size: 0.66rem;
@@ -611,14 +631,19 @@
   border: 1px solid var(--ace);
   border-radius: var(--radius-xs);
   padding: 0.08rem 0.45rem;
+  white-space: nowrap;
 }
-.field-row-head .rm-field {
-  margin-left: auto;
+.field-row-chevron {
+  color: var(--muted);
+  font-size: 0.75rem;
+  width: 1em;
+  text-align: center;
 }
 .field-row-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 0.6rem 0.8rem;
+  padding: 0 0.9rem;
 }
 .field-row-grid .field {
   gap: 0.2rem;
@@ -650,7 +675,13 @@
   font-weight: 600;
   white-space: nowrap;
 }
+.field-row .req-toggle {
+  padding: 0 0.9rem;
+}
 .rm-field {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: none;
   border: none;
   color: var(--muted);
@@ -659,6 +690,7 @@
   cursor: pointer;
   padding: 0.2rem 0.35rem;
   border-radius: var(--radius-xs);
+  flex-shrink: 0;
 }
 .rm-field:hover {
   color: #b23b2c;
@@ -674,6 +706,22 @@
   border-radius: var(--radius-xs);
   padding: 0.4rem 0.75rem;
   cursor: pointer;
+}
+.more-options-toggle {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--page-fg);
+  background: none;
+  border: none;
+  padding: 0.2rem 0;
+  cursor: pointer;
+}
+.more-options-toggle:hover {
+  color: var(--ace);
 }
 
 @media (max-width: 700px) {

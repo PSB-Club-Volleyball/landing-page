@@ -52,20 +52,55 @@ function emptyDraft(): Draft {
   return { name: '', fields: [newField()], max_responses: '', confirmation_message: '' }
 }
 
-function FieldRowHead({
-  index,
+// Collapsed, one-line summary of a field — click it (or the chevron) to
+// expand for editing. Mirrors Google Forms: a question reads as a single
+// row until you need to touch it, so a 10-field form doesn't read as a wall
+// of inputs.
+function FieldRowSummary({
+  field,
   typeLabel,
+  expanded,
+  onToggle,
   onRemove,
 }: {
-  index: number
+  field: FormFieldInput
   typeLabel: string
+  expanded: boolean
+  onToggle: () => void
   onRemove: () => void
 }) {
   return (
-    <div className="field-row-head">
-      <span className="field-row-number">Field {index + 1}</span>
+    <div
+      className="field-row-summary"
+      role="button"
+      tabIndex={0}
+      aria-expanded={expanded}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onToggle()
+        }
+      }}
+    >
+      <span className="field-row-summary-label">
+        {field.label.trim() || <span className="field-row-summary-placeholder">Untitled question</span>}
+        {field.required && field.field_type !== 'section' && <span className="req"> *</span>}
+      </span>
       <span className="field-row-type-badge">{typeLabel}</span>
-      <button className="rm-field" type="button" aria-label="Remove field" onClick={onRemove}>
+      <span className="field-row-chevron" aria-hidden="true">
+        {expanded ? '▾' : '▸'}
+      </span>
+      <button
+        type="button"
+        className="rm-field"
+        aria-label="Remove field"
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove()
+        }}
+      >
         &times;
       </button>
     </div>
@@ -74,45 +109,51 @@ function FieldRowHead({
 
 function FieldRow({
   field,
-  index,
+  expanded,
+  onToggleExpand,
   onChange,
   onRemove,
 }: {
   field: FormFieldInput
-  index: number
+  expanded: boolean
+  onToggleExpand: () => void
   onChange: (f: FormFieldInput) => void
   onRemove: () => void
 }) {
+  const typeLabel = FIELD_TYPE_LABELS[field.field_type]
+
   if (field.field_type === 'section') {
     return (
-      <div className="field-row field-row-section">
-        <FieldRowHead index={index} typeLabel={FIELD_TYPE_LABELS[field.field_type]} onRemove={onRemove} />
-        <div className="field-row-grid">
-          <label className="field">
-            <span className="mini-label">Section title</span>
-            <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required />
-          </label>
-          <label className="field">
-            <span className="mini-label">Description</span>
-            <input
-              value={field.description ?? ''}
-              onChange={(e) => onChange({ ...field, description: e.target.value || null })}
-            />
-          </label>
-          <label className="field">
-            <span className="mini-label">Type</span>
-            <select
-              value={field.field_type}
-              onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
-            >
-              {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <div className={`field-row field-row-section${expanded ? ' expanded' : ''}`}>
+        <FieldRowSummary field={field} typeLabel={typeLabel} expanded={expanded} onToggle={onToggleExpand} onRemove={onRemove} />
+        {expanded && (
+          <div className="field-row-grid">
+            <label className="field">
+              <span className="mini-label">Section title</span>
+              <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required autoFocus />
+            </label>
+            <label className="field">
+              <span className="mini-label">Description</span>
+              <input
+                value={field.description ?? ''}
+                onChange={(e) => onChange({ ...field, description: e.target.value || null })}
+              />
+            </label>
+            <label className="field">
+              <span className="mini-label">Type</span>
+              <select
+                value={field.field_type}
+                onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
+              >
+                {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
       </div>
     )
   }
@@ -123,82 +164,86 @@ function FieldRow({
   const isPattern = PATTERN_TYPES.includes(field.field_type)
 
   return (
-    <div className="field-row">
-      <FieldRowHead index={index} typeLabel={FIELD_TYPE_LABELS[field.field_type]} onRemove={onRemove} />
-      <div className="field-row-grid">
-        <label className="field field-row-label">
-          <span className="mini-label">Label</span>
-          <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required />
-        </label>
-        <label className="field">
-          <span className="mini-label">Type</span>
-          <select
-            value={field.field_type}
-            onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
-          >
-            {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span className="mini-label">Help text</span>
-          <input
-            value={field.description ?? ''}
-            placeholder="Shown under the label"
-            onChange={(e) => onChange({ ...field, description: e.target.value || null })}
-          />
-        </label>
-        <label className="field">
-          <span className="mini-label">Options {isChoice && <span className="field-hint">(separate with |)</span>}</span>
-          <input
-            value={field.options ?? ''}
-            placeholder={isChoice ? 'S | M | L | XL' : '—'}
-            disabled={!isChoice}
-            onChange={(e) => onChange({ ...field, options: e.target.value })}
-          />
-        </label>
-        {(isRange || isLength) && (
-          <>
+    <div className={`field-row${expanded ? ' expanded' : ''}`}>
+      <FieldRowSummary field={field} typeLabel={typeLabel} expanded={expanded} onToggle={onToggleExpand} onRemove={onRemove} />
+      {expanded && (
+        <>
+          <div className="field-row-grid">
+            <label className="field field-row-label">
+              <span className="mini-label">Label</span>
+              <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required autoFocus />
+            </label>
             <label className="field">
-              <span className="mini-label">{isRange ? 'Min value' : 'Min length'}</span>
+              <span className="mini-label">Type</span>
+              <select
+                value={field.field_type}
+                onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
+              >
+                {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span className="mini-label">Help text</span>
               <input
-                type="number"
-                value={field.min_value ?? ''}
-                onChange={(e) => onChange({ ...field, min_value: e.target.value === '' ? null : Number(e.target.value) })}
+                value={field.description ?? ''}
+                placeholder="Shown under the label"
+                onChange={(e) => onChange({ ...field, description: e.target.value || null })}
               />
             </label>
             <label className="field">
-              <span className="mini-label">{isRange ? 'Max value' : 'Max length'}</span>
+              <span className="mini-label">Options {isChoice && <span className="field-hint">(separate with |)</span>}</span>
               <input
-                type="number"
-                value={field.max_value ?? ''}
-                onChange={(e) => onChange({ ...field, max_value: e.target.value === '' ? null : Number(e.target.value) })}
+                value={field.options ?? ''}
+                placeholder={isChoice ? 'S | M | L | XL' : '—'}
+                disabled={!isChoice}
+                onChange={(e) => onChange({ ...field, options: e.target.value })}
               />
             </label>
-          </>
-        )}
-        {isPattern && (
-          <label className="field">
-            <span className="mini-label">Pattern <span className="field-hint">(regex, optional)</span></span>
+            {(isRange || isLength) && (
+              <>
+                <label className="field">
+                  <span className="mini-label">{isRange ? 'Min value' : 'Min length'}</span>
+                  <input
+                    type="number"
+                    value={field.min_value ?? ''}
+                    onChange={(e) => onChange({ ...field, min_value: e.target.value === '' ? null : Number(e.target.value) })}
+                  />
+                </label>
+                <label className="field">
+                  <span className="mini-label">{isRange ? 'Max value' : 'Max length'}</span>
+                  <input
+                    type="number"
+                    value={field.max_value ?? ''}
+                    onChange={(e) => onChange({ ...field, max_value: e.target.value === '' ? null : Number(e.target.value) })}
+                  />
+                </label>
+              </>
+            )}
+            {isPattern && (
+              <label className="field">
+                <span className="mini-label">Pattern <span className="field-hint">(regex, optional)</span></span>
+                <input
+                  value={field.pattern ?? ''}
+                  placeholder="e.g. ^\\d{10}$"
+                  onChange={(e) => onChange({ ...field, pattern: e.target.value || null })}
+                />
+              </label>
+            )}
+          </div>
+          <label className="req-toggle">
             <input
-              value={field.pattern ?? ''}
-              placeholder="e.g. ^\\d{10}$"
-              onChange={(e) => onChange({ ...field, pattern: e.target.value || null })}
+              type="checkbox"
+              checked={field.required}
+              onChange={(e) => onChange({ ...field, required: e.target.checked })}
             />
+            Required
           </label>
-        )}
-      </div>
-      <label className="req-toggle">
-        <input
-          type="checkbox"
-          checked={field.required}
-          onChange={(e) => onChange({ ...field, required: e.target.checked })}
-        />
-        Required
-      </label>
+        </>
+      )}
     </div>
   )
 }
@@ -210,6 +255,9 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
   const [editingId, setEditingId] = useState<number | 'new' | null>(null)
   const [draft, setDraft] = useState<Draft>(emptyDraft())
   const [previewing, setPreviewing] = useState(false)
+  // Only one field card is expanded at a time (Google Forms-style) — index
+  // into draft.fields, or null when every card is collapsed.
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(0)
 
   function refresh() {
     setLoading(true)
@@ -230,6 +278,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
   function startCreate() {
     setDraft(emptyDraft())
     setPreviewing(false)
+    setExpandedIndex(0)
     setEditingId('new')
   }
 
@@ -244,6 +293,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
         confirmation_message: form.confirmation_message ?? '',
       })
       setPreviewing(false)
+      setExpandedIndex(null)
       setEditingId(id)
     } catch (e) {
       setError((e as Error).message)
@@ -258,14 +308,19 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
 
   function removeField(index: number) {
     setDraft({ ...draft, fields: draft.fields.filter((_, i) => i !== index) })
+    setExpandedIndex((cur) => (cur === null ? null : index < cur ? cur - 1 : index === cur ? null : cur))
   }
 
   function addField() {
-    setDraft({ ...draft, fields: [...draft.fields, newField()] })
+    const fields = [...draft.fields, newField()]
+    setDraft({ ...draft, fields })
+    setExpandedIndex(fields.length - 1)
   }
 
   function addSection() {
-    setDraft({ ...draft, fields: [...draft.fields, { ...newField(), field_type: 'section' }] })
+    const fields = [...draft.fields, { ...newField(), field_type: 'section' as const }]
+    setDraft({ ...draft, fields })
+    setExpandedIndex(fields.length - 1)
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -328,7 +383,8 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
                 <FieldRow
                   key={field.id}
                   field={field}
-                  index={i}
+                  expanded={expandedIndex === i}
+                  onToggleExpand={() => setExpandedIndex((cur) => (cur === i ? null : i))}
                   onChange={(next) => updateField(i, next)}
                   onRemove={() => removeField(i)}
                 />

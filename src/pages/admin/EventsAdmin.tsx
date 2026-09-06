@@ -201,6 +201,18 @@ function RecurrenceFields({ draft, onChange }: { draft: Draft; onChange: (draft:
   )
 }
 
+function MoreOptionsToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" className="more-options-toggle" onClick={onToggle} aria-expanded={open}>
+      <span className="field-row-chevron" aria-hidden="true">
+        {open ? '▾' : '▸'}
+      </span>
+      {open ? 'Fewer options' : 'More options'}{' '}
+      <span className="field-hint">(address, repeats, tags)</span>
+    </button>
+  )
+}
+
 function SignupFields({
   draft,
   onChange,
@@ -717,6 +729,11 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const [bulkDraft, setBulkDraft] = useState<BulkDraft>(emptyBulkDraft)
   const [bulkShiftDays, setBulkShiftDays] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
+  // Address/recurrence/tags are behind one disclosure toggle so the common
+  // case (title, type, when/where, description, signup) reads as a short
+  // form, Google-Forms-style, instead of every field up front. Shared
+  // between create and edit since only one of those modals is ever open.
+  const [showMoreOptions, setShowMoreOptions] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -768,6 +785,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
 
   function startDuplicate(ev: AdminEventRow) {
     setCreateDraft({ ...eventToDraft(ev), start_time: '', end_time: '', status: 'draft' })
+    setShowMoreOptions(false)
     setCreating(true)
     setEditingId(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -814,7 +832,14 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
     <>
       <div className="admin-main-head">
         <h2>Events</h2>
-        <button className="add-btn" type="button" onClick={() => setCreating(true)}>
+        <button
+          className="add-btn"
+          type="button"
+          onClick={() => {
+            setShowMoreOptions(false)
+            setCreating(true)
+          }}
+        >
           + Add event
         </button>
       </div>
@@ -858,10 +883,6 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 onChange={(e) => setCreateDraft({ ...createDraft, description: e.target.value })}
               />
             </label>
-            <label className="field">
-              Tags <span className="field-hint">(comma-separated, e.g. "beginner friendly, social")</span>
-              <input value={createDraft.tags} onChange={(e) => setCreateDraft({ ...createDraft, tags: e.target.value })} />
-            </label>
           </fieldset>
 
           <fieldset>
@@ -878,28 +899,39 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 />
               </label>
               <label className="field">
+                Status
+                <select
+                  value={createDraft.status}
+                  onChange={(e) => setCreateDraft({ ...createDraft, status: e.target.value as EventStatus })}
+                >
+                  <option value="draft">Draft</option>
+                  <option value="published">Published</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
+
+          <SignupFields draft={createDraft} onChange={setCreateDraft} forms={forms} />
+
+          <MoreOptionsToggle open={showMoreOptions} onToggle={() => setShowMoreOptions((v) => !v)} />
+          {showMoreOptions && (
+            <fieldset>
+              <legend>More options</legend>
+              <label className="field">
                 Address <span className="field-hint">(powers the &ldquo;Directions&rdquo; link)</span>
                 <input
                   value={createDraft.location_address}
                   onChange={(e) => setCreateDraft({ ...createDraft, location_address: e.target.value })}
                 />
               </label>
-            </div>
-            <label className="field">
-              Status
-              <select
-                value={createDraft.status}
-                onChange={(e) => setCreateDraft({ ...createDraft, status: e.target.value as EventStatus })}
-              >
-                <option value="draft">Draft</option>
-                <option value="published">Published</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </label>
-            <RecurrenceFields draft={createDraft} onChange={setCreateDraft} />
-          </fieldset>
-
-          <SignupFields draft={createDraft} onChange={setCreateDraft} forms={forms} />
+              <label className="field">
+                Tags <span className="field-hint">(comma-separated, e.g. "beginner friendly, social")</span>
+                <input value={createDraft.tags} onChange={(e) => setCreateDraft({ ...createDraft, tags: e.target.value })} />
+              </label>
+              <RecurrenceFields draft={createDraft} onChange={setCreateDraft} />
+            </fieldset>
+          )}
 
           <div className="form-actions">
             <button className="btn btn-outline" type="button" onClick={() => setCreating(false)}>
@@ -1008,6 +1040,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                           onClick={() => {
                             setEditingId(ev.id)
                             setEditDraft(eventToDraft(ev))
+                            setShowMoreOptions(false)
                           }}
                         >
                           Edit
@@ -1058,11 +1091,17 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 </label>
                 <label className="field">
                   <span><span className="req">*</span> Type</span>
-                  <input
+                  <select
                     required
                     value={editDraft.event_type}
                     onChange={(e) => setEditDraft({ ...editDraft, event_type: e.target.value })}
-                  />
+                  >
+                    <option value="practice">Practice</option>
+                    <option value="tournament">Tournament</option>
+                    <option value="open_gym">Open gym</option>
+                    <option value="game">Game</option>
+                    <option value="social">Social</option>
+                  </select>
                 </label>
               </div>
               <label className="field">
@@ -1074,10 +1113,6 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   value={editDraft.description}
                   onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
                 />
-              </label>
-              <label className="field">
-                Tags <span className="field-hint">(comma-separated)</span>
-                <input value={editDraft.tags} onChange={(e) => setEditDraft({ ...editDraft, tags: e.target.value })} />
               </label>
             </fieldset>
             <fieldset>
@@ -1094,26 +1129,36 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                   />
                 </label>
                 <label className="field">
+                  Status
+                  <select
+                    value={editDraft.status}
+                    onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
+                  >
+                    <option value="draft">Draft</option>
+                    <option value="published">Published</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </label>
+              </div>
+            </fieldset>
+            <SignupFields draft={editDraft} onChange={setEditDraft} forms={forms} />
+            <MoreOptionsToggle open={showMoreOptions} onToggle={() => setShowMoreOptions((v) => !v)} />
+            {showMoreOptions && (
+              <fieldset>
+                <legend>More options</legend>
+                <label className="field">
                   Address <span className="field-hint">(powers the &ldquo;Directions&rdquo; link)</span>
                   <input
                     value={editDraft.location_address}
                     onChange={(e) => setEditDraft({ ...editDraft, location_address: e.target.value })}
                   />
                 </label>
-              </div>
-              <label className="field">
-                Status
-                <select
-                  value={editDraft.status}
-                  onChange={(e) => setEditDraft({ ...editDraft, status: e.target.value as EventStatus })}
-                >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </label>
-            </fieldset>
-            <SignupFields draft={editDraft} onChange={setEditDraft} forms={forms} />
+                <label className="field">
+                  Tags <span className="field-hint">(comma-separated)</span>
+                  <input value={editDraft.tags} onChange={(e) => setEditDraft({ ...editDraft, tags: e.target.value })} />
+                </label>
+              </fieldset>
+            )}
             <div className="form-actions">
               <button className="btn btn-outline" type="button" onClick={() => setEditingId(null)}>
                 Cancel
