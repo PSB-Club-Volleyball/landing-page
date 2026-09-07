@@ -593,6 +593,47 @@
   gap: 0.7rem;
   padding-bottom: 0.9rem;
 }
+.field-row.dragging {
+  opacity: 0.4;
+}
+.field-row.drop-target {
+  border-color: var(--ace);
+  box-shadow: 0 -2px 0 0 var(--ace);
+}
+.field-drag-handle {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 0.1rem 0.15rem;
+}
+.field-drag-handle:active {
+  cursor: grabbing;
+}
+.field-row-reorder-btns {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.field-reorder-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.6rem;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  cursor: pointer;
+  border-radius: var(--radius-xs);
+}
+.field-reorder-btn:hover:not(:disabled) {
+  color: var(--ace);
+  background: color-mix(in srgb, var(--ace) 10%, transparent);
+}
+.field-reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
 .field-row-summary {
   display: flex;
   align-items: center;

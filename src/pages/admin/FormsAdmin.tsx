@@ -100,12 +100,22 @@ function FieldRowSummary({
   expanded,
   onToggle,
   onRemove,
+  onDragHandlePointerDown,
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
 }: {
   field: FormFieldInput
   typeLabel: string
   expanded: boolean
   onToggle: () => void
   onRemove: () => void
+  onDragHandlePointerDown: (e: React.DragEvent) => void
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onMoveUp: () => void
+  onMoveDown: () => void
 }) {
   return (
     <div
@@ -122,11 +132,48 @@ function FieldRowSummary({
         }
       }}
     >
+      <span
+        className="field-drag-handle"
+        role="presentation"
+        aria-hidden="true"
+        draggable
+        onDragStart={onDragHandlePointerDown}
+        onClick={(e) => e.stopPropagation()}
+        title="Drag to reorder"
+      >
+        ⠿
+      </span>
       <span className="field-row-summary-label">
         {field.label.trim() || <span className="field-row-summary-placeholder">Untitled question</span>}
         {field.required && field.field_type !== 'section' && <span className="req"> *</span>}
       </span>
       <span className="field-row-type-badge">{typeLabel}</span>
+      <span className="field-row-reorder-btns">
+        <button
+          type="button"
+          className="field-reorder-btn"
+          aria-label="Move field up"
+          disabled={!canMoveUp}
+          onClick={(e) => {
+            e.stopPropagation()
+            onMoveUp()
+          }}
+        >
+          ▲
+        </button>
+        <button
+          type="button"
+          className="field-reorder-btn"
+          aria-label="Move field down"
+          disabled={!canMoveDown}
+          onClick={(e) => {
+            e.stopPropagation()
+            onMoveDown()
+          }}
+        >
+          ▼
+        </button>
+      </span>
       <span className="field-row-chevron" aria-hidden="true">
         {expanded ? '▾' : '▸'}
       </span>
@@ -151,19 +198,51 @@ function FieldRow({
   onToggleExpand,
   onChange,
   onRemove,
+  dragProps,
 }: {
   field: FormFieldInput
   expanded: boolean
   onToggleExpand: () => void
   onChange: (f: FormFieldInput) => void
   onRemove: () => void
+  dragProps: {
+    isDragging: boolean
+    isDropTarget: boolean
+    onDragHandlePointerDown: (e: React.DragEvent) => void
+    onDragOver: (e: React.DragEvent) => void
+    onDragLeave: () => void
+    onDrop: (e: React.DragEvent) => void
+    onDragEnd: () => void
+    canMoveUp: boolean
+    canMoveDown: boolean
+    onMoveUp: () => void
+    onMoveDown: () => void
+  }
 }) {
   const typeLabel = FIELD_TYPE_LABELS[field.field_type]
+  const rowClass = [dragProps.isDragging && 'dragging', dragProps.isDropTarget && 'drop-target'].filter(Boolean).join(' ')
 
   if (field.field_type === 'section') {
     return (
-      <div className={`field-row field-row-section${expanded ? ' expanded' : ''}`}>
-        <FieldRowSummary field={field} typeLabel={typeLabel} expanded={expanded} onToggle={onToggleExpand} onRemove={onRemove} />
+      <div
+        className={`field-row field-row-section${expanded ? ' expanded' : ''}${rowClass ? ` ${rowClass}` : ''}`}
+        onDragOver={dragProps.onDragOver}
+        onDragLeave={dragProps.onDragLeave}
+        onDrop={dragProps.onDrop}
+        onDragEnd={dragProps.onDragEnd}
+      >
+        <FieldRowSummary
+          field={field}
+          typeLabel={typeLabel}
+          expanded={expanded}
+          onToggle={onToggleExpand}
+          onRemove={onRemove}
+          onDragHandlePointerDown={dragProps.onDragHandlePointerDown}
+          canMoveUp={dragProps.canMoveUp}
+          canMoveDown={dragProps.canMoveDown}
+          onMoveUp={dragProps.onMoveUp}
+          onMoveDown={dragProps.onMoveDown}
+        />
         {expanded && (
           <>
             <AutoGrowField
@@ -205,8 +284,25 @@ function FieldRow({
   const isPattern = PATTERN_TYPES.includes(field.field_type)
 
   return (
-    <div className={`field-row${expanded ? ' expanded' : ''}`}>
-      <FieldRowSummary field={field} typeLabel={typeLabel} expanded={expanded} onToggle={onToggleExpand} onRemove={onRemove} />
+    <div
+      className={`field-row${expanded ? ' expanded' : ''}${rowClass ? ` ${rowClass}` : ''}`}
+      onDragOver={dragProps.onDragOver}
+      onDragLeave={dragProps.onDragLeave}
+      onDrop={dragProps.onDrop}
+      onDragEnd={dragProps.onDragEnd}
+    >
+      <FieldRowSummary
+        field={field}
+        typeLabel={typeLabel}
+        expanded={expanded}
+        onToggle={onToggleExpand}
+        onRemove={onRemove}
+        onDragHandlePointerDown={dragProps.onDragHandlePointerDown}
+        canMoveUp={dragProps.canMoveUp}
+        canMoveDown={dragProps.canMoveDown}
+        onMoveUp={dragProps.onMoveUp}
+        onMoveDown={dragProps.onMoveDown}
+      />
       {expanded && (
         <>
           <AutoGrowField
@@ -300,6 +396,11 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
   // Only one field card is expanded at a time (Google Forms-style) — index
   // into draft.fields, or null when every card is collapsed.
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0)
+  // Drag-and-drop reordering: which field is being dragged, and which slot
+  // it's currently hovering over (for the drop-target highlight). Up/down
+  // buttons cover the same "move" action for anyone not using a mouse.
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dropIndex, setDropIndex] = useState<number | null>(null)
 
   function refresh() {
     setLoading(true)
@@ -351,6 +452,24 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
   function removeField(index: number) {
     setDraft({ ...draft, fields: draft.fields.filter((_, i) => i !== index) })
     setExpandedIndex((cur) => (cur === null ? null : index < cur ? cur - 1 : index === cur ? null : cur))
+  }
+
+  // Moves the field at `from` to sit at `to`, shifting everything between —
+  // shared by drag-and-drop and the up/down buttons. Keeps whichever field
+  // was expanded still expanded at its new position.
+  function moveField(from: number, to: number) {
+    if (from === to || to < 0 || to >= draft.fields.length) return
+    const fields = [...draft.fields]
+    const [moved] = fields.splice(from, 1)
+    fields.splice(to, 0, moved)
+    setDraft({ ...draft, fields })
+    setExpandedIndex((cur) => {
+      if (cur === null) return null
+      if (cur === from) return to
+      if (from < cur && to >= cur) return cur - 1
+      if (from > cur && to <= cur) return cur + 1
+      return cur
+    })
   }
 
   function addField() {
@@ -429,6 +548,34 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
                   onToggleExpand={() => setExpandedIndex((cur) => (cur === i ? null : i))}
                   onChange={(next) => updateField(i, next)}
                   onRemove={() => removeField(i)}
+                  dragProps={{
+                    isDragging: dragIndex === i,
+                    isDropTarget: dropIndex === i && dragIndex !== null && dragIndex !== i,
+                    onDragHandlePointerDown: (e) => {
+                      setDragIndex(i)
+                      e.dataTransfer.effectAllowed = 'move'
+                    },
+                    onDragOver: (e) => {
+                      if (dragIndex === null) return
+                      e.preventDefault()
+                      setDropIndex(i)
+                    },
+                    onDragLeave: () => setDropIndex((cur) => (cur === i ? null : cur)),
+                    onDrop: (e) => {
+                      e.preventDefault()
+                      if (dragIndex !== null) moveField(dragIndex, i)
+                      setDragIndex(null)
+                      setDropIndex(null)
+                    },
+                    onDragEnd: () => {
+                      setDragIndex(null)
+                      setDropIndex(null)
+                    },
+                    canMoveUp: i > 0,
+                    canMoveDown: i < draft.fields.length - 1,
+                    onMoveUp: () => moveField(i, i - 1),
+                    onMoveDown: () => moveField(i, i + 1),
+                  }}
                 />
               ))}
             </div>
