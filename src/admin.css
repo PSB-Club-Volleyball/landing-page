@@ -639,6 +639,9 @@
   width: 1em;
   text-align: center;
 }
+.field-row-fullwidth {
+  padding: 0 0.9rem;
+}
 .field-row-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -648,9 +651,6 @@
 .field-row-grid .field {
   gap: 0.2rem;
   min-width: 0;
-}
-.field-row-label {
-  grid-column: span 2;
 }
 .field-row.field-row-section {
   border-style: dashed;
@@ -728,9 +728,6 @@
   .grid2,
   .grid3 {
     grid-template-columns: 1fr;
-  }
-  .field-row-label {
-    grid-column: span 1;
   }
 }
 
