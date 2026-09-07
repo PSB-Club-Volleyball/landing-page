@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import AdminModal from '../../components/admin/AdminModal'
 import FormPreviewModal from '../../components/admin/FormPreviewModal'
+import { useAutosizeTextarea } from '../../lib/autosize'
 import type { FieldType, FormFieldInput, FormTemplate } from '../../types'
 
 const FIELD_TYPE_LABELS: Record<FieldType, string> = {
@@ -50,6 +51,43 @@ interface Draft {
 
 function emptyDraft(): Draft {
   return { name: '', fields: [newField()], max_responses: '', confirmation_message: '' }
+}
+
+// A prompt or its help text can run long — cramming them into the same
+// fixed-width grid column as "Type" or "Options" made long text hard to see
+// (an <input> never wraps, so it just scrolls out of view). This gives them
+// their own full-width row instead, as a textarea that grows with the
+// content and shrinks back down when it's short again.
+function AutoGrowField({
+  label,
+  value,
+  onChange,
+  required,
+  autoFocus,
+  placeholder,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  required?: boolean
+  autoFocus?: boolean
+  placeholder?: string
+}) {
+  const ref = useAutosizeTextarea(value)
+  return (
+    <label className="field field-row-fullwidth">
+      <span className="mini-label">{label}</span>
+      <textarea
+        ref={ref}
+        rows={1}
+        required={required}
+        autoFocus={autoFocus}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </label>
+  )
 }
 
 // Collapsed, one-line summary of a field — click it (or the chevron) to
@@ -127,32 +165,35 @@ function FieldRow({
       <div className={`field-row field-row-section${expanded ? ' expanded' : ''}`}>
         <FieldRowSummary field={field} typeLabel={typeLabel} expanded={expanded} onToggle={onToggleExpand} onRemove={onRemove} />
         {expanded && (
-          <div className="field-row-grid">
-            <label className="field">
-              <span className="mini-label">Section title</span>
-              <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required autoFocus />
-            </label>
-            <label className="field">
-              <span className="mini-label">Description</span>
-              <input
-                value={field.description ?? ''}
-                onChange={(e) => onChange({ ...field, description: e.target.value || null })}
-              />
-            </label>
-            <label className="field">
-              <span className="mini-label">Type</span>
-              <select
-                value={field.field_type}
-                onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
-              >
-                {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <>
+            <AutoGrowField
+              label="Section title"
+              value={field.label}
+              onChange={(v) => onChange({ ...field, label: v })}
+              required
+              autoFocus
+            />
+            <AutoGrowField
+              label="Description"
+              value={field.description ?? ''}
+              onChange={(v) => onChange({ ...field, description: v || null })}
+            />
+            <div className="field-row-grid">
+              <label className="field">
+                <span className="mini-label">Type</span>
+                <select
+                  value={field.field_type}
+                  onChange={(e) => onChange({ ...field, field_type: e.target.value as FieldType })}
+                >
+                  {Object.entries(FIELD_TYPE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </>
         )}
       </div>
     )
@@ -168,11 +209,20 @@ function FieldRow({
       <FieldRowSummary field={field} typeLabel={typeLabel} expanded={expanded} onToggle={onToggleExpand} onRemove={onRemove} />
       {expanded && (
         <>
+          <AutoGrowField
+            label="Label"
+            value={field.label}
+            onChange={(v) => onChange({ ...field, label: v })}
+            required
+            autoFocus
+          />
+          <AutoGrowField
+            label="Help text"
+            value={field.description ?? ''}
+            onChange={(v) => onChange({ ...field, description: v || null })}
+            placeholder="Shown under the label"
+          />
           <div className="field-row-grid">
-            <label className="field field-row-label">
-              <span className="mini-label">Label</span>
-              <input value={field.label} onChange={(e) => onChange({ ...field, label: e.target.value })} required autoFocus />
-            </label>
             <label className="field">
               <span className="mini-label">Type</span>
               <select
@@ -185,14 +235,6 @@ function FieldRow({
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="field">
-              <span className="mini-label">Help text</span>
-              <input
-                value={field.description ?? ''}
-                placeholder="Shown under the label"
-                onChange={(e) => onChange({ ...field, description: e.target.value || null })}
-              />
             </label>
             <label className="field">
               <span className="mini-label">Options {isChoice && <span className="field-hint">(separate with |)</span>}</span>
