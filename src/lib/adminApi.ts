@@ -8,6 +8,7 @@ import type {
   FormWithFields,
   LoginSettings,
   MediaItem,
+  MediaType,
   PendingUser,
   Player,
   SignupStatus,
@@ -78,6 +79,18 @@ export const adminApi = {
   },
   media: {
     list: () => request<{ media: MediaItem[] }>('/api/admin/media'),
+    upload: (file: File | Blob, opts: { filename: string; mediaType: MediaType; eventId?: number | null; caption?: string | null }) => {
+      const params = new URLSearchParams({ filename: opts.filename, media_type: opts.mediaType })
+      if (opts.eventId != null) params.set('event_id', String(opts.eventId))
+      if (opts.caption) params.set('caption', opts.caption)
+      return request<{ id: number; r2_key: string }>(`/api/admin/media/upload?${params}`, {
+        method: 'POST',
+        headers: { 'content-type': file.type || 'application/octet-stream' },
+        body: file,
+      })
+    },
+    update: (id: number, input: { caption?: string | null; event_id?: number | null; sort_order?: number }) =>
+      request<{ ok: true }>(`/api/admin/media/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: number) => request<{ ok: true }>(`/api/admin/media/${id}`, { method: 'DELETE' }),
   },
   users: {
