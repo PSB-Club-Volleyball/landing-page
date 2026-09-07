@@ -7,17 +7,19 @@ import RosterAdmin from './RosterAdmin'
 import BoardAdmin from './BoardAdmin'
 import EventsAdmin from './EventsAdmin'
 import FormsAdmin from './FormsAdmin'
+import MediaAdmin from './MediaAdmin'
 import UsersAdmin from './UsersAdmin'
 import AuditLogAdmin from './AuditLogAdmin'
 import SettingsAdmin from './SettingsAdmin'
 
-type Tab = 'roster' | 'board' | 'events' | 'forms' | 'users' | 'audit-log' | 'settings'
+type Tab = 'roster' | 'board' | 'events' | 'forms' | 'media' | 'users' | 'audit-log' | 'settings'
 
 const TABS: { key: Tab; label: string; ownerOnly?: boolean }[] = [
   { key: 'roster', label: 'Roster' },
   { key: 'board', label: 'Board' },
   { key: 'events', label: 'Events' },
   { key: 'forms', label: 'Forms' },
+  { key: 'media', label: 'Media' },
   { key: 'users', label: 'Users' },
   { key: 'audit-log', label: 'Audit log', ownerOnly: true },
   { key: 'settings', label: 'Settings', ownerOnly: true },
@@ -99,6 +101,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
           {tab === 'board' && <BoardAdmin isOwner={isOwner} />}
           {tab === 'events' && <EventsAdmin isOwner={isOwner} />}
           {tab === 'forms' && <FormsAdmin isOwner={isOwner} />}
+          {tab === 'media' && <MediaAdmin isOwner={isOwner} />}
           {tab === 'users' && <UsersAdmin currentUser={user} onChange={() => setTab('users')} />}
           {tab === 'audit-log' && isOwner && <AuditLogAdmin />}
           {tab === 'settings' && isOwner && <SettingsAdmin />}
