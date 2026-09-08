@@ -146,7 +146,10 @@ RSVP confirmation, RSVP request, and RSVP approval emails
 
 1. In the Resend dashboard, verify the `behrendclubvolleyball.org` domain
    (adds the DNS records Resend gives you) so it can send as
-   `events@behrendclubvolleyball.org`.
+   `events@behrendclubvolleyball.org`. Add all of the records it gives you,
+   including the DMARC one — Microsoft/Outlook.com mailboxes in particular
+   are strict about DMARC alignment and are more likely to spam-box or drop
+   mail from a domain that only has SPF/DKIM set up.
 2. Create an API key and set it as a secret, per environment:
    ```
    npx wrangler pages secret put RESEND_API_KEY --project-name=behrend-club-volleyball --env production
