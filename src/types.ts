@@ -186,6 +186,9 @@ export interface PendingUser {
   waiver_signed_at: string | null
   dues_paid_year: number | null
   dues_paid_at: string | null
+  // Flagged by an admin (e.g. repeated no-shows/late cancellations) so this
+  // person's signups never auto-confirm — see events/[id]/signups.ts.
+  rsvp_restricted: boolean
   requested_at: string
   decided_at: string | null
   decided_by: number | null

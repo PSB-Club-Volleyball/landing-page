@@ -15,21 +15,25 @@ interface UsersPatchInput {
   team?: 'A' | 'B' | null
   waiver_signed?: boolean
   dues_paid?: boolean
+  rsvp_restricted?: boolean
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { status, role, name, position, team, waiver_signed, dues_paid }
+// PUT /api/admin/users/:id  Body: any subset of { status, role, name, position, team, waiver_signed, dues_paid, rsvp_restricted }
 // Any admin can approve/deny, promote/demote between outsider and
 // club_member, edit a member's display name/position/team, and mark/unmark a
 // waiver or dues as on file for the current year — the latter is an annual,
 // admin-verified thing (e.g. a signed paper form or cash/check received),
-// never something the member self-attests to. Granting 'admin', or touching
-// status/role on a row that's currently admin, is owner-only — an admin
-// can't create or remove other admins, or approve/deny or re-role another
-// admin. Waiver/dues verification and basic profile fields
-// (name/position/team) on an admin row are NOT guarded — any admin can mark
-// another admin's waiver/dues and edit their basic info, including their own.
-// Nobody can set role to 'owner' here or touch the owner's own row; see
-// functions/api/admin/owner/transfer.ts for the only way to move ownership.
+// never something the member self-attests to. rsvp_restricted flags someone
+// (e.g. repeated no-shows/late cancellations) so their future signups never
+// auto-confirm — see functions/api/events/[id]/signups.ts. Granting 'admin',
+// or touching status/role on a row that's currently admin, is owner-only —
+// an admin can't create or remove other admins, or approve/deny or re-role
+// another admin. Waiver/dues verification, rsvp_restricted, and basic
+// profile fields (name/position/team) on an admin row are NOT guarded — any
+// admin can mark another admin's waiver/dues/restriction and edit their
+// basic info, including their own. Nobody can set role to 'owner' here or
+// touch the owner's own row; see functions/api/admin/owner/transfer.ts for
+// the only way to move ownership.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
@@ -128,6 +132,12 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
       setClauses.push(`dues_paid_year = NULL`, `dues_paid_by = NULL`, `dues_paid_at = NULL`)
     }
     auditDetails.dues_paid = body.dues_paid
+  }
+
+  if (body.rsvp_restricted !== undefined) {
+    values.push(body.rsvp_restricted ? 1 : 0)
+    setClauses.push(`rsvp_restricted = ?${values.length}`)
+    auditDetails.rsvp_restricted = body.rsvp_restricted
   }
 
   if (setClauses.length === 0) return badRequest('No recognized fields to update')

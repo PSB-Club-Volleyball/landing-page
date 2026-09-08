@@ -57,6 +57,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   // so a bot has no signal to react to, but skip the write entirely.
   if (body.company) return json({ ok: true }, { status: 201 })
 
+  const name = body.name.trim()
+  const email = body.email.trim().toLowerCase()
+
   // A form is optional — signup can be just name/email with no extra fields.
   const fields = event.form_id ? await fetchFormFields(env, event.form_id) : []
   const answers = body.answers ?? {}
@@ -105,13 +108,23 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     status = (approvedCount?.n ?? 0) < event.capacity ? 'approved' : 'waitlist'
   }
 
+  // A user an admin has flagged as RSVP-restricted (repeated no-shows/late
+  // cancellations, say) never gets auto-confirmed, even on an event that
+  // isn't gated and has room — their signup still lands as a pending
+  // request an admin has to decide on. Already being over capacity still
+  // means the waitlist, same as anyone else.
+  if (status === 'approved') {
+    const restricted = await env.DB.prepare(`SELECT 1 FROM users WHERE LOWER(email) = ?1 AND rsvp_restricted = 1`)
+      .bind(email)
+      .first()
+    if (restricted) status = 'pending'
+  }
+
   const filteredAnswers = Object.fromEntries(
     fields.filter((f) => answers[f.id] !== undefined).map((f) => [f.id, String(answers[f.id])])
   )
 
   const cancelToken = randomToken(24)
-  const name = body.name.trim()
-  const email = body.email.trim().toLowerCase()
   let signupId: number
 
   try {

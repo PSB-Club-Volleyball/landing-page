@@ -517,8 +517,18 @@
   text-decoration: none;
   font-weight: 700;
 }
-.signups-download-btn {
+.signups-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
+}
+.announce-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 480px;
+  margin: 0 0 0.8rem;
 }
 .signups-table {
   width: 100%;

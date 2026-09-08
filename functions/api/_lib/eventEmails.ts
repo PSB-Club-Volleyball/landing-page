@@ -80,14 +80,15 @@ export function sendRsvpConfirmationEmail(env: Env, to: string, name: string, ev
   })
 }
 
-// Sent immediately when a guest requests attendance for a gated event — the
-// request still needs an admin's approval before it's a confirmed spot.
+// Sent immediately when a guest's signup needs an admin's approval before
+// it's a confirmed spot — either because the event itself is gated, or
+// because the admin flagged this person's account as RSVP-restricted.
 export function sendRsvpRequestEmail(env: Env, to: string, name: string, event: EventInfo, cancelUrl: string) {
   const details = eventDetailsLines(event)
   const body = [
     `Hi ${name},`,
-    `We received your request to attend ${event.title}. This event requires admin approval, so ` +
-      `your spot isn't confirmed yet — we'll email you as soon as it's reviewed.`,
+    `We received your request to attend ${event.title}. Your spot isn't confirmed yet — we'll email you as soon ` +
+      `as it's reviewed.`,
   ]
   const links = [buildWaiverLink(env), { url: cancelUrl, label: 'Withdraw your request' }]
   return sendEmail(env, {
@@ -139,6 +140,28 @@ export function sendWaitlistPromotedEmail(env: Env, to: string, name: string, ev
     subject: `You're in: ${event.title}`,
     html: wrapHtml("You're in!", body, details, links),
     text: wrapText("You're in!", body, details, links),
+  })
+}
+
+// Sent to everyone signed up for an event (any non-denied status) when an
+// admin posts a free-form announcement from the event's signups panel —
+// a schedule change, what to bring, a cancellation notice, etc. message is
+// plain text the admin typed; each line becomes its own paragraph.
+export function sendEventAnnouncementEmail(
+  env: Env,
+  to: string,
+  name: string,
+  event: EventInfo,
+  subject: string,
+  message: string
+) {
+  const details = eventDetailsLines(event)
+  const body = [`Hi ${name},`, ...message.split('\n').map((l) => l.trim()).filter(Boolean)]
+  return sendEmail(env, {
+    to,
+    subject: `${event.title}: ${subject}`,
+    html: wrapHtml(subject, body, details),
+    text: wrapText(subject, body, details),
   })
 }
 
