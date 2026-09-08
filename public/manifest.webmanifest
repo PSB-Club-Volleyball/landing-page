@@ -1,0 +1,14 @@
+{
+  "name": "Behrend Club Volleyball",
+  "short_name": "BCV",
+  "description": "Penn State Behrend Club Volleyball. Highly competitive, team-based volleyball, competing in the ECVA under the NCVF.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#16264a",
+  "theme_color": "#16264a",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/maskable-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
