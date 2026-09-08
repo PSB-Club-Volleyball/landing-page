@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { WAIVER_URL } from '../constants'
-import { cancelSignup, getForm, getMe, submitSignup } from '../lib/api'
+import { cancelSignup, getForm, getLoginProviders, getMe, submitSignup } from '../lib/api'
 import { buildPages, FieldInput } from '../lib/formFields'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
 
@@ -42,6 +42,14 @@ function SignupModal({
   // Only a logged-in account can confirm a waiver's on file; a walk-up
   // signup has no way to know, so it defaults to showing the download link.
   const [waiverOnFile, setWaiverOnFile] = useState(false)
+  const [loggedIn, setLoggedIn] = useState(false)
+  const [googleAvailable, setGoogleAvailable] = useState(false)
+
+  useEffect(() => {
+    getLoginProviders()
+      .then((res) => setGoogleAvailable(res.google))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!event.form_id) return
@@ -62,6 +70,7 @@ function SignupModal({
     let cancelled = false
     getMe().then((res) => {
       if (cancelled || !res.user) return
+      setLoggedIn(true)
       setName((prev) => prev || res.user!.name || '')
       setEmail((prev) => prev || res.user!.email)
       setWaiverOnFile(res.user!.waiverSignedYear === new Date().getFullYear())
@@ -236,6 +245,20 @@ function SignupModal({
               <form className="signup-form" onSubmit={onLastPage ? handleSubmit : (e) => e.preventDefault()}>
                 {pageIndex === 0 && (
                   <>
+                    {!loggedIn && googleAvailable && (
+                      <div className="signup-google-prompt">
+                        <p>
+                          Have an account, or want one? Sign in with Google to skip re-typing your info next time
+                          &mdash; it&rsquo;s optional, you can {verb.toLowerCase()} as a guest below instead.
+                        </p>
+                        <a
+                          className="oauth-btn"
+                          href={`/api/auth/google/start?redirect=${encodeURIComponent(`/events?signup=${event.id}`)}`}
+                        >
+                          <span className="oauth-g">G</span> Continue with Google
+                        </a>
+                      </div>
+                    )}
                     <label className="field">
                       <span><span className="req">*</span> Name</span>
                       <input type="text" required value={name} onChange={(e) => setName(e.target.value)} />
