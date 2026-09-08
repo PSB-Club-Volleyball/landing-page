@@ -410,6 +410,26 @@ main {
   margin: 0 auto;
   padding: 0 6vw 5rem;
 }
+.legal-page {
+  max-width: 760px;
+  line-height: 1.65;
+}
+.legal-page h3 {
+  margin: 1.6rem 0 0.4rem;
+  font-size: 1.05rem;
+}
+.legal-page ul {
+  padding-left: 1.2rem;
+  margin: 0 0 1rem;
+}
+.legal-page li {
+  margin-bottom: 0.5rem;
+}
+.legal-updated {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: -0.4rem;
+}
 .roster-grid {
   list-style: none;
   margin: 0 0 3rem;

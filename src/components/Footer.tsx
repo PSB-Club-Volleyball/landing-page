@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import InstagramLink from './InstagramLink'
 import { CONTACT_EMAIL, GROUPME_URL, WAIVER_URL } from '../constants'
 
@@ -17,6 +18,9 @@ function Footer() {
       <a className="groupme-link" href={WAIVER_URL} target="_blank" rel="noreferrer">
         Liability waiver
       </a>
+      <Link className="groupme-link" to="/privacy">
+        Privacy policy
+      </Link>
       <span>{CONTACT_EMAIL}</span>
     </footer>
   )
