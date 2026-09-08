@@ -57,6 +57,36 @@ function Privacy() {
           </a>
           .
         </p>
+
+        <h3>Security</h3>
+        <p>
+          Session tokens are stored as one-way hashes, not in plain text, and sign-in relies on Google or
+          Microsoft&rsquo;s own authentication rather than a password we&rsquo;d have to store. No method of
+          transmission or storage is 100% secure, but we don&rsquo;t collect more than the site needs to run.
+        </p>
+
+        <h3>We don&rsquo;t sell your data</h3>
+        <p>
+          We have never sold, rented, or shared personal information with advertisers or data brokers, and we
+          don&rsquo;t intend to. Any use of information received through Google or Microsoft sign-in is limited to
+          running this site and is consistent with each provider&rsquo;s API terms, including{' '}
+          <a
+            className="inline-link"
+            href="https://developers.google.com/terms/api-services-user-data-policy"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Google&rsquo;s API Services User Data Policy
+          </a>
+          .
+        </p>
+
+        <h3>Children&rsquo;s privacy</h3>
+        <p>
+          This site is intended for Penn State Behrend club members, prospective members, and site visitors who are
+          at least 18. We don&rsquo;t knowingly collect information from anyone under 13; if you believe a child has
+          submitted information to us, contact us and we&rsquo;ll remove it.
+        </p>
       </div>
     </main>
   )

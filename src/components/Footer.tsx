@@ -21,6 +21,9 @@ function Footer() {
       <Link className="groupme-link" to="/privacy">
         Privacy policy
       </Link>
+      <Link className="groupme-link" to="/terms">
+        Terms of use
+      </Link>
       <span>{CONTACT_EMAIL}</span>
     </footer>
   )
