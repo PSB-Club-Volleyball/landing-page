@@ -284,6 +284,12 @@ function SignupsPanel({
 }) {
   const [signups, setSignups] = useState<EventSignup[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [releasing, setReleasing] = useState(false)
+  const [announceOpen, setAnnounceOpen] = useState(false)
+  const [announceSubject, setAnnounceSubject] = useState('')
+  const [announceMessage, setAnnounceMessage] = useState('')
+  const [announcing, setAnnouncing] = useState(false)
+  const [announceNote, setAnnounceNote] = useState<string | null>(null)
 
   function refresh() {
     adminApi.events
@@ -324,19 +330,96 @@ function SignupsPanel({
     }
   }
 
+  async function handleRelease() {
+    if (!confirm(`Release all pending requests for ${eventTitle}? Anyone who fits will be approved; the rest go to the waitlist.`)) return
+    setReleasing(true)
+    try {
+      const res = await adminApi.events.release(eventId)
+      setAnnounceNote(`Released: ${res.approved} approved, ${res.waitlisted} waitlisted.`)
+      refresh()
+      onChanged()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setReleasing(false)
+    }
+  }
+
+  async function handleAnnounce(ev: React.FormEvent) {
+    ev.preventDefault()
+    setAnnouncing(true)
+    setAnnounceNote(null)
+    try {
+      const res = await adminApi.events.announce(eventId, { subject: announceSubject, message: announceMessage })
+      setAnnounceNote(`Emailed ${res.recipient_count} ${res.recipient_count === 1 ? 'person' : 'people'}.`)
+      setAnnounceSubject('')
+      setAnnounceMessage('')
+      setAnnounceOpen(false)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setAnnouncing(false)
+    }
+  }
+
   if (error) return <p className="admin-error">{error}</p>
   if (!signups) return <p className="admin-note">Loading&hellip;</p>
-  if (signups.length === 0) return <p className="admin-note">No one has signed up yet.</p>
+
+  const pendingCount = signups.filter((s) => s.status === 'pending').length
 
   return (
     <>
-      <button
-        className="btn btn-outline btn-sm signups-download-btn"
-        type="button"
-        onClick={() => exportSignupsCsv(eventTitle, signups)}
-      >
-        Download CSV
-      </button>
+      <div className="signups-panel-actions">
+        <button
+          className="btn btn-outline btn-sm"
+          type="button"
+          disabled={signups.length === 0}
+          onClick={() => exportSignupsCsv(eventTitle, signups)}
+        >
+          Download CSV
+        </button>
+        <button className="btn btn-outline btn-sm" type="button" disabled={pendingCount === 0 || releasing} onClick={handleRelease}>
+          {releasing ? 'Releasing…' : `Release ${pendingCount} pending`}
+        </button>
+        <button
+          className="btn btn-outline btn-sm"
+          type="button"
+          disabled={signups.length === 0}
+          onClick={() => setAnnounceOpen((v) => !v)}
+        >
+          Email announcement
+        </button>
+      </div>
+      {announceNote && <p className="admin-note">{announceNote}</p>}
+      {announceOpen && (
+        <form className="announce-form" onSubmit={handleAnnounce}>
+          <label className="field">
+            Subject
+            <input required value={announceSubject} onChange={(e) => setAnnounceSubject(e.target.value)} />
+          </label>
+          <label className="field">
+            Message
+            <textarea
+              required
+              rows={4}
+              value={announceMessage}
+              onChange={(e) => setAnnounceMessage(e.target.value)}
+            />
+          </label>
+          <p className="field-hint">Emails everyone signed up for this event (approved, waitlisted, and pending).</p>
+          <div className="form-actions">
+            <button className="btn btn-outline" type="button" onClick={() => setAnnounceOpen(false)}>
+              Cancel
+            </button>
+            <button className="btn btn-ace" type="submit" disabled={announcing}>
+              {announcing ? 'Sending…' : 'Send'}
+            </button>
+          </div>
+        </form>
+      )}
+      {signups.length === 0 ? (
+        <p className="admin-note">No one has signed up yet.</p>
+      ) : (
       <table className="signups-table">
       <thead>
         <tr>
@@ -405,6 +488,7 @@ function SignupsPanel({
         ))}
       </tbody>
       </table>
+      )}
     </>
   )
 }

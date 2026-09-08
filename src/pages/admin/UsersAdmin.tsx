@@ -11,8 +11,18 @@ import type { AuthUser, PendingUser, Team, UserRole } from '../../types'
 // user from a CSV" action to offer.
 function exportUsersCsv(users: PendingUser[]) {
   const csv = toCsv(
-    ['Name', 'Email', 'Status', 'Role', 'Position', 'Team', 'Waiver signed year', 'Dues paid year'],
-    users.map((u) => [u.name, u.email, u.status, u.role, u.position, u.team, u.waiver_signed_year, u.dues_paid_year])
+    ['Name', 'Email', 'Status', 'Role', 'Position', 'Team', 'Waiver signed year', 'Dues paid year', 'RSVP restricted'],
+    users.map((u) => [
+      u.name,
+      u.email,
+      u.status,
+      u.role,
+      u.position,
+      u.team,
+      u.waiver_signed_year,
+      u.dues_paid_year,
+      u.rsvp_restricted ? 'yes' : 'no',
+    ])
   )
   downloadCsv('users.csv', csv)
 }
@@ -48,6 +58,7 @@ function UserRow({
   const [saving, setSaving] = useState(false)
   const [waiverSaving, setWaiverSaving] = useState(false)
   const [duesSaving, setDuesSaving] = useState(false)
+  const [restrictSaving, setRestrictSaving] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const waiverCurrent = user.waiver_signed_year === currentYear
@@ -78,6 +89,18 @@ function UserRow({
       onError((e as Error).message)
     } finally {
       setDuesSaving(false)
+    }
+  }
+
+  async function toggleRestricted() {
+    setRestrictSaving(true)
+    try {
+      await adminApi.users.update(user.id, { rsvp_restricted: !user.rsvp_restricted })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setRestrictSaving(false)
     }
   }
 
@@ -209,6 +232,16 @@ function UserRow({
         ) : (
           '—'
         )}
+      </td>
+      <td>
+        <span className="row-actions">
+          <span className={user.rsvp_restricted ? 'waiver-chip no' : 'waiver-chip'}>
+            {user.rsvp_restricted ? 'Restricted' : 'Unrestricted'}
+          </span>
+          <button type="button" disabled={restrictSaving} onClick={toggleRestricted}>
+            {restrictSaving ? '…' : user.rsvp_restricted ? 'Unrestrict' : 'Restrict'}
+          </button>
+        </span>
       </td>
       <td>
         <span className="row-actions">
@@ -390,6 +423,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                 <th>Team</th>
                 <th>Waiver</th>
                 <th>Dues</th>
+                <th>RSVP</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -405,7 +439,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                   <td>
                     <span className="role-chip role-owner">Owner</span>
                   </td>
-                  <td colSpan={4}>
+                  <td colSpan={5}>
                     <span className="admin-note">Transfer ownership to change</span>
                   </td>
                   <td />
@@ -414,7 +448,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
               {roleGroups.map((g) => (
                 <Fragment key={g.role}>
                   <tr className="role-group-header">
-                    <td colSpan={9}>{ROLE_LABELS[g.role]}</td>
+                    <td colSpan={10}>{ROLE_LABELS[g.role]}</td>
                   </tr>
                   {g.members.map((u) => (
                     <UserRow

@@ -67,6 +67,15 @@ export const adminApi = {
       }),
     removeSignup: (eventId: number, signupId: number) =>
       request<{ ok: true }>(`/api/admin/events/${eventId}/signups/${signupId}`, { method: 'DELETE' }),
+    release: (eventId: number) =>
+      request<{ ok: true; approved: number; waitlisted: number }>(`/api/admin/events/${eventId}/release`, {
+        method: 'POST',
+      }),
+    announce: (eventId: number, input: { subject: string; message: string }) =>
+      request<{ ok: true; recipient_count: number }>(`/api/admin/events/${eventId}/announce`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
   },
   forms: {
     list: () => request<{ forms: FormTemplate[] }>('/api/admin/forms'),
@@ -106,6 +115,7 @@ export const adminApi = {
         team?: Team | null
         waiver_signed?: boolean
         dues_paid?: boolean
+        rsvp_restricted?: boolean
       }
     ) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     transferOwnership: (toUserId: number) =>
