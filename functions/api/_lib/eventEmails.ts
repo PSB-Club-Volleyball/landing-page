@@ -42,21 +42,57 @@ function buildWaiverLink(env: Env): { url: string; label: string } {
   return { url: `${env.PUBLIC_URL}/liability-waiver.pdf`, label: 'Download the liability waiver' }
 }
 
+// A full table-based HTML document rather than a bare styled <div>. Outlook's
+// desktop clients (Windows, "classic" Outlook) render mail with Word's engine
+// rather than a browser one — it needs a complete <html>/<head>/<body>
+// document, ignores CSS margin/max-width/border-radius on <div>s, and
+// sometimes drops the generic "sans-serif" font — so the layout here uses
+// nested <table>s (with an MSO-only conditional wrapper to pin the content
+// width, since Outlook ignores max-width) and an explicit font stack. This
+// degrades gracefully everywhere else (Gmail, Apple Mail, etc. all render
+// tables and divs the same way for a layout this simple).
 function wrapHtml(heading: string, bodyLines: string[], detailLines: string[], links: { url: string; label: string }[] = []): string {
-  const details = detailLines.map((l) => `<p style="margin:0 0 4px">${l}</p>`).join('')
-  const body = bodyLines.map((l) => `<p style="margin:0 0 12px">${l}</p>`).join('')
-  const linksHtml = links
-    .map((l) => `<p style="margin:16px 0 0"><a href="${l.url}" style="color:#1a56db">${l.label}</a></p>`)
+  const FONT = 'Arial, Helvetica, sans-serif'
+  const details = detailLines
+    .map((l) => `<p style="margin:0 0 4px;font-family:${FONT};font-size:14px;line-height:20px;color:#1a1a1a;">${l}</p>`)
     .join('')
-  return `
-    <div style="font-family:sans-serif;color:#1a1a1a;max-width:480px">
-      <h2 style="margin:0 0 16px">${heading}</h2>
-      ${body}
-      <div style="margin:16px 0;padding:12px 16px;background:#f4f4f4;border-radius:8px">${details}</div>
-      ${linksHtml}
-      <p style="margin:16px 0 0;color:#666;font-size:13px">Behrend Club Volleyball</p>
-    </div>
-  `.trim()
+  const body = bodyLines
+    .map((l) => `<p style="margin:0 0 12px;font-family:${FONT};font-size:15px;line-height:22px;color:#1a1a1a;">${l}</p>`)
+    .join('')
+  const linksHtml = links
+    .map(
+      (l) =>
+        `<p style="margin:16px 0 0;font-family:${FONT};font-size:14px;"><a href="${l.url}" style="color:#1a56db;">${l.label}</a></p>`
+    )
+    .join('')
+  return `<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${heading}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f4f4;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f4f4;">
+<tr><td align="center" style="padding:24px 16px;">
+<!--[if mso]><table role="presentation" width="480" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:480px;background-color:#ffffff;">
+<tr><td style="padding:24px;font-family:${FONT};color:#1a1a1a;">
+<h2 style="margin:0 0 16px;font-family:${FONT};font-size:20px;line-height:26px;">${heading}</h2>
+${body}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f4f4f4" style="margin:16px 0;background-color:#f4f4f4;">
+<tr><td style="padding:12px 16px;">${details}</td></tr>
+</table>
+${linksHtml}
+<p style="margin:16px 0 0;font-family:${FONT};color:#666666;font-size:13px;">Behrend Club Volleyball</p>
+</td></tr>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr>
+</table>
+</body>
+</html>`
 }
 
 function wrapText(heading: string, bodyLines: string[], detailLines: string[], links: { url: string; label: string }[] = []): string {
