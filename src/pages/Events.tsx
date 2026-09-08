@@ -161,6 +161,22 @@ function Events() {
 
   useEffect(refresh, [])
 
+  // After an optional "sign in with Google" round-trip from the signup
+  // modal, the OAuth callback lands back here with ?signup=<eventId> —
+  // reopen that event's signup modal (now with the account's name/email
+  // prefilled) instead of dropping the visitor back at a bare event list.
+  useEffect(() => {
+    if (!events) return
+    const params = new URLSearchParams(window.location.search)
+    const signupId = params.get('signup')
+    if (!signupId) return
+    const match = events.find((e) => e.id === Number(signupId))
+    if (match) setSignupEvent(match)
+    params.delete('signup')
+    const rest = params.toString()
+    window.history.replaceState(null, '', rest ? `?${rest}` : window.location.pathname)
+  }, [events])
+
   function openSignup(e: PublicClubEvent) {
     setDetailEvent(null)
     setSignupEvent(e)
