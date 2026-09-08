@@ -72,15 +72,6 @@
 .instagram-link svg {
   flex-shrink: 0;
 }
-.groupme-link {
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-decoration: none;
-  color: inherit;
-}
-.groupme-link:hover {
-  color: var(--ace);
-}
 .nav-toggle {
   display: none;
 }
@@ -1134,12 +1125,6 @@ footer {
   font-weight: 700;
   color: var(--page-fg);
 }
-.footer-connect {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1.1rem;
-}
 .footer-legal {
   display: flex;
   flex-wrap: wrap;
@@ -1232,9 +1217,6 @@ footer {
     align-items: center;
     text-align: center;
     gap: 0.7rem;
-  }
-  .footer-connect {
-    justify-content: center;
   }
   .footer-legal {
     justify-content: center;
