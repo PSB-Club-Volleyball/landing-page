@@ -860,6 +860,11 @@ main {
   line-height: 1.5;
   color: var(--muted);
 }
+.signup-oauth-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
 .signup-google-prompt .oauth-btn {
   width: auto;
   padding: 0.5rem 0.9rem;

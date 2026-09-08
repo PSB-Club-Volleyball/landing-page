@@ -43,11 +43,11 @@ function SignupModal({
   // signup has no way to know, so it defaults to showing the download link.
   const [waiverOnFile, setWaiverOnFile] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
-  const [googleAvailable, setGoogleAvailable] = useState(false)
+  const [providers, setProviders] = useState({ google: false, microsoft: false })
 
   useEffect(() => {
     getLoginProviders()
-      .then((res) => setGoogleAvailable(res.google))
+      .then(setProviders)
       .catch(() => {})
   }, [])
 
@@ -245,18 +245,37 @@ function SignupModal({
               <form className="signup-form" onSubmit={onLastPage ? handleSubmit : (e) => e.preventDefault()}>
                 {pageIndex === 0 && (
                   <>
-                    {!loggedIn && googleAvailable && (
+                    {!loggedIn && (providers.google || providers.microsoft) && (
                       <div className="signup-google-prompt">
                         <p>
-                          Have an account, or want one? Sign in with Google to skip re-typing your info next time
-                          &mdash; it&rsquo;s optional, you can {verb.toLowerCase()} as a guest below instead.
+                          Have an account, or want one? Sign in to skip re-typing your info next time &mdash;
+                          it&rsquo;s optional, you can {verb.toLowerCase()} as a guest below instead. Penn State
+                          Behrend accounts work with Microsoft sign-in.
                         </p>
-                        <a
-                          className="oauth-btn"
-                          href={`/api/auth/google/start?redirect=${encodeURIComponent(`/events?signup=${event.id}`)}`}
-                        >
-                          <span className="oauth-g">G</span> Continue with Google
-                        </a>
+                        <div className="signup-oauth-options">
+                          {providers.google && (
+                            <a
+                              className="oauth-btn"
+                              href={`/api/auth/google/start?redirect=${encodeURIComponent(`/events?signup=${event.id}`)}`}
+                            >
+                              <span className="oauth-g">G</span> Continue with Google
+                            </a>
+                          )}
+                          {providers.microsoft && (
+                            <a
+                              className="oauth-btn"
+                              href={`/api/auth/microsoft/start?redirect=${encodeURIComponent(`/events?signup=${event.id}`)}`}
+                            >
+                              <span className="oauth-ms">
+                                <span />
+                                <span />
+                                <span />
+                                <span />
+                              </span>
+                              Continue with Microsoft
+                            </a>
+                          )}
+                        </div>
                       </div>
                     )}
                     <label className="field">
