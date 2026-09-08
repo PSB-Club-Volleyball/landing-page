@@ -5,26 +5,25 @@ import { CONTACT_EMAIL, GROUPME_URL, WAIVER_URL } from '../constants'
 function Footer() {
   return (
     <footer>
-      <span>Behrend Club Volleyball</span>
-      <InstagramLink />
-      <a
-        className="groupme-link"
-        href={GROUPME_URL}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Join our GroupMe
-      </a>
-      <a className="groupme-link" href={WAIVER_URL} target="_blank" rel="noreferrer">
-        Liability waiver
-      </a>
-      <Link className="groupme-link" to="/privacy">
-        Privacy policy
-      </Link>
-      <Link className="groupme-link" to="/terms">
-        Terms of use
-      </Link>
-      <span>{CONTACT_EMAIL}</span>
+      <div className="footer-main">
+        <span className="footer-brand">Behrend Club Volleyball</span>
+        <div className="footer-connect">
+          <InstagramLink />
+          <a className="groupme-link" href={GROUPME_URL} target="_blank" rel="noreferrer">
+            Join our GroupMe
+          </a>
+          <a className="groupme-link" href={`mailto:${CONTACT_EMAIL}`}>
+            {CONTACT_EMAIL}
+          </a>
+        </div>
+      </div>
+      <div className="footer-legal">
+        <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+          Liability waiver
+        </a>
+        <Link to="/privacy">Privacy policy</Link>
+        <Link to="/terms">Terms of use</Link>
+      </div>
     </footer>
   )
 }
