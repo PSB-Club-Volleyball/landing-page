@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
 import MenuIcon from './MenuIcon'
@@ -28,6 +28,8 @@ function Navbar() {
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
   const [providers, setProviders] = useState({ google: true, microsoft: true })
   const location = useLocation()
+  const toggleRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setOpen(false)
@@ -42,13 +44,71 @@ function Navbar() {
       .catch(() => {})
   }, [])
 
+  // While the mobile menu is open it's a modal surface: trap Tab inside it,
+  // close on Escape (returning focus to the toggle), lock body scroll, and
+  // move focus to the first item on open.
+  useEffect(() => {
+    if (!open) return
+
+    const panel = panelRef.current
+    panel?.querySelector<HTMLElement>('a, button, summary')?.focus()
+
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setOpen(false)
+        toggleRef.current?.focus()
+        return
+      }
+      if (e.key !== 'Tab' || !panel) return
+      // The toggle (the X while open) is the first stop in the cycle so it
+      // stays keyboard-reachable; the panel's own controls follow.
+      const toggle = toggleRef.current
+      const inPanel = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
+        ),
+      )
+      const focusable = toggle ? [toggle, ...inPanel] : inPanel
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement as HTMLElement | null
+      const contained = active === toggle || panel.contains(active)
+      if (e.shiftKey && (active === first || !contained)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && (active === last || !contained)) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = overflow
+    }
+  }, [open])
+
   return (
     <header className="navbar">
-      <NavLink to="/" className="brand" onClick={() => setOpen(false)}>
+      <NavLink
+        to="/"
+        className="brand"
+        aria-label="Behrend Club Volleyball — home"
+        onClick={() => setOpen(false)}
+      >
         <BallIcon />
-        Behrend Club Volleyball
+        <span className="brand-full">Behrend Club Volleyball</span>
+        <span className="brand-short" aria-hidden="true">
+          BCV
+        </span>
       </NavLink>
       <button
+        ref={toggleRef}
         type="button"
         className="nav-toggle"
         aria-label={open ? 'Close menu' : 'Open menu'}
@@ -58,8 +118,21 @@ function Navbar() {
       >
         <MenuIcon open={open} />
       </button>
-      <div id="nav-panel" className={open ? 'nav-panel open' : 'nav-panel'}>
-        <nav className="nav-links">
+      {open && (
+        <div
+          className="nav-scrim"
+          onClick={() => {
+            setOpen(false)
+            toggleRef.current?.focus()
+          }}
+        />
+      )}
+      <div
+        id="nav-panel"
+        ref={panelRef}
+        className={open ? 'nav-panel open' : 'nav-panel'}
+      >
+        <nav className="nav-links" aria-label="Primary">
           {PAGES.map((page) => (
             <NavLink
               key={page.to}

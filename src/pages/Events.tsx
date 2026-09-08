@@ -35,19 +35,22 @@ function EventCard({
   return (
     <div
       className={`event-card${event.status === 'cancelled' ? ' cancelled' : ''}`}
-      role="button"
-      tabIndex={0}
-      onClick={() => onOpenDetail(event)}
-      onKeyDown={(e) => {
-        if (e.target !== e.currentTarget) return
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onOpenDetail(event)
-        }
+      // Mouse convenience only — the card is not a control. Keyboard and
+      // assistive-tech users reach the same detail view through the title
+      // button below, so the inner buttons/links aren't nested in a widget.
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('a, button')) return
+        onOpenDetail(event)
       }}
     >
       <div className="event-card-row1">
-        <p className="event-card-title">{event.title}</p>
+        <button
+          type="button"
+          className="event-card-title"
+          onClick={() => onOpenDetail(event)}
+        >
+          {event.title}
+        </button>
         <span className="event-card-type">{EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}</span>
       </div>
       <div className="event-card-when">{formatTimeRange(event)}</div>
@@ -195,9 +198,9 @@ function Events() {
   }
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <div className="board events-page">
-        <h2>Events</h2>
+        <h1>Events</h1>
         {error && (
           <p className="placeholder-note">
             Couldn&rsquo;t load events right now &mdash; try refreshing, or check our GroupMe below.

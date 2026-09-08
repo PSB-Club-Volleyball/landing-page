@@ -2,9 +2,9 @@ import { CONTACT_EMAIL } from '../constants'
 
 function Privacy() {
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <div className="board legal-page">
-        <h2>Privacy policy</h2>
+        <h1>Privacy policy</h1>
         <p className="legal-updated">Last updated September 2026.</p>
 
         <p>
@@ -13,7 +13,7 @@ function Privacy() {
           with third parties beyond what&rsquo;s described below.
         </p>
 
-        <h3>What we collect</h3>
+        <h2>What we collect</h2>
         <ul>
           <li>
             <b>Event signups:</b> the name, email, and any answers you submit on an event&rsquo;s signup form (used
@@ -35,20 +35,20 @@ function Privacy() {
           </li>
         </ul>
 
-        <h3>How it&rsquo;s used</h3>
+        <h2>How it&rsquo;s used</h2>
         <p>
           Signup and account info is used only to run club events and communicate with you about them (confirmations,
           waitlist/approval updates, cancellations). Board members can see and manage this data to run the club;
           it&rsquo;s not shared outside the club or used for any other purpose.
         </p>
 
-        <h3>How long we keep it</h3>
+        <h2>How long we keep it</h2>
         <p>
           Event signups and roster/board entries are kept for as long as they&rsquo;re relevant to the club (roughly
           the season), then removed. Sessions expire automatically after 30 days of inactivity.
         </p>
 
-        <h3>Your choices</h3>
+        <h2>Your choices</h2>
         <p>
           You can cancel an event signup at any time using the link emailed to you or, if you&rsquo;re signed in,
           from the event card. To request that we delete your data or answer any other question, email{' '}
@@ -58,14 +58,14 @@ function Privacy() {
           .
         </p>
 
-        <h3>Security</h3>
+        <h2>Security</h2>
         <p>
           Session tokens are stored as one-way hashes, not in plain text, and sign-in relies on Google or
           Microsoft&rsquo;s own authentication rather than a password we&rsquo;d have to store. No method of
           transmission or storage is 100% secure, but we don&rsquo;t collect more than the site needs to run.
         </p>
 
-        <h3>We don&rsquo;t sell your data</h3>
+        <h2>We don&rsquo;t sell your data</h2>
         <p>
           We have never sold, rented, or shared personal information with advertisers or data brokers, and we
           don&rsquo;t intend to. Any use of information received through Google or Microsoft sign-in is limited to
@@ -81,7 +81,7 @@ function Privacy() {
           .
         </p>
 
-        <h3>Children&rsquo;s privacy</h3>
+        <h2>Children&rsquo;s privacy</h2>
         <p>
           This site is intended for Penn State Behrend club members, prospective members, and site visitors who are
           at least 18. We don&rsquo;t knowingly collect information from anyone under 13; if you believe a child has

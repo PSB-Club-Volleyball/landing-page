@@ -2,9 +2,9 @@ import { CONTACT_EMAIL, WAIVER_URL } from '../constants'
 
 function Terms() {
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <div className="board legal-page">
-        <h2>Terms of use</h2>
+        <h1>Terms of use</h1>
         <p className="legal-updated">Last updated September 2026.</p>
 
         <p>
@@ -13,7 +13,7 @@ function Terms() {
           them. If you don&rsquo;t agree, please don&rsquo;t use the site.
         </p>
 
-        <h3>Assumption of risk</h3>
+        <h2>Assumption of risk</h2>
         <p>
           Volleyball and related club activities carry an inherent risk of injury. Signing up for an event through
           this site does not replace the club&rsquo;s{' '}
@@ -24,7 +24,7 @@ function Terms() {
           acknowledge that participation is voluntary and at your own risk.
         </p>
 
-        <h3>No warranty</h3>
+        <h2>No warranty</h2>
         <p>
           Event dates, times, capacity, and other details are provided by club volunteers and may change. We do our
           best to keep them accurate but don&rsquo;t guarantee it &mdash; the site and its content are provided
@@ -32,14 +32,14 @@ function Terms() {
           club if you&rsquo;re unsure.
         </p>
 
-        <h3>Limitation of liability</h3>
+        <h2>Limitation of liability</h2>
         <p>
           To the fullest extent permitted by law, Behrend Club Volleyball and its board members aren&rsquo;t liable
           for any indirect, incidental, or consequential damages arising from your use of this site or participation
           in club events, beyond what&rsquo;s already addressed by the liability waiver.
         </p>
 
-        <h3>Account use</h3>
+        <h2>Account use</h2>
         <p>
           Signing in with Google or Microsoft is optional and just links your club activity to your existing
           account &mdash; see our{' '}
@@ -50,10 +50,10 @@ function Terms() {
           signup form.
         </p>
 
-        <h3>Governing law</h3>
+        <h2>Governing law</h2>
         <p>These terms are governed by the laws of the Commonwealth of Pennsylvania.</p>
 
-        <h3>Questions</h3>
+        <h2>Questions</h2>
         <p>
           Email{' '}
           <a className="inline-link" href={`mailto:${CONTACT_EMAIL}`}>
