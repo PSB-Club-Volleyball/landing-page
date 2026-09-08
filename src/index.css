@@ -21,13 +21,38 @@ a {
   color: inherit;
 }
 :focus-visible {
-  outline: 2px solid var(--ace);
+  outline: 2px solid var(--ace-fg);
   outline-offset: 2px;
   border-radius: var(--radius-xs);
+}
+
+/* Bypass-blocks: first focusable element on every page, hidden until focused. */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  transform: translateY(-120%);
+  margin: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--page-bg);
+  color: var(--page-fg);
+  border: 1px solid var(--ace-fg);
+  border-radius: var(--radius-xs);
+  font-weight: 700;
+  text-decoration: none;
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
 }
 
 #root {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+}
+/* Skip-link and route changes move focus here programmatically; it's a jump
+   target, not a control, so it doesn't need a persistent focus ring. */
+#main-content:focus {
+  outline: none;
 }

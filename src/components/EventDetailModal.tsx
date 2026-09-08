@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useId } from 'react'
 import { WAIVER_URL } from '../constants'
 import { directionsUrl, EVENT_TYPE_LABELS, formatEventDate, formatTimeRange, getSignupState } from '../lib/eventFormat'
 import { renderMarkdown } from '../lib/markdown'
+import { useModalFocus } from '../lib/useModalFocus'
 import type { PublicClubEvent, SignupStatus } from '../types'
 
 function EventDetailModal({
@@ -15,13 +16,8 @@ function EventDetailModal({
   onOpenSignup: (e: PublicClubEvent) => void
   onManageSignup: (e: PublicClubEvent, signupId: number, status: SignupStatus | null) => void
 }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const dialogRef = useModalFocus<HTMLDivElement>(onClose)
+  const titleId = useId()
 
   const { spotsLeft, isFull, joinsWaitlist, verb } = getSignupState(event)
   const mySignupId = event.my_signup_id
@@ -31,12 +27,20 @@ function EventDetailModal({
     : []
 
   return (
-    <div className="signup-overlay" role="dialog" aria-modal="true" aria-label={event.title} onClick={onClose}>
-      <div className="signup-modal event-detail-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="signup-overlay" onClick={onClose}>
+      <div
+        className="signup-modal event-detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        ref={dialogRef}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="signup-modal-hd">
           <div>
             <p className="signup-eyebrow">{EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}</p>
-            <h4>{event.title}</h4>
+            <h4 id={titleId}>{event.title}</h4>
           </div>
           <button className="signup-close" type="button" aria-label="Close" onClick={onClose}>
             &times;

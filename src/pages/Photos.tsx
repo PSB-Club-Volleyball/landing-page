@@ -23,9 +23,9 @@ function Photos() {
   }, [])
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <div className="board">
-        <h2>Photos</h2>
+        <h1>Photos</h1>
         {error && (
           <p className="placeholder-note">
             Couldn&rsquo;t load photos right now &mdash; try refreshing.
@@ -44,7 +44,11 @@ function Photos() {
                 {item.media_type === 'video' ? (
                   <video src={mediaUrl(item.r2_key)} controls preload="metadata" />
                 ) : (
-                  <img src={mediaUrl(item.r2_key)} alt={item.caption ?? ''} loading="lazy" />
+                  <img
+                    src={mediaUrl(item.r2_key)}
+                    alt={item.caption || 'Behrend Club Volleyball photo'}
+                    loading="lazy"
+                  />
                 )}
                 {item.caption && <span className="media-caption">{item.caption}</span>}
               </li>

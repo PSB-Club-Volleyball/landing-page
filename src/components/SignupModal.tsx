@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { WAIVER_URL } from '../constants'
 import { cancelSignup, getForm, getLoginProviders, getMe, submitSignup } from '../lib/api'
 import { buildPages, FieldInput } from '../lib/formFields'
+import { useModalFocus } from '../lib/useModalFocus'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
 
 function SignupModal({
@@ -80,13 +81,7 @@ function SignupModal({
     }
   }, [])
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const dialogRef = useModalFocus<HTMLDivElement>(onClose)
 
   const pages = useMemo(() => buildPages(form?.fields ?? []), [form])
   const onLastPage = pageIndex >= pages.length - 1
@@ -152,8 +147,15 @@ function SignupModal({
       : 'Sign up'
 
   return (
-    <div className="signup-overlay" role="dialog" aria-modal="true" aria-label={`${verb} for ${event.title}`}>
-      <div className="signup-modal">
+    <div className="signup-overlay">
+      <div
+        className="signup-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label={confirmed ? `${verb} confirmation` : `${verb} for ${event.title}`}
+        tabIndex={-1}
+        ref={dialogRef}
+      >
         {confirmed ? (
           <div className="signup-confirm">
             <div className="signup-confirm-tick">&#10003;</div>
@@ -174,7 +176,7 @@ function SignupModal({
                   Your request to attend {event.title} is awaiting admin approval. We&rsquo;ll email you once it&rsquo;s
                   reviewed.
                 </p>
-                {submitError && <p className="admin-error">{submitError}</p>}
+                {submitError && <p className="admin-error" role="alert">{submitError}</p>}
                 <p className="cancel-note">
                   Changed your mind?{' '}
                   <button className="link-btn" type="button" disabled={cancelling} onClick={handleCancel}>
@@ -189,7 +191,7 @@ function SignupModal({
                   {event.title} is full, so you&rsquo;ve been added to the waitlist. We&rsquo;ll email you right away if a
                   spot opens up.
                 </p>
-                {submitError && <p className="admin-error">{submitError}</p>}
+                {submitError && <p className="admin-error" role="alert">{submitError}</p>}
                 <p className="cancel-note">
                   Changed your mind?{' '}
                   <button className="link-btn" type="button" disabled={cancelling} onClick={handleCancel}>
@@ -203,7 +205,7 @@ function SignupModal({
                 <p>
                   {form?.confirmation_message || `You're signed up for ${event.title}. See you at ${event.location_name || 'the event'}.`}
                 </p>
-                {submitError && <p className="admin-error">{submitError}</p>}
+                {submitError && <p className="admin-error" role="alert">{submitError}</p>}
                 <p className="cancel-note">
                   Changed your mind?{' '}
                   <button className="link-btn" type="button" disabled={cancelling} onClick={handleCancel}>
@@ -239,7 +241,7 @@ function SignupModal({
               </button>
             </div>
 
-            {loadError && <p className="admin-error">{loadError}</p>}
+            {loadError && <p className="admin-error" role="alert">{loadError}</p>}
 
             {!loadError && (
               <form className="signup-form" onSubmit={onLastPage ? handleSubmit : (e) => e.preventDefault()}>
@@ -260,11 +262,11 @@ function SignupModal({
                       </div>
                     )}
                     <label className="field">
-                      <span><span className="req">*</span> Name</span>
+                      <span><span className="req" aria-hidden="true">*</span> Name</span>
                       <input type="text" required value={name} onChange={(e) => setName(e.target.value)} />
                     </label>
                     <label className="field">
-                      <span><span className="req">*</span> Email</span>
+                      <span><span className="req" aria-hidden="true">*</span> Email</span>
                       <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                     </label>
                     <div className="signup-honeypot" aria-hidden="true">
@@ -302,7 +304,7 @@ function SignupModal({
                 {pages[pageIndex]?.fields.map((field) => (
                   <label className="field" key={field.id}>
                     <span>
-                      {field.required && <span className="req">* </span>}
+                      {field.required && <span className="req" aria-hidden="true">* </span>}
                       {field.label}
                     </span>
                     {field.description && <span className="field-desc">{field.description}</span>}
@@ -314,8 +316,8 @@ function SignupModal({
                   </label>
                 ))}
 
-                {pageError && <p className="admin-error">{pageError}</p>}
-                {submitError && <p className="admin-error">{submitError}</p>}
+                {pageError && <p className="admin-error" role="alert">{pageError}</p>}
+                {submitError && <p className="admin-error" role="alert">{submitError}</p>}
 
                 <div className="signup-modal-ft">
                   <span className="signup-note">

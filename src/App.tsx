@@ -18,6 +18,11 @@ function App() {
 
   return (
     <>
+      {!isAdmin && (
+        <a className="skip-link" href="#main-content">
+          Skip to main content
+        </a>
+      )}
       {!isAdmin && <Navbar />}
       <Routes>
         <Route path="/" element={<Home />} />

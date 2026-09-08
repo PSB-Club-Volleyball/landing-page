@@ -11,6 +11,12 @@
 
   /* Accent A — Ace. Primary accent: CTAs, active states, the hero stripe. */
   --ace: #ff5a36;
+  /* Text-safe Ace. --ace itself is only 2.8:1 on the light --chalk ground, so
+     it fails AA anywhere it carries text or a thin affordance line. Use
+     --ace-fg for accent text, link underlines, focus rings, and small accent
+     icons; keep --ace for fills (the CTA, chips) where dark text sits on top.
+     Redefined per theme below — on the dark ground --ace already passes. */
+  --ace-fg: #c8341a; /* 4.8:1 on --chalk */
 
   /* Accent B — Varsity Gold. Reserved for the Roster page only (jersey
      numbers, position tags), so it never competes with Ace on the same
@@ -34,6 +40,7 @@
     --muted: #5b6274; /* darker than --line: --line fails AA (2.9:1) on chalk */
     --gold-tint: rgba(242, 182, 50, 0.16);
     --gold-fg: var(--gold-dim); /* 4.1:1 on --gold-tint over --chalk */
+    --ace-fg: #c8341a;
   }
 }
 @media (prefers-color-scheme: dark) {
@@ -42,6 +49,7 @@
     --page-fg: var(--chalk);
     --muted: var(--line); /* --line is 5.5:1 on ink — fine as-is here */
     --gold-fg: var(--gold); /* --gold-dim fails (2.7:1) on --gold-tint over --ink */
+    --ace-fg: var(--ace); /* 5.6:1 on --ink — no adjustment needed */
   }
 }
 :root[data-theme='light'] {
@@ -50,10 +58,12 @@
   --muted: #5b6274;
   --gold-tint: rgba(242, 182, 50, 0.16);
   --gold-fg: var(--gold-dim);
+  --ace-fg: #c8341a;
 }
 :root[data-theme='dark'] {
   --page-bg: var(--ink);
   --page-fg: var(--chalk);
   --muted: var(--line);
   --gold-fg: var(--gold);
+  --ace-fg: var(--ace);
 }

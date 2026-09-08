@@ -31,7 +31,7 @@ function CancelRsvp() {
   }
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <div className="board" style={{ maxWidth: '440px', textAlign: 'center' }}>
         {!validParams ? (
           <>

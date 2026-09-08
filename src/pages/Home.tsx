@@ -7,7 +7,7 @@ import {
 
 function Home() {
   return (
-    <>
+    <main id="main-content" tabIndex={-1}>
       <section className="hero">
         <p className="eyebrow">Penn State Behrend</p>
         <h1>
@@ -44,44 +44,42 @@ function Home() {
         </div>
       </div>
 
-      <main>
-        <div className="split">
-          <div>
-            <h2>About the club</h2>
-            <p>
-              This club is for anyone who wants to play volleyball in a
-              highly competitive, team-based setting. We compete in the
-              Eastern Collegiate Volleyball Association (ECVA), the regional
-              league operating under the National Collegiate Volleyball
-              Federation (NCVF).
-            </p>
-            <p>Prior volleyball experience is highly recommended.</p>
-          </div>
-          <div className="join-card">
-            <h2>How to join</h2>
-            <p>
-              There are no practices right now &mdash; the board is still
-              deciding on tryouts. Until then, we&rsquo;re holding weekly
-              open gyms. Join our GroupMe for times and details.
-            </p>
-            <a
-              className="signup-link"
-              href={GROUPME_URL}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Join our GroupMe
-            </a>
-            <p className="or-note">
-              or email{' '}
-              <a className="inline-link" href={`mailto:${CONTACT_EMAIL}`}>
-                {CONTACT_EMAIL}
-              </a>
-            </p>
-          </div>
+      <div className="split">
+        <div>
+          <h2>About the club</h2>
+          <p>
+            This club is for anyone who wants to play volleyball in a
+            highly competitive, team-based setting. We compete in the
+            Eastern Collegiate Volleyball Association (ECVA), the regional
+            league operating under the National Collegiate Volleyball
+            Federation (NCVF).
+          </p>
+          <p>Prior volleyball experience is highly recommended.</p>
         </div>
-      </main>
-    </>
+        <div className="join-card">
+          <h2>How to join</h2>
+          <p>
+            There are no practices right now &mdash; the board is still
+            deciding on tryouts. Until then, we&rsquo;re holding weekly
+            open gyms. Join our GroupMe for times and details.
+          </p>
+          <a
+            className="signup-link"
+            href={GROUPME_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Join our GroupMe
+          </a>
+          <p className="or-note">
+            or email{' '}
+            <a className="inline-link" href={`mailto:${CONTACT_EMAIL}`}>
+              {CONTACT_EMAIL}
+            </a>
+          </p>
+        </div>
+      </div>
+    </main>
   )
 }
 

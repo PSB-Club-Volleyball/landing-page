@@ -37,9 +37,9 @@ function Roster() {
   }, [])
 
   return (
-    <main>
+    <main id="main-content" tabIndex={-1}>
       <div className="board">
-        <h2>Team roster</h2>
+        <h1>Team roster</h1>
         {error && (
           <p className="placeholder-note">
             Couldn&rsquo;t load the roster right now &mdash; try refreshing.
