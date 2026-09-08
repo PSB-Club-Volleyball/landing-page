@@ -1,30 +1,24 @@
 import { Link } from 'react-router-dom'
 import InstagramLink from './InstagramLink'
-import { CONTACT_EMAIL, GROUPME_URL, WAIVER_URL } from '../constants'
+import { WAIVER_URL } from '../constants'
 
+// GroupMe and the contact email already get top billing on Home and
+// Roster (join CTA, board contact section) — repeating them here on
+// every page just padded out the footer, especially on mobile.
 function Footer() {
   return (
     <footer>
-      <span>Behrend Club Volleyball</span>
-      <InstagramLink />
-      <a
-        className="groupme-link"
-        href={GROUPME_URL}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Join our GroupMe
-      </a>
-      <a className="groupme-link" href={WAIVER_URL} target="_blank" rel="noreferrer">
-        Liability waiver
-      </a>
-      <Link className="groupme-link" to="/privacy">
-        Privacy policy
-      </Link>
-      <Link className="groupme-link" to="/terms">
-        Terms of use
-      </Link>
-      <span>{CONTACT_EMAIL}</span>
+      <div className="footer-main">
+        <span className="footer-brand">Behrend Club Volleyball</span>
+        <InstagramLink />
+      </div>
+      <div className="footer-legal">
+        <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+          Liability waiver
+        </a>
+        <Link to="/privacy">Privacy policy</Link>
+        <Link to="/terms">Terms of use</Link>
+      </div>
     </footer>
   )
 }
