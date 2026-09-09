@@ -1148,6 +1148,66 @@ main {
   color: var(--muted);
 }
 
+/* Single-elimination bracket — shared by the public Bracket tab and the
+   admin Schedule & scores tab. */
+.bracket-champ {
+  margin: 0 0 1rem;
+  font-size: 0.95rem;
+}
+.bracket-champ b {
+  color: var(--ace-fg);
+}
+.bracket-grid {
+  display: flex;
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+.bracket-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 0.75rem;
+  min-width: 11rem;
+}
+.bracket-col > h3,
+.bracket-col > h4 {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.bracket-match {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: var(--radius-xs);
+  padding: 0.4rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.86rem;
+}
+.bracket-match.bye {
+  opacity: 0.55;
+}
+.bm-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.bm-team {
+  display: block;
+}
+.bm-team.win {
+  font-weight: 700;
+}
+.bm-score {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .event-detail-desc p {
   margin: 0 0 0.8rem;
 }

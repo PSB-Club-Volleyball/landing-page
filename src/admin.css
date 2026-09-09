@@ -497,6 +497,17 @@
   gap: 0.5rem;
   margin-top: 0.9rem;
 }
+/* Admin bracket cards carry score-entry inputs, so give them more room. */
+.bracket-grid.admin .bracket-col {
+  min-width: 17rem;
+}
+.bracket-grid.admin .bracket-match {
+  gap: 0.4rem;
+}
+.bracket-grid.admin .match-score-entry {
+  margin-left: 0;
+  flex-wrap: wrap;
+}
 .match-round + .match-round {
   margin-top: 1.1rem;
 }

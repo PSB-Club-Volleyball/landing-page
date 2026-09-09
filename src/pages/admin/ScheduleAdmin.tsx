@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import { buildRoundRobinSchedule } from '../../lib/schedule'
+import { buildSingleElimBracket } from '../../lib/bracket'
+import { roundName } from '../../lib/bracketLabels'
 import type { EventMatch, MatchesResponse, PlayFormat, ScheduleConfig } from '../../types'
 
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -27,13 +29,77 @@ function draftToScores(d: ResultDraft): [number, number][] {
     .map(([a, b]) => [Number(a) || 0, Number(b) || 0] as [number, number])
 }
 
+function ScoreEntry({
+  match,
+  draft,
+  busy,
+  onChange,
+  onSave,
+}: {
+  match: EventMatch
+  draft: ResultDraft
+  busy: boolean
+  onChange: (next: ResultDraft) => void
+  onSave: () => void
+}) {
+  return (
+    <span className="match-score-entry">
+      {draft.forfeit == null &&
+        draft.sets.map((s, i) => (
+          <span className="set-input" key={i}>
+            <input
+              type="number"
+              min="0"
+              aria-label={`Set ${i + 1} ${match.team_a_name}`}
+              value={s[0]}
+              onChange={(e) =>
+                onChange({
+                  ...draft,
+                  sets: draft.sets.map((x, j) => (j === i ? ([e.target.value, x[1]] as [string, string]) : x)),
+                })
+              }
+            />
+            <span>&ndash;</span>
+            <input
+              type="number"
+              min="0"
+              aria-label={`Set ${i + 1} ${match.team_b_name}`}
+              value={s[1]}
+              onChange={(e) =>
+                onChange({
+                  ...draft,
+                  sets: draft.sets.map((x, j) => (j === i ? ([x[0], e.target.value] as [string, string]) : x)),
+                })
+              }
+            />
+          </span>
+        ))}
+      <select
+        aria-label="Forfeit"
+        value={draft.forfeit ?? ''}
+        onChange={(e) => onChange({ ...draft, forfeit: e.target.value ? Number(e.target.value) : null })}
+      >
+        <option value="">No forfeit</option>
+        {match.team_a_id != null && <option value={match.team_a_id}>{match.team_a_name} forfeits</option>}
+        {match.team_b_id != null && <option value={match.team_b_id}>{match.team_b_name} forfeits</option>}
+      </select>
+      <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={onSave}>
+        Save
+      </button>
+    </span>
+  )
+}
+
 export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number; playFormat: PlayFormat }) {
+  const mode: 'rr' | 'bracket' | 'unsupported' =
+    playFormat === 'round_robin' ? 'rr' : playFormat === 'single_elim' ? 'bracket' : 'unsupported'
+
   const [data, setData] = useState<MatchesResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [config, setConfig] = useState<ScheduleConfig | null>(null)
   // The numeric inputs are backed by their own text so the field can be blank
-  // while you retype it; `config` only ever holds the last valid value, and a
-  // blank field snaps back on blur.
+  // while you retype it; `config` only holds the last valid value, snapping
+  // back on blur.
   const [courtsText, setCourtsText] = useState('')
   const [totalText, setTotalText] = useState('')
   const [drafts, setDrafts] = useState<Record<number, ResultDraft>>({})
@@ -85,11 +151,19 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
     })
   }, [config])
 
+  if (mode === 'unsupported') {
+    return (
+      <p className="admin-note">
+        Scheduling for this format isn&rsquo;t built yet. Round robin and single elimination are available.
+      </p>
+    )
+  }
   if (loadError) return <p className="admin-error">{loadError}</p>
   if (!data || !config) return <p className="admin-note">Loading&hellip;</p>
 
   const teamIds = data.teams.map((t) => t.id)
   const hasResults = data.standings.some((s) => s.played > 0)
+  const noun = mode === 'bracket' ? 'bracket' : 'schedule'
 
   async function saveSettings() {
     if (!config) return
@@ -97,8 +171,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
     setError(null)
     setNote(null)
     try {
-      const res = await adminApi.events.saveScheduleConfig(eventId, config)
-      hydrate(res)
+      hydrate(await adminApi.events.saveScheduleConfig(eventId, config))
       setNote('Settings saved.')
     } catch (e) {
       setError((e as Error).message)
@@ -113,15 +186,17 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
       setError('Build at least two teams on the Teams & format tab first.')
       return
     }
-    if (data && data.matches.length > 0 && !confirm('Replace the current schedule? Any entered scores are cleared.')) return
+    if (data && data.matches.length > 0 && !confirm(`Replace the current ${noun}? Any entered scores are cleared.`)) return
     setBusy(true)
     setError(null)
     setNote(null)
     try {
-      const matches = buildRoundRobinSchedule(teamIds, config.courts, playFormat === 'round_robin' && config.double_round_robin)
-      const res = await adminApi.events.saveSchedule(eventId, { config, matches })
-      hydrate(res)
-      setNote('Schedule generated.')
+      const matches =
+        mode === 'bracket'
+          ? buildSingleElimBracket(teamIds)
+          : buildRoundRobinSchedule(teamIds, config.courts, config.double_round_robin)
+      hydrate(await adminApi.events.saveSchedule(eventId, { config, matches }))
+      setNote(`${noun[0].toUpperCase()}${noun.slice(1)} generated.`)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -152,39 +227,42 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
     setDrafts((prev) => ({ ...prev, [id]: next }))
   }
 
-  const rounds = [...new Set(data.matches.map((m) => m.round))].sort((a, b) => a - b)
-  const roundLabel = (round: number) => {
-    const first = data.matches.find((m) => m.round === round)
-    return slotTime(first?.start_time ?? null) || `Round ${round}`
-  }
-
-  // A number field is "pending" when its text doesn't parse to a whole number
-  // >= 1 — allowed while typing, but flagged so it's clear it won't be saved.
   const pending = (text: string) => {
     const n = Number(text)
     return !Number.isFinite(n) || n < 1 || text.trim() === ''
   }
 
+  const rounds = [...new Set(data.matches.map((m) => m.round))].sort((a, b) => a - b)
+  const totalRounds = rounds[rounds.length - 1] ?? 0
+  const rrRoundLabel = (round: number) => {
+    const first = data.matches.find((m) => m.round === round)
+    return slotTime(first?.start_time ?? null) || `Round ${round}`
+  }
+
   return (
     <div className="schedule-admin">
       <section>
-        <h3>Schedule settings</h3>
+        <h3>{mode === 'bracket' ? 'Bracket settings' : 'Schedule settings'}</h3>
         <div className="schedule-config">
-          <label className="field">
-            Courts
-            <input
-              type="number"
-              min="1"
-              value={courtsText}
-              onChange={(e) => {
-                setCourtsText(e.target.value)
-                const n = Number(e.target.value)
-                if (Number.isFinite(n) && n >= 1) setConfig({ ...config, courts: Math.floor(n) })
-              }}
-              onBlur={() => setCourtsText(String(config.courts))}
-            />
-            {pending(courtsText) && <span className="field-hint field-hint-warn">must be 1 or more &mdash; keeping {config.courts}</span>}
-          </label>
+          {mode === 'rr' && (
+            <label className="field">
+              Courts
+              <input
+                type="number"
+                min="1"
+                value={courtsText}
+                onChange={(e) => {
+                  setCourtsText(e.target.value)
+                  const n = Number(e.target.value)
+                  if (Number.isFinite(n) && n >= 1) setConfig({ ...config, courts: Math.floor(n) })
+                }}
+                onBlur={() => setCourtsText(String(config.courts))}
+              />
+              {pending(courtsText) && (
+                <span className="field-hint field-hint-warn">must be 1 or more &mdash; keeping {config.courts}</span>
+              )}
+            </label>
+          )}
           <label className="field">
             Sets per match
             <select
@@ -209,26 +287,30 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
               }}
               onBlur={() => setTotalText(String(config.total_minutes))}
             />
-            {pending(totalText) && <span className="field-hint field-hint-warn">must be 1 or more &mdash; keeping {config.total_minutes}</span>}
+            {pending(totalText) && (
+              <span className="field-hint field-hint-warn">must be 1 or more &mdash; keeping {config.total_minutes}</span>
+            )}
           </label>
-          {playFormat === 'round_robin' && (
-            <label className="switch-row">
-              <input
-                type="checkbox"
-                checked={config.double_round_robin}
-                onChange={(e) => setConfig({ ...config, double_round_robin: e.target.checked })}
-              />
-              Double round robin (every pairing twice)
-            </label>
+          {mode === 'rr' && (
+            <>
+              <label className="switch-row">
+                <input
+                  type="checkbox"
+                  checked={config.double_round_robin}
+                  onChange={(e) => setConfig({ ...config, double_round_robin: e.target.checked })}
+                />
+                Double round robin (every pairing twice)
+              </label>
+              <label className="switch-row">
+                <input
+                  type="checkbox"
+                  checked={config.timed_only}
+                  onChange={(e) => setConfig({ ...config, timed_only: e.target.checked })}
+                />
+                Time only &mdash; publish the rotation, don&rsquo;t track scores
+              </label>
+            </>
           )}
-          <label className="switch-row">
-            <input
-              type="checkbox"
-              checked={config.timed_only}
-              onChange={(e) => setConfig({ ...config, timed_only: e.target.checked })}
-            />
-            Time only &mdash; publish the rotation, don&rsquo;t track scores
-          </label>
         </div>
         <p className="schedule-actions">
           {data.matches.length > 0 && (
@@ -237,25 +319,67 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
             </button>
           )}
           <button type="button" className="btn btn-ace" disabled={busy} onClick={generate}>
-            {data.matches.length > 0 ? 'Regenerate schedule' : 'Generate schedule'}
+            {data.matches.length > 0 ? `Regenerate ${noun}` : `Generate ${noun}`}
           </button>
         </p>
         {data.matches.length > 0 && (
           <p className="field-hint">
-            &ldquo;Save settings&rdquo; keeps the matches and scores; &ldquo;Regenerate&rdquo; rebuilds the whole
-            schedule and clears results.
+            &ldquo;Save settings&rdquo; keeps the matches and scores; &ldquo;Regenerate&rdquo; rebuilds the whole {noun}{' '}
+            and clears results.
           </p>
         )}
         {error && <p className="admin-error">{error}</p>}
         {note && <p className="admin-note">{note}</p>}
       </section>
 
-      {data.matches.length > 0 && (
+      {mode === 'bracket' && data.matches.length > 0 && (
+        <section>
+          <h3>Bracket</h3>
+          <div className="bracket-grid admin">
+            {rounds.map((round) => (
+              <div className="bracket-col" key={round}>
+                <h4>{roundName(round, totalRounds)}</h4>
+                {data.matches
+                  .filter((m) => m.round === round)
+                  .sort((a, b) => a.slot - b.slot)
+                  .map((m) => {
+                    const d = drafts[m.id]
+                    const playable = m.team_a_id != null && m.team_b_id != null
+                    const bye = ((m.team_a_id == null) !== (m.team_b_id == null)) && m.winner_id != null
+                    return (
+                      <div className={bye ? 'bracket-match bye' : 'bracket-match'} key={m.id}>
+                        <div className="bm-teams">
+                          <span className={m.winner_id != null && m.winner_id === m.team_a_id ? 'bm-team win' : 'bm-team'}>
+                            {m.team_a_name ?? 'TBD'}
+                          </span>
+                          <span className={m.winner_id != null && m.winner_id === m.team_b_id ? 'bm-team win' : 'bm-team'}>
+                            {m.team_b_name ?? (bye ? 'Bye' : 'TBD')}
+                          </span>
+                        </div>
+                        {playable && d && (
+                          <ScoreEntry
+                            match={m}
+                            draft={d}
+                            busy={busy}
+                            onChange={(next) => setDraft(m.id, next)}
+                            onSave={() => saveResult(m)}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {mode === 'rr' && data.matches.length > 0 && (
         <section>
           <h3>Matches</h3>
           {rounds.map((round) => (
             <div className="match-round" key={round}>
-              <h4>{roundLabel(round)}</h4>
+              <h4>{rrRoundLabel(round)}</h4>
               <div className="match-list">
                 {data.matches
                   .filter((m) => m.round === round)
@@ -277,48 +401,13 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
                           </span>
                         </span>
                         {!config.timed_only && d && (
-                          <span className="match-score-entry">
-                            {d.forfeit == null &&
-                              d.sets.map((s, i) => (
-                                <span className="set-input" key={i}>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    aria-label={`Set ${i + 1} ${m.team_a_name}`}
-                                    value={s[0]}
-                                    onChange={(e) => {
-                                      const sets = d.sets.map((x, j) => (j === i ? ([e.target.value, x[1]] as [string, string]) : x))
-                                      setDraft(m.id, { ...d, sets })
-                                    }}
-                                  />
-                                  <span>&ndash;</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    aria-label={`Set ${i + 1} ${m.team_b_name}`}
-                                    value={s[1]}
-                                    onChange={(e) => {
-                                      const sets = d.sets.map((x, j) => (j === i ? ([x[0], e.target.value] as [string, string]) : x))
-                                      setDraft(m.id, { ...d, sets })
-                                    }}
-                                  />
-                                </span>
-                              ))}
-                            <select
-                              aria-label="Forfeit"
-                              value={d.forfeit ?? ''}
-                              onChange={(e) =>
-                                setDraft(m.id, { ...d, forfeit: e.target.value ? Number(e.target.value) : null })
-                              }
-                            >
-                              <option value="">No forfeit</option>
-                              {m.team_a_id != null && <option value={m.team_a_id}>{m.team_a_name} forfeits</option>}
-                              {m.team_b_id != null && <option value={m.team_b_id}>{m.team_b_name} forfeits</option>}
-                            </select>
-                            <button type="button" className="btn btn-outline btn-sm" disabled={busy} onClick={() => saveResult(m)}>
-                              Save
-                            </button>
-                          </span>
+                          <ScoreEntry
+                            match={m}
+                            draft={d}
+                            busy={busy}
+                            onChange={(next) => setDraft(m.id, next)}
+                            onSave={() => saveResult(m)}
+                          />
                         )}
                       </div>
                     )
@@ -329,7 +418,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
         </section>
       )}
 
-      {!config.timed_only && hasResults && (
+      {mode === 'rr' && !config.timed_only && hasResults && (
         <section>
           <h3>Standings</h3>
           <div className="data-table">

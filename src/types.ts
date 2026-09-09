@@ -192,12 +192,15 @@ export interface MatchesResponse {
 export interface ScheduleInput {
   config: ScheduleConfig
   matches: {
+    // 'pool' for round robin; 'winners' for a single-elim bracket.
     bracket: string
     round: number
     slot: number
     court: string | null
     team_a_id: number | null
     team_b_id: number | null
+    // Pre-decided result, only used for bracket byes on generate.
+    winner_id?: number | null
   }[]
 }
 
