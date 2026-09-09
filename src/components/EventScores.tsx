@@ -23,6 +23,10 @@ export default function EventScores({
 }) {
   if (matches.length === 0) return null
   const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b)
+  const roundLabel = (round: number) => {
+    const first = matches.find((m) => m.round === round)
+    return slotTime(first?.start_time ?? null) || `Round ${round}`
+  }
 
   return (
     <div className="public-scores">
@@ -66,7 +70,7 @@ export default function EventScores({
       <h2>{timedOnly ? 'Schedule' : 'Matches'}</h2>
       {rounds.map((round) => (
         <div className="public-match-round" key={round}>
-          <h3>Round {round}</h3>
+          <h3>{roundLabel(round)}</h3>
           <ul className="public-match-list">
             {matches
               .filter((m) => m.round === round)

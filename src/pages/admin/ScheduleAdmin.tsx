@@ -31,6 +31,11 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   const [data, setData] = useState<MatchesResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [config, setConfig] = useState<ScheduleConfig | null>(null)
+  // The numeric inputs are backed by their own text so the field can be blank
+  // while you retype it; `config` only ever holds the last valid value, and a
+  // blank field snaps back on blur.
+  const [courtsText, setCourtsText] = useState('')
+  const [totalText, setTotalText] = useState('')
   const [drafts, setDrafts] = useState<Record<number, ResultDraft>>({})
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -39,6 +44,8 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   function hydrate(res: MatchesResponse) {
     setData(res)
     setConfig(res.config)
+    setCourtsText(String(res.config.courts))
+    setTotalText(String(res.config.total_minutes))
     const d: Record<number, ResultDraft> = {}
     for (const m of res.matches) d[m.id] = toDraft(m, res.config.sets_per_match)
     setDrafts(d)
@@ -146,6 +153,17 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   }
 
   const rounds = [...new Set(data.matches.map((m) => m.round))].sort((a, b) => a - b)
+  const roundLabel = (round: number) => {
+    const first = data.matches.find((m) => m.round === round)
+    return slotTime(first?.start_time ?? null) || `Round ${round}`
+  }
+
+  // A number field is "pending" when its text doesn't parse to a whole number
+  // >= 1 — allowed while typing, but flagged so it's clear it won't be saved.
+  const pending = (text: string) => {
+    const n = Number(text)
+    return !Number.isFinite(n) || n < 1 || text.trim() === ''
+  }
 
   return (
     <div className="schedule-admin">
@@ -157,9 +175,15 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
             <input
               type="number"
               min="1"
-              value={config.courts}
-              onChange={(e) => setConfig({ ...config, courts: Math.max(1, Number(e.target.value) || 1) })}
+              value={courtsText}
+              onChange={(e) => {
+                setCourtsText(e.target.value)
+                const n = Number(e.target.value)
+                if (Number.isFinite(n) && n >= 1) setConfig({ ...config, courts: Math.floor(n) })
+              }}
+              onBlur={() => setCourtsText(String(config.courts))}
             />
+            {pending(courtsText) && <span className="field-hint field-hint-warn">must be 1 or more &mdash; keeping {config.courts}</span>}
           </label>
           <label className="field">
             Sets per match
@@ -173,13 +197,19 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
             </select>
           </label>
           <label className="field">
-            Slot length <span className="field-hint">(minutes)</span>
+            Total time <span className="field-hint">(minutes)</span>
             <input
               type="number"
               min="1"
-              value={config.slot_minutes}
-              onChange={(e) => setConfig({ ...config, slot_minutes: Math.max(1, Number(e.target.value) || 1) })}
+              value={totalText}
+              onChange={(e) => {
+                setTotalText(e.target.value)
+                const n = Number(e.target.value)
+                if (Number.isFinite(n) && n >= 1) setConfig({ ...config, total_minutes: Math.floor(n) })
+              }}
+              onBlur={() => setTotalText(String(config.total_minutes))}
             />
+            {pending(totalText) && <span className="field-hint field-hint-warn">must be 1 or more &mdash; keeping {config.total_minutes}</span>}
           </label>
           {playFormat === 'round_robin' && (
             <label className="switch-row">
@@ -225,7 +255,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
           <h3>Matches</h3>
           {rounds.map((round) => (
             <div className="match-round" key={round}>
-              <h4>Round {round}</h4>
+              <h4>{roundLabel(round)}</h4>
               <div className="match-list">
                 {data.matches
                   .filter((m) => m.round === round)

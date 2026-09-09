@@ -746,6 +746,9 @@
   color: var(--muted);
   font-size: 0.75rem;
 }
+.field-hint-warn {
+  color: #b23b2c;
+}
 .form-actions {
   display: flex;
   justify-content: flex-end;

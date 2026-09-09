@@ -4,7 +4,7 @@
 export interface ScheduleConfig {
   courts: number
   sets_per_match: 1 | 3 | 5
-  slot_minutes: number
+  total_minutes: number
   timed_only: boolean
   double_round_robin: boolean
 }
@@ -12,7 +12,7 @@ export interface ScheduleConfig {
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   courts: 2,
   sets_per_match: 3,
-  slot_minutes: 45,
+  total_minutes: 180,
   timed_only: false,
   double_round_robin: false,
 }
@@ -25,19 +25,38 @@ export function readScheduleConfig(rawJson: string | null): ScheduleConfig {
     cfg = {}
   }
   const spm = cfg.sets_per_match
+  // Older rows stored per-slot `slot_minutes`; fall back to that if a total
+  // isn't present so an existing schedule still lays out sensibly.
+  const total =
+    typeof cfg.total_minutes === 'number' && cfg.total_minutes >= 1
+      ? Math.floor(cfg.total_minutes)
+      : typeof cfg.slot_minutes === 'number' && cfg.slot_minutes >= 1
+        ? Math.floor(cfg.slot_minutes) * 4
+        : DEFAULT_SCHEDULE_CONFIG.total_minutes
   return {
     courts:
       typeof cfg.courts === 'number' && cfg.courts >= 1
         ? Math.floor(cfg.courts)
         : DEFAULT_SCHEDULE_CONFIG.courts,
     sets_per_match: spm === 1 || spm === 3 || spm === 5 ? spm : DEFAULT_SCHEDULE_CONFIG.sets_per_match,
-    slot_minutes:
-      typeof cfg.slot_minutes === 'number' && cfg.slot_minutes >= 1
-        ? Math.floor(cfg.slot_minutes)
-        : DEFAULT_SCHEDULE_CONFIG.slot_minutes,
+    total_minutes: total,
     timed_only: Boolean(cfg.timed_only),
     double_round_robin: Boolean(cfg.double_round_robin),
   }
+}
+
+// Wall-clock start for the match in a given slot: slots divide total_minutes
+// evenly, so slot 0 is at the event start and the last slot is at
+// start + total_minutes * (slotCount - 1) / slotCount.
+export function slotStartTime(
+  eventStart: string | null | undefined,
+  slot: number,
+  slotCount: number,
+  totalMinutes: number
+): string | null {
+  if (slotCount < 1) return addMinutes(eventStart, 0)
+  const perSlot = totalMinutes / slotCount
+  return addMinutes(eventStart, Math.round(slot * perSlot))
 }
 
 // event.start_time is a "YYYY-MM-DDTHH:MM" wall-clock string; add whole
