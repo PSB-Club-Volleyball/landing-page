@@ -41,6 +41,10 @@ export interface ClubEvent {
   form_id: number | null
   capacity: number | null
   tags: string | null // comma-separated, admin-entered
+  // Optional cutoff after which signup closes even though the event hasn't
+  // started yet — same "YYYY-MM-DDTHH:MM" wall-clock format as start_time.
+  // NULL means signup stays open until the event starts.
+  signup_deadline: string | null
 }
 
 // Public-facing event with the signup summary the Events page needs to

@@ -16,7 +16,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const events = await env.DB.prepare(
     `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
             e.location_name, e.location_address, e.status,
-            e.signup_enabled, e.rsvp_gated, e.form_id, e.capacity, e.tags,
+            e.signup_enabled, e.rsvp_gated, e.form_id, e.capacity, e.tags, e.signup_deadline,
             (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id AND s.status = 'approved') AS signup_count
      FROM events e
      WHERE e.status IN ('published', 'cancelled')

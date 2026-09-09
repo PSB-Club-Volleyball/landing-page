@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react'
 import EventDetailModal from '../components/EventDetailModal'
 import SignupModal from '../components/SignupModal'
 import { getEvents } from '../lib/api'
-import { directionsUrl, EVENT_TYPE_LABELS, formatEventDate, formatTimeRange, getSignupState } from '../lib/eventFormat'
+import {
+  directionsUrl,
+  EVENT_TYPE_LABELS,
+  formatEventDate,
+  formatSignupDeadline,
+  formatTimeRange,
+  getSignupState,
+} from '../lib/eventFormat'
 import { plainTextPreview } from '../lib/markdown'
 import type { PublicClubEvent, SignupStatus } from '../types'
 
@@ -19,7 +26,7 @@ function EventCard({
   onOpenSignup: (e: PublicClubEvent) => void
   onManageSignup: (e: PublicClubEvent, signupId: number, status: SignupStatus | null) => void
 }) {
-  const { spotsLeft, isFull, joinsWaitlist, verb } = getSignupState(event)
+  const { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb } = getSignupState(event)
   const tags = event.tags
     ? event.tags.split(',').map((t) => t.trim()).filter(Boolean)
     : []
@@ -130,16 +137,19 @@ function EventCard({
             <button
               className={isFull && !joinsWaitlist ? 'btn btn-outline' : 'btn btn-ace'}
               type="button"
-              disabled={isFull && !joinsWaitlist}
+              disabled={deadlinePassed || (isFull && !joinsWaitlist)}
               onClick={(e) => {
                 e.stopPropagation()
                 onOpenSignup(event)
               }}
             >
-              {joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
+              {deadlinePassed ? 'Signup closed' : joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
             </button>
           )}
         </div>
+      )}
+      {event.status !== 'cancelled' && event.signup_enabled && !mySignupId && !deadlinePassed && event.signup_deadline && (
+        <p className="event-card-deadline">Signup closes {formatSignupDeadline(event.signup_deadline)}</p>
       )}
     </div>
   )

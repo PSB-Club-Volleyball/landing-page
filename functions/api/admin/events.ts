@@ -43,6 +43,7 @@ interface EventInput {
   form_id?: number | null
   capacity?: number | null
   tags?: string | null
+  signup_deadline?: string | null
 }
 
 // POST /api/admin/events -> create an event (defaults to draft). When
@@ -72,8 +73,8 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
 
   const insertOne = (start_time: string, end_time: string | null, seriesId: number | null) =>
     env.DB.prepare(
-      `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status, signup_enabled, rsvp_gated, form_id, capacity, series_id, tags)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`
+      `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status, signup_enabled, rsvp_gated, form_id, capacity, series_id, tags, signup_deadline)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`
     )
       .bind(
         body.title,
@@ -89,7 +90,8 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
         body.form_id ?? null,
         body.capacity ?? null,
         seriesId,
-        body.tags?.trim() || null
+        body.tags?.trim() || null,
+        body.signup_deadline || null
       )
       .run()
 

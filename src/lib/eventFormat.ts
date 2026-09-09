@@ -32,10 +32,15 @@ export function getSignupState(event: PublicClubEvent) {
   const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
   const isFull = spotsLeft !== null && spotsLeft <= 0
   const joinsWaitlist = isFull && !event.rsvp_gated
+  const deadlinePassed = event.signup_deadline !== null && new Date(event.signup_deadline) < new Date()
   const verb = event.rsvp_gated
     ? 'Request'
     : event.event_type === 'game' || event.event_type === 'tournament'
       ? 'RSVP'
       : 'Sign up'
-  return { spotsLeft, isFull, joinsWaitlist, verb }
+  return { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb }
+}
+
+export function formatSignupDeadline(deadline: string) {
+  return `${dateFormatter.format(new Date(deadline))} at ${timeFormatter.format(new Date(deadline))}`
 }
