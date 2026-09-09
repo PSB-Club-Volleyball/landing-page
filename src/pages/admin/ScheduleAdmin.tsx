@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import { buildRoundRobinSchedule } from '../../lib/schedule'
-import { buildSingleElimBracket } from '../../lib/bracket'
+import { buildSingleElimBracket, buildDoubleElimBracket } from '../../lib/bracket'
 import { buildPoolSchedule, seedFromPools } from '../../lib/pool'
-import { roundName } from '../../lib/bracketLabels'
+import { BracketColumns } from '../../components/BracketColumns'
 import type { EventMatch, MatchesResponse, PlayFormat, ScheduleConfig, StandingRow } from '../../types'
 
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -128,14 +128,16 @@ function ScoreEntry({
 }
 
 export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number; playFormat: PlayFormat }) {
-  const mode: 'rr' | 'bracket' | 'pool' | 'unsupported' =
+  const mode: 'rr' | 'bracket' | 'double' | 'pool' | 'unsupported' =
     playFormat === 'round_robin'
       ? 'rr'
       : playFormat === 'single_elim'
         ? 'bracket'
-        : playFormat === 'pool_bracket'
-          ? 'pool'
-          : 'unsupported'
+        : playFormat === 'double_elim'
+          ? 'double'
+          : playFormat === 'pool_bracket'
+            ? 'pool'
+            : 'unsupported'
 
   const [data, setData] = useState<MatchesResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -195,22 +197,20 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   }, [config])
 
   if (mode === 'unsupported') {
-    return (
-      <p className="admin-note">
-        Double elimination isn&rsquo;t built yet. Round robin, single elimination, and pool play are available.
-      </p>
-    )
+    return <p className="admin-note">This format doesn&rsquo;t have a schedule.</p>
   }
   if (loadError) return <p className="admin-error">{loadError}</p>
   if (!data || !config) return <p className="admin-note">Loading&hellip;</p>
 
   const teamIds = data.teams.map((t) => t.id)
   const hasResults = data.standings.some((s) => s.played > 0)
-  const noun = mode === 'bracket' ? 'bracket' : mode === 'pool' ? 'pools' : 'schedule'
+  const noun = mode === 'bracket' || mode === 'double' ? 'bracket' : mode === 'pool' ? 'pools' : 'schedule'
+  const isBracketMode = mode === 'bracket' || mode === 'double'
 
   const poolLabels = [...new Set(data.teams.map((t) => t.pool).filter((p): p is string => p != null))].sort()
   const poolGroups = poolLabels.map((label) => data.teams.filter((t) => t.pool === label).map((t) => t.id))
-  const bracketStarted = data.matches.some((m) => m.bracket === 'winners')
+  const bracketMatches = data.matches.filter((m) => m.bracket === 'winners' || m.bracket === 'losers' || m.bracket === 'final')
+  const bracketStarted = bracketMatches.length > 0
   const poolsComplete = data.pools.length > 0 && data.pools.every((p) => p.complete)
 
   async function saveSettings() {
@@ -244,11 +244,13 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
     setNote(null)
     try {
       const matches =
-        mode === 'bracket'
-          ? buildSingleElimBracket(teamIds)
-          : mode === 'pool'
-            ? buildPoolSchedule(poolGroups, config.courts)
-            : buildRoundRobinSchedule(teamIds, config.courts, config.double_round_robin)
+        mode === 'double'
+          ? buildDoubleElimBracket(teamIds)
+          : mode === 'bracket'
+            ? buildSingleElimBracket(teamIds)
+            : mode === 'pool'
+              ? buildPoolSchedule(poolGroups, config.courts)
+              : buildRoundRobinSchedule(teamIds, config.courts, config.double_round_robin)
       hydrate(await adminApi.events.saveSchedule(eventId, { config, matches }))
       setNote(`${noun[0].toUpperCase()}${noun.slice(1)} generated.`)
     } catch (e) {
@@ -270,7 +272,8 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
     setNote(null)
     try {
       const seeds = seedFromPools(data.pools, config.advance_per_pool)
-      hydrate(await adminApi.events.startBracket(eventId, buildSingleElimBracket(seeds)))
+      const built = config.bracket_stage === 'double' ? buildDoubleElimBracket(seeds) : buildSingleElimBracket(seeds)
+      hydrate(await adminApi.events.startBracket(eventId, built))
       setNote('Bracket started.')
     } catch (e) {
       setError((e as Error).message)
@@ -316,9 +319,9 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   return (
     <div className="schedule-admin">
       <section>
-        <h3>{mode === 'bracket' ? 'Bracket settings' : mode === 'pool' ? 'Pool settings' : 'Schedule settings'}</h3>
+        <h3>{isBracketMode ? 'Bracket settings' : mode === 'pool' ? 'Pool settings' : 'Schedule settings'}</h3>
         <div className="schedule-config">
-          {mode !== 'bracket' && (
+          {!isBracketMode && (
             <label className="field">
               Courts
               <input
@@ -466,50 +469,26 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
         </section>
       )}
 
-      {(mode === 'bracket' || (mode === 'pool' && bracketStarted)) && data.matches.some((m) => m.bracket === 'winners') && (
+      {(isBracketMode || (mode === 'pool' && bracketStarted)) && bracketMatches.length > 0 && (
         <section>
           <h3>Bracket</h3>
-          <div className="bracket-grid admin">
-            {(() => {
-              const bracketRounds = [...new Set(data.matches.filter((m) => m.bracket === 'winners').map((m) => m.round))].sort(
-                (a, b) => a - b
-              )
-              const lastRound = bracketRounds[bracketRounds.length - 1] ?? 0
-              return bracketRounds.map((round) => (
-              <div className="bracket-col" key={round}>
-                <h4>{roundName(round, lastRound)}</h4>
-                {data.matches
-                  .filter((m) => m.bracket === 'winners' && m.round === round)
-                  .sort((a, b) => a.slot - b.slot)
-                  .map((m) => {
-                    const d = drafts[m.id]
-                    const playable = m.team_a_id != null && m.team_b_id != null
-                    const bye = ((m.team_a_id == null) !== (m.team_b_id == null)) && m.winner_id != null
-                    return (
-                      <div className={bye ? 'bracket-match bye' : 'bracket-match'} key={m.id}>
-                        <div className="bm-teams">
-                          <span className={m.winner_id != null && m.winner_id === m.team_a_id ? 'bm-team win' : 'bm-team'}>
-                            {m.team_a_name ?? 'TBD'}
-                          </span>
-                          <span className={m.winner_id != null && m.winner_id === m.team_b_id ? 'bm-team win' : 'bm-team'}>
-                            {m.team_b_name ?? (bye ? 'Bye' : 'TBD')}
-                          </span>
-                        </div>
-                        {playable && d && (
-                          <ScoreEntry
-                            match={m}
-                            draft={d}
-                            busy={busy}
-                            onChange={(next) => setDraft(m.id, next)}
-                            onSave={() => saveResult(m)}
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
-              </div>
-            ))
-            })()}
+          <div className="bracket-admin">
+            <BracketColumns
+              matches={bracketMatches}
+              renderExtra={(m) => {
+                const d = drafts[m.id]
+                const playable = m.team_a_id != null && m.team_b_id != null
+                return playable && d ? (
+                  <ScoreEntry
+                    match={m}
+                    draft={d}
+                    busy={busy}
+                    onChange={(next) => setDraft(m.id, next)}
+                    onSave={() => saveResult(m)}
+                  />
+                ) : null
+              }}
+            />
           </div>
         </section>
       )}

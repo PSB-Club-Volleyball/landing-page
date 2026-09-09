@@ -9,6 +9,9 @@ export interface ScheduleConfig {
   double_round_robin: boolean
   pools: number
   advance_per_pool: number
+  // Pool play → bracket, and stand-alone brackets: which knockout format the
+  // bracket stage uses.
+  bracket_stage: 'single' | 'double'
 }
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
@@ -19,6 +22,7 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   double_round_robin: false,
   pools: 2,
   advance_per_pool: 2,
+  bracket_stage: 'single',
 }
 
 // `slotCount`, when known (the caller has the match rows), lets a legacy
@@ -55,6 +59,7 @@ export function readScheduleConfig(rawJson: string | null, slotCount?: number): 
       typeof cfg.advance_per_pool === 'number' && cfg.advance_per_pool >= 1
         ? Math.floor(cfg.advance_per_pool)
         : DEFAULT_SCHEDULE_CONFIG.advance_per_pool,
+    bracket_stage: cfg.bracket_stage === 'double' ? 'double' : 'single',
   }
 }
 

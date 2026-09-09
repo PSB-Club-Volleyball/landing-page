@@ -1154,8 +1154,25 @@ main {
   color: var(--muted);
 }
 
-/* Single-elimination bracket — shared by the public Bracket tab and the
-   admin Schedule & scores tab. */
+/* Knockout bracket (single + double elimination) — shared by the public
+   Bracket tab and the admin Schedule & scores tab. */
+.bracket-board {
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+.bracket-section-title {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ace-fg);
+}
+.bracket-match.muted {
+  opacity: 0.4;
+  font-style: italic;
+}
 .bracket-champ {
   margin: 0 0 1rem;
   font-size: 0.95rem;
