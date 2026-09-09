@@ -192,7 +192,7 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
             className={tab === 'scores' ? 'active' : undefined}
             onClick={() => setTab('scores')}
           >
-            Schedule &amp; scores
+            {e.play_format === 'single_elim' || e.play_format === 'double_elim' ? 'Bracket' : 'Schedule & scores'}
           </button>
         )}
       </div>

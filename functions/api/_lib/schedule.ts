@@ -17,7 +17,10 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   double_round_robin: false,
 }
 
-export function readScheduleConfig(rawJson: string | null): ScheduleConfig {
+// `slotCount`, when known (the caller has the match rows), lets a legacy
+// row that only stored per-slot `slot_minutes` be converted to the exact
+// same wall-clock spacing it had before: total = slot_minutes * slotCount.
+export function readScheduleConfig(rawJson: string | null, slotCount?: number): ScheduleConfig {
   let cfg: Record<string, unknown> = {}
   try {
     cfg = rawJson ? (JSON.parse(rawJson) as Record<string, unknown>) : {}
@@ -25,13 +28,13 @@ export function readScheduleConfig(rawJson: string | null): ScheduleConfig {
     cfg = {}
   }
   const spm = cfg.sets_per_match
-  // Older rows stored per-slot `slot_minutes`; fall back to that if a total
-  // isn't present so an existing schedule still lays out sensibly.
+  const legacySlot =
+    typeof cfg.slot_minutes === 'number' && cfg.slot_minutes >= 1 ? Math.floor(cfg.slot_minutes) : null
   const total =
     typeof cfg.total_minutes === 'number' && cfg.total_minutes >= 1
       ? Math.floor(cfg.total_minutes)
-      : typeof cfg.slot_minutes === 'number' && cfg.slot_minutes >= 1
-        ? Math.floor(cfg.slot_minutes) * 4
+      : legacySlot != null
+        ? legacySlot * (slotCount && slotCount >= 1 ? slotCount : 4)
         : DEFAULT_SCHEDULE_CONFIG.total_minutes
   return {
     courts:

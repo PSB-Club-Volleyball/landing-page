@@ -90,8 +90,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   }
 
   // Schedule + standings ride along whenever teams are published.
-  const scheduleConfig = readScheduleConfig(event.format_config)
-
+  let scheduleConfig = readScheduleConfig(event.format_config)
   let matches: unknown[] = []
   let standings: unknown[] = []
   if (teamList.length > 0) {
@@ -124,15 +123,28 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       ...r,
       scores: r.scores ? (JSON.parse(r.scores) as [number, number][]) : null,
     }))
+    // Pool matches are timed by slot; bracket matches by round (see the admin
+    // matches endpoint for the same split).
+    const isBracket = parsedMatches.some((r) => r.bracket !== 'pool')
     const slotCount = parsedMatches.reduce((max, r) => Math.max(max, r.slot + 1), 0)
+    const timeUnits = isBracket
+      ? parsedMatches.reduce((max, r) => Math.max(max, r.round), 0)
+      : slotCount
+    scheduleConfig = readScheduleConfig(event.format_config, isBracket ? undefined : slotCount)
     matches = parsedMatches.map((r) => ({
       ...r,
-      start_time: slotStartTime(event.start_time, r.slot, slotCount, scheduleConfig.total_minutes),
+      start_time: slotStartTime(
+        event.start_time,
+        isBracket ? r.round - 1 : r.slot,
+        timeUnits,
+        scheduleConfig.total_minutes
+      ),
     }))
     if (!scheduleConfig.timed_only) {
+      const poolMatches = parsedMatches.filter((r) => r.bracket === 'pool')
       const rows = computeStandings(
         teamList.map((t) => ({ id: t.id, name: t.name })),
-        parsedMatches,
+        poolMatches,
         scheduleConfig.sets_per_match
       )
       // Hide the table until at least one match has actually been played.

@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import SignupModal from '../components/SignupModal'
 import EventTeams from '../components/EventTeams'
 import EventScores from '../components/EventScores'
+import EventBracket from '../components/EventBracket'
 import { WAIVER_URL } from '../constants'
 import { ApiError, getEvent } from '../lib/api'
 import {
@@ -110,7 +111,8 @@ function EventDetail() {
   const standings = e.standings ?? []
   const timedOnly = Boolean(e.schedule_config?.timed_only)
   const hasScores = matches.length > 0
-  const scoresLabel = timedOnly ? 'Schedule' : 'Scores'
+  const isBracket = matches.some((m) => m.bracket !== 'pool')
+  const scoresLabel = isBracket ? 'Bracket' : timedOnly ? 'Schedule' : 'Scores'
   type PageTab = 'details' | 'teams' | 'scores'
   const requested = searchParams.get('tab')
   const tab: PageTab =
@@ -215,7 +217,11 @@ function EventDetail() {
         {tab === 'teams' ? (
           <EventTeams teams={teams} />
         ) : tab === 'scores' ? (
-          <EventScores matches={matches} standings={standings} timedOnly={timedOnly} />
+          isBracket ? (
+            <EventBracket matches={matches} />
+          ) : (
+            <EventScores matches={matches} standings={standings} timedOnly={timedOnly} />
+          )
         ) : (
           <>
         {isCancelled && <p className="event-card-desc">This event has been cancelled.</p>}

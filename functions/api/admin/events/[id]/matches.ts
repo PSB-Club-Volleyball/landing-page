@@ -26,8 +26,6 @@ async function loadPayload(env: Env, eventId: number) {
     .first<{ start_time: string; format_config: string | null }>()
   if (!event) return null
 
-  const config = readScheduleConfig(event.format_config)
-
   const teams = await env.DB.prepare(`SELECT id, name FROM event_teams WHERE event_id = ?1 ORDER BY seed, id`)
     .bind(eventId)
     .all<{ id: number; name: string }>()
@@ -46,7 +44,13 @@ async function loadPayload(env: Env, eventId: number) {
     .all<MatchRow>()
 
   const rows = matchRows.results ?? []
+  // Round robin ("pool") uses `slot` as a time-slot index. A knockout bracket
+  // uses `slot` as the match's position in its round, so its matches are
+  // timed by round instead.
+  const isBracket = rows.some((r) => r.bracket !== 'pool')
   const slotCount = rows.reduce((max, r) => Math.max(max, r.slot + 1), 0)
+  const timeUnits = isBracket ? rows.reduce((max, r) => Math.max(max, r.round), 0) : slotCount
+  const config = readScheduleConfig(event.format_config, isBracket ? undefined : slotCount)
   const matches = rows.map((r) => ({
     id: r.id,
     bracket: r.bracket,
@@ -60,11 +64,14 @@ async function loadPayload(env: Env, eventId: number) {
     scores: r.scores ? (JSON.parse(r.scores) as [number, number][]) : null,
     forfeit_team_id: r.forfeit_team_id,
     winner_id: r.winner_id,
-    start_time: slotStartTime(event.start_time, r.slot, slotCount, config.total_minutes),
+    start_time: slotStartTime(event.start_time, isBracket ? r.round - 1 : r.slot, timeUnits, config.total_minutes),
   }))
 
   const teamList = (teams.results ?? []).map((t) => ({ id: t.id, name: t.name }))
-  const standings = computeStandings(teamList, matches, config.sets_per_match)
+  // Standings only come from round-robin ("pool") matches — a knockout
+  // bracket ranks by how far a team got, not a table.
+  const poolMatches = matches.filter((m) => m.bracket === 'pool')
+  const standings = poolMatches.length > 0 ? computeStandings(teamList, poolMatches, config.sets_per_match) : []
 
   return { config, teams: teamList, matches, standings }
 }
@@ -87,6 +94,7 @@ interface ScheduleInput {
     court: string | null
     team_a_id: number | null
     team_b_id: number | null
+    winner_id?: number | null
   }[]
 }
 
@@ -107,6 +115,15 @@ function validateSchedule(body: unknown, teamIds: Set<number>): ScheduleInput | 
       if (v !== null && (typeof v !== 'number' || !teamIds.has(v))) return 'a match references a team that is not on this event'
     }
     if (m.team_a_id != null && m.team_a_id === m.team_b_id) return 'a match has the same team on both sides'
+    // A pre-filled winner is only valid for a round-1 bracket bye — one team,
+    // no opponent — so no fabricated results can be seeded through the PUT.
+    if (m.winner_id != null) {
+      const oneTeam = (m.team_a_id == null) !== (m.team_b_id == null)
+      const present = m.team_a_id ?? m.team_b_id
+      if (m.bracket === 'pool' || m.round !== 1 || !oneTeam || m.winner_id !== present) {
+        return 'a pre-set winner is only allowed for a first-round bye'
+      }
+    }
   }
   return body as ScheduleInput
 }
@@ -153,9 +170,18 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   for (const m of parsed.matches) {
     statements.push(
       env.DB.prepare(
-        `INSERT INTO event_matches (event_id, bracket, round, slot, court, team_a_id, team_b_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`
-      ).bind(eventId, m.bracket || 'pool', m.round, m.slot, m.court ?? null, m.team_a_id ?? null, m.team_b_id ?? null)
+        `INSERT INTO event_matches (event_id, bracket, round, slot, court, team_a_id, team_b_id, winner_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+      ).bind(
+        eventId,
+        m.bracket || 'pool',
+        m.round,
+        m.slot,
+        m.court ?? null,
+        m.team_a_id ?? null,
+        m.team_b_id ?? null,
+        m.winner_id ?? null
+      )
     )
   }
   await env.DB.batch(statements)
