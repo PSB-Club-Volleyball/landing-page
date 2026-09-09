@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import SignupModal from '../components/SignupModal'
+import EventTeams from '../components/EventTeams'
 import { WAIVER_URL } from '../constants'
 import { ApiError, getEvent } from '../lib/api'
 import {
@@ -22,6 +23,7 @@ import type { PublicClubEvent, SignupStatus } from '../types'
 function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
   const id = Number(eventId)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const [event, setEvent] = useState<PublicClubEvent | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'notfound' | 'error'>('loading')
@@ -102,6 +104,18 @@ function EventDetail() {
   const { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb } = getSignupState(e)
   const tags = e.tags ? e.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
   const isCancelled = e.status === 'cancelled'
+  const teams = e.teams ?? []
+  const tab: 'details' | 'teams' = searchParams.get('tab') === 'teams' && teams.length > 0 ? 'teams' : 'details'
+  const setTab = (next: 'details' | 'teams') =>
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (next === 'teams') p.set('tab', 'teams')
+        else p.delete('tab')
+        return p
+      },
+      { replace: true }
+    )
 
   return (
     <main id="main-content" tabIndex={-1}>
@@ -149,6 +163,33 @@ function EventDetail() {
           </div>
         )}
 
+        {teams.length > 0 && (
+          <div className="event-page-tabbar" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'details'}
+              className={tab === 'details' ? 'active' : undefined}
+              onClick={() => setTab('details')}
+            >
+              Details
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'teams'}
+              className={tab === 'teams' ? 'active' : undefined}
+              onClick={() => setTab('teams')}
+            >
+              Teams <span className="event-tab-count">{teams.length}</span>
+            </button>
+          </div>
+        )}
+
+        {tab === 'teams' ? (
+          <EventTeams teams={teams} />
+        ) : (
+          <>
         {isCancelled && <p className="event-card-desc">This event has been cancelled.</p>}
         {!isCancelled && e.description && (
           <div className="event-detail-desc event-page-desc">{renderMarkdown(e.description)}</div>
@@ -207,6 +248,8 @@ function EventDetail() {
             </a>{' '}
             ahead of time.
           </p>
+        )}
+          </>
         )}
       </div>
 

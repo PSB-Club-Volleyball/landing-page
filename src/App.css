@@ -978,6 +978,97 @@ main {
   font-size: 0.88rem;
   line-height: 1.6;
 }
+
+/* Public event-page tab strip — only shown once there's a second tab
+   (e.g. Teams). */
+.event-page-tabbar {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.3rem 0 1.2rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+}
+.event-page-tabbar button {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.event-page-tabbar button.active {
+  color: var(--page-fg);
+  border-color: var(--ace);
+}
+.event-page-tabbar button:focus-visible {
+  outline: 2px solid var(--ace-fg);
+  outline-offset: -2px;
+}
+.event-tab-count {
+  margin-left: 0.3rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.public-teams-note {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.public-team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.9rem;
+}
+.public-team {
+  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.public-team > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  background: color-mix(in srgb, var(--page-fg) 8%, transparent);
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.public-team-pool {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.public-team ol {
+  margin: 0;
+  padding: 0.5rem 0.7rem 0.6rem 1.6rem;
+  font-size: 0.88rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.public-team li.captain {
+  font-weight: 600;
+}
+.captain-tag {
+  color: var(--ace-fg);
+  font-weight: 700;
+}
+.public-team-empty {
+  list-style: none;
+  margin-left: -0.9rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
 .event-detail-desc p {
   margin: 0 0 0.8rem;
 }

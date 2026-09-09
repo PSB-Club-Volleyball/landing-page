@@ -57,6 +57,76 @@ export interface PublicClubEvent extends ClubEvent {
   signup_count: number
   my_signup_id: number | null
   my_signup_status: SignupStatus | null
+  // Set by GET /api/events/:id (the single-event page), not the list. Holds
+  // the published teams, if any — drives the public "Teams" tab. Members
+  // carry no contact info.
+  teams?: PublicEventTeam[]
+}
+
+// How an event is contested once teams are formed. 'none' means teams only —
+// no schedule, bracket, or scores. The other formats' schedule/score UI
+// arrives in a later change; for now picking one just records the intent.
+export type PlayFormat = 'none' | 'round_robin' | 'pool_bracket' | 'single_elim' | 'double_elim'
+
+export interface PublicEventTeamMember {
+  name: string
+  is_captain: boolean
+}
+export interface PublicEventTeam {
+  id: number
+  name: string
+  seed: number
+  pool: string | null
+  members: PublicEventTeamMember[]
+}
+
+// Admin view of one team member: either a linked signup (signup_id set) or a
+// walk-in (signup_id null, display_name set). `name` is always resolved for
+// display.
+export interface EventTeamMember {
+  id: number
+  signup_id: number | null
+  display_name: string | null
+  name: string
+  is_captain: boolean
+}
+export interface EventTeam {
+  id: number
+  name: string
+  seed: number
+  pool: string | null
+  published: boolean
+  members: EventTeamMember[]
+}
+
+// A person eligible to be placed on a team: an approved signup for the event.
+export interface TeamParticipant {
+  signup_id: number
+  name: string
+  email: string
+  checked_in: boolean
+}
+
+// What the admin Teams tab sends back — the full desired state, which the
+// server replaces wholesale.
+export interface TeamsInput {
+  play_format: PlayFormat
+  format_config: Record<string, unknown>
+  published: boolean
+  teams: {
+    name: string
+    seed: number
+    pool: string | null
+    members: { signup_id: number | null; display_name: string | null; is_captain: boolean }[]
+  }[]
+}
+
+export interface TeamsResponse {
+  play_format: PlayFormat | null
+  format_config: Record<string, unknown> | null
+  published: boolean
+  teams: EventTeam[]
+  participants: TeamParticipant[]
 }
 
 // Admin's Events-tab row: same event, joined with the attached form's name
