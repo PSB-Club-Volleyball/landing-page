@@ -98,7 +98,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     const matchRes = await env.DB.prepare(
       `SELECT m.id, m.bracket, m.pool, m.round, m.slot, m.court, m.team_a_id, m.team_b_id,
               ta.name AS team_a_name, tb.name AS team_b_name,
-              m.scores, m.forfeit_team_id, m.winner_id
+              m.scores, m.forfeit_team_id, m.winner_id,
+              m.winner_to_bracket, m.winner_to_round, m.winner_to_slot, m.winner_to_side,
+              m.loser_to_bracket, m.loser_to_round, m.loser_to_slot, m.loser_to_side
        FROM event_matches m
        LEFT JOIN event_teams ta ON ta.id = m.team_a_id
        LEFT JOIN event_teams tb ON tb.id = m.team_b_id
@@ -120,22 +122,41 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
         scores: string | null
         forfeit_team_id: number | null
         winner_id: number | null
+        winner_to_bracket: string | null
+        winner_to_round: number | null
+        winner_to_slot: number | null
+        winner_to_side: number | null
+        loser_to_bracket: string | null
+        loser_to_round: number | null
+        loser_to_slot: number | null
+        loser_to_side: number | null
       }>()
+    const wireTarget = (b: string | null, rd: number | null, sl: number | null, sd: number | null) =>
+      b != null && rd != null && sl != null && (sd === 0 || sd === 1) ? { bracket: b, round: rd, slot: sl, side: sd } : null
     const parsedMatches = (matchRes.results ?? []).map((r) => ({
       ...r,
       scores: r.scores ? (JSON.parse(r.scores) as [number, number][]) : null,
+      winner_to: wireTarget(r.winner_to_bracket, r.winner_to_round, r.winner_to_slot, r.winner_to_side),
+      loser_to: wireTarget(r.loser_to_bracket, r.loser_to_round, r.loser_to_slot, r.loser_to_side),
     }))
-    // Pool matches are timed by slot; bracket matches by round.
+    // Pool matches are timed by slot; bracket matches by round, with the grand
+    // final and reset last.
     const isBracket = parsedMatches.some((r) => r.bracket !== 'pool')
     const slotCount = parsedMatches.reduce((max, r) => (r.bracket === 'pool' ? Math.max(max, r.slot + 1) : max), 0)
-    const bracketRounds = parsedMatches.reduce((max, r) => (r.bracket !== 'pool' ? Math.max(max, r.round) : max), 0)
+    const maxWLRound = parsedMatches.reduce(
+      (max, r) => (r.bracket === 'winners' || r.bracket === 'losers' ? Math.max(max, r.round) : max),
+      0
+    )
+    const ordinal = (r: { bracket: string; round: number }) =>
+      r.bracket === 'final' ? maxWLRound + r.round : r.round
+    const bracketRounds = parsedMatches.reduce((max, r) => (r.bracket !== 'pool' ? Math.max(max, ordinal(r)) : max), 0)
     scheduleConfig = readScheduleConfig(event.format_config, isBracket ? undefined : slotCount)
     matches = parsedMatches.map((r) => ({
       ...r,
       start_time:
         r.bracket === 'pool'
           ? slotStartTime(event.start_time, r.slot, slotCount || 1, scheduleConfig.total_minutes)
-          : slotStartTime(event.start_time, r.round - 1, bracketRounds || 1, scheduleConfig.total_minutes),
+          : slotStartTime(event.start_time, ordinal(r) - 1, bracketRounds || 1, scheduleConfig.total_minutes),
     }))
     if (!scheduleConfig.timed_only) {
       const poolMatches = parsedMatches.filter((r) => r.bracket === 'pool')

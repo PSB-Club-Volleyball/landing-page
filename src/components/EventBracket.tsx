@@ -1,5 +1,5 @@
 import type { EventMatch } from '../types'
-import { roundName } from '../lib/bracketLabels'
+import { BracketColumns } from './BracketColumns'
 
 function scoreLine(m: EventMatch): string | null {
   if (m.forfeit_team_id != null) return 'Forfeit'
@@ -7,20 +7,26 @@ function scoreLine(m: EventMatch): string | null {
   return m.scores.map(([a, b]) => `${a}–${b}`).join(', ')
 }
 
-// Read-only single-elimination bracket on the public event page's Bracket tab.
-export default function EventBracket({ matches }: { matches: EventMatch[] }) {
-  const bracket = matches.filter((m) => m.bracket === 'winners')
-  if (bracket.length === 0) return null
-  const rounds = [...new Set(bracket.map((m) => m.round))].sort((a, b) => a - b)
-  const totalRounds = rounds[rounds.length - 1]
+// The champion is the winner of the last decided grand-final game (double
+// elim) or the last winners-bracket round (single elim).
+function championName(matches: EventMatch[]): string | null {
+  const decided = matches
+    .filter((m) => (m.bracket === 'final' || m.bracket === 'winners') && m.winner_id != null)
+    .sort((a, b) => {
+      const rank = (x: EventMatch) => (x.bracket === 'final' ? 100 + x.round : x.round)
+      return rank(b) - rank(a)
+    })
+  const last = decided[0]
+  if (!last) return null
+  return last.winner_id === last.team_a_id ? last.team_a_name : last.team_b_name
+}
 
-  const finalMatch = bracket.find((m) => m.round === totalRounds)
-  const champ =
-    finalMatch?.winner_id != null
-      ? finalMatch.winner_id === finalMatch.team_a_id
-        ? finalMatch.team_a_name
-        : finalMatch.team_b_name
-      : null
+// Read-only bracket on the public event page's Bracket tab (single or double
+// elimination).
+export default function EventBracket({ matches }: { matches: EventMatch[] }) {
+  const bracket = matches.filter((m) => m.bracket === 'winners' || m.bracket === 'losers' || m.bracket === 'final')
+  if (bracket.length === 0) return null
+  const champ = championName(bracket)
 
   return (
     <div className="public-bracket-wrap">
@@ -29,32 +35,13 @@ export default function EventBracket({ matches }: { matches: EventMatch[] }) {
           Champion: <b>{champ}</b>
         </p>
       )}
-      <div className="bracket-grid">
-        {rounds.map((round) => (
-          <div className="bracket-col" key={round}>
-            <h3>{roundName(round, totalRounds)}</h3>
-            {bracket
-              .filter((m) => m.round === round)
-              .sort((a, b) => a.slot - b.slot)
-              .map((m) => {
-                const oneTeam = (m.team_a_id == null) !== (m.team_b_id == null)
-                const bye = oneTeam && m.winner_id != null
-                const score = scoreLine(m)
-                return (
-                  <div className={bye ? 'bracket-match bye' : 'bracket-match'} key={m.id}>
-                    <span className={m.winner_id != null && m.winner_id === m.team_a_id ? 'bm-team win' : 'bm-team'}>
-                      {m.team_a_name ?? 'TBD'}
-                    </span>
-                    <span className={m.winner_id != null && m.winner_id === m.team_b_id ? 'bm-team win' : 'bm-team'}>
-                      {m.team_b_name ?? (bye ? 'Bye' : 'TBD')}
-                    </span>
-                    {score && <span className="bm-score">{score}</span>}
-                  </div>
-                )
-              })}
-          </div>
-        ))}
-      </div>
+      <BracketColumns
+        matches={bracket}
+        renderExtra={(m) => {
+          const s = scoreLine(m)
+          return s ? <span className="bm-score">{s}</span> : null
+        }}
+      />
     </div>
   )
 }

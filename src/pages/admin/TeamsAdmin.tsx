@@ -72,6 +72,7 @@ export default function TeamsAdmin({
   const [hasSchedule, setHasSchedule] = useState(false)
   const [poolCount, setPoolCount] = useState('2')
   const [advanceCount, setAdvanceCount] = useState('2')
+  const [bracketStage, setBracketStage] = useState<'single' | 'double'>('single')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -95,6 +96,7 @@ export default function TeamsAdmin({
     const cfg = data.format_config ?? {}
     setPoolCount(String(typeof cfg.pools === 'number' ? cfg.pools : 2))
     setAdvanceCount(String(typeof cfg.advance_per_pool === 'number' ? cfg.advance_per_pool : 2))
+    setBracketStage(cfg.bracket_stage === 'double' ? 'double' : 'single')
   }
 
   function load() {
@@ -218,6 +220,7 @@ export default function TeamsAdmin({
           team_count: Number(teamCount) || teams.length,
           pools,
           advance_per_pool: Math.max(1, Number(advanceCount) || 2),
+          bracket_stage: format === 'double_elim' ? 'double' : bracketStage,
         },
         published,
         teams: teams.map((t, i) => ({
@@ -259,38 +262,47 @@ export default function TeamsAdmin({
             ))}
           </select>
         </label>
-        {(format === 'double_elim' || format === 'pool_bracket') && (
+        {format === 'double_elim' && (
           <p className="field-hint">
-            {format === 'double_elim'
-              ? 'Double elimination isn’t built yet — pick single elimination or pool play.'
-              : 'Pools play a round robin, then the top finishers seed into a single-elim bracket.'}
+            Every team gets a second chance in the losers bracket; a team is out after two losses. The bracket
+            ends with a grand final (plus a reset game if the losers-bracket team wins it).
           </p>
         )}
         {format === 'pool_bracket' && (
-          <dl className="kv" style={{ marginTop: '0.6rem', maxWidth: '20rem' }}>
-            <dt>Pools</dt>
-            <dd>
-              <input
-                type="number"
-                min="1"
-                value={poolCount}
-                onChange={(e) => setPoolCount(e.target.value)}
-                style={{ width: '4rem' }}
-              />
-            </dd>
-            <dt>Advance</dt>
-            <dd>
-              top{' '}
-              <input
-                type="number"
-                min="1"
-                value={advanceCount}
-                onChange={(e) => setAdvanceCount(e.target.value)}
-                style={{ width: '4rem' }}
-              />{' '}
-              per pool
-            </dd>
-          </dl>
+          <>
+            <p className="field-hint">Pools play a round robin, then the top finishers seed into a knockout bracket.</p>
+            <dl className="kv" style={{ marginTop: '0.6rem', maxWidth: '20rem' }}>
+              <dt>Pools</dt>
+              <dd>
+                <input
+                  type="number"
+                  min="1"
+                  value={poolCount}
+                  onChange={(e) => setPoolCount(e.target.value)}
+                  style={{ width: '4rem' }}
+                />
+              </dd>
+              <dt>Advance</dt>
+              <dd>
+                top{' '}
+                <input
+                  type="number"
+                  min="1"
+                  value={advanceCount}
+                  onChange={(e) => setAdvanceCount(e.target.value)}
+                  style={{ width: '4rem' }}
+                />{' '}
+                per pool
+              </dd>
+              <dt>Bracket</dt>
+              <dd>
+                <select value={bracketStage} onChange={(e) => setBracketStage(e.target.value as 'single' | 'double')}>
+                  <option value="single">Single elimination</option>
+                  <option value="double">Double elimination</option>
+                </select>
+              </dd>
+            </dl>
+          </>
         )}
       </section>
 

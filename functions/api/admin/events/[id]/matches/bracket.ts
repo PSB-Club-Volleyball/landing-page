@@ -3,21 +3,14 @@ import { badRequest, json, notFound } from '../../../../_lib/http'
 import type { AdminData } from '../../../_lib/types'
 import { logAudit } from '../../../_lib/audit'
 import { readScheduleConfig } from '../../../../_lib/schedule'
+import { insertMatchStatement, validateBracketMatches, type WireMatch } from '../../../../_lib/bracket'
 import { loadPayload } from '../matches'
 
-interface BracketMatch {
-  round: number
-  slot: number
-  team_a_id: number | null
-  team_b_id: number | null
-  winner_id?: number | null
-}
-
 // POST /api/admin/events/:id/matches/bracket -> seed the knockout stage from
-// the finished pools. The client builds the bracket (same seeding lib as a
-// standalone single-elim); the server checks the pools are complete and that
-// every team in round 1 actually qualified, then appends the bracket matches
-// alongside the pool matches.
+// the finished pools. The client builds the bracket (single- or double-elim,
+// per format_config.bracket_stage); the server checks the pools are complete
+// and that every round-1 team actually qualified, then appends the bracket
+// matches alongside the pool matches.
 export const onRequestPost: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
@@ -49,36 +42,28 @@ export const onRequestPost: PagesFunction<Env, 'id', AdminData> = async ({ reque
     for (const row of pool.standings.slice(0, advance)) qualified.add(row.team_id)
   }
 
-  const body = (await request.json().catch(() => null)) as { matches?: BracketMatch[] } | null
-  const matches = body?.matches
-  if (!Array.isArray(matches) || matches.length === 0) return badRequest('matches is required')
+  const body = (await request.json().catch(() => null)) as { matches?: unknown } | null
+  const err = validateBracketMatches(body?.matches, new Set(payload.teams.map((t) => t.id)))
+  if (err) return badRequest(err)
+  const matches = body!.matches as WireMatch[]
+  if (matches.length === 0) return badRequest('matches is required')
 
+  // This endpoint only appends the knockout stage — it must not touch the pool
+  // matches, and only the winners-bracket round 1 carries teams on generate.
   const r1Teams = new Set<number>()
   for (const m of matches) {
-    if (!Number.isInteger(m.round) || m.round < 1 || !Number.isInteger(m.slot) || m.slot < 0) {
-      return badRequest('each bracket match needs a round and slot')
-    }
+    if (m.bracket === 'pool') return badRequest('the bracket payload can’t include pool matches')
+    const seeded = m.bracket === 'winners' && m.round === 1
     for (const t of [m.team_a_id, m.team_b_id]) {
       if (t == null) continue
+      if (!seeded) return badRequest('only the first round of the bracket can be pre-filled')
       if (!qualified.has(t)) return badRequest('a bracket match includes a team that didn’t qualify')
-      if (m.round === 1) r1Teams.add(t)
-    }
-    if (m.team_a_id != null && m.team_a_id === m.team_b_id) return badRequest('a match has the same team on both sides')
-    if (m.winner_id != null) {
-      const oneTeam = (m.team_a_id == null) !== (m.team_b_id == null)
-      if (m.round !== 1 || !oneTeam || m.winner_id !== (m.team_a_id ?? m.team_b_id)) {
-        return badRequest('a pre-set winner is only allowed for a first-round bye')
-      }
+      r1Teams.add(t)
     }
   }
   if (r1Teams.size !== qualified.size) return badRequest('the bracket must include every team that qualified, and only those')
 
-  const statements = matches.map((m) =>
-    env.DB.prepare(
-      `INSERT INTO event_matches (event_id, bracket, pool, round, slot, court, team_a_id, team_b_id, winner_id)
-       VALUES (?1, 'winners', NULL, ?2, ?3, NULL, ?4, ?5, ?6)`
-    ).bind(eventId, m.round, m.slot, m.team_a_id ?? null, m.team_b_id ?? null, m.winner_id ?? null)
-  )
+  const statements = matches.map((m) => insertMatchStatement(env, eventId, { ...m, pool: null }))
   await env.DB.batch(statements)
 
   await logAudit(env, data.user.id, 'update', 'event_matches', eventId, { bracket_started: matches.length })

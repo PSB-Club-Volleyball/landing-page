@@ -154,10 +154,24 @@ export interface ScheduleConfig {
   // Pool play → bracket only.
   pools: number
   advance_per_pool: number
+  // Pool play → bracket, and stand-alone brackets: single or double elimination.
+  bracket_stage: 'single' | 'double'
+}
+
+// Where a knockout match's winner or loser is routed. `side` 0 fills the
+// target's team_a, 1 fills team_b. null throughout for round-robin/pool
+// matches and for bracket leaves (a final; a losers-bracket exit).
+export interface BracketTarget {
+  bracket: string
+  round: number
+  slot: number
+  side: 0 | 1
 }
 
 export interface EventMatch {
   id: number
+  // 'pool' (round robin), 'winners' / 'losers' (bracket sides), 'final'
+  // (grand final; round 1 is the title match, round 2 the reset game).
   bracket: string
   // Pool label ('A', 'B', …) for a pool-play match; null for a bracket match.
   pool: string | null
@@ -171,6 +185,8 @@ export interface EventMatch {
   scores: [number, number][] | null
   forfeit_team_id: number | null
   winner_id: number | null
+  winner_to: BracketTarget | null
+  loser_to: BracketTarget | null
   // Wall-clock start, derived from the event start + the slot's share of
   // total_minutes.
   start_time: string | null
@@ -208,8 +224,8 @@ export interface MatchesResponse {
 export interface ScheduleInput {
   config: ScheduleConfig
   matches: {
-    // 'pool' for round robin (with `pool` set to the label); 'winners' for a
-    // single-elim bracket.
+    // 'pool' for round robin (with `pool` set to the label); 'winners' /
+    // 'losers' / 'final' for a bracket.
     bracket: string
     pool?: string | null
     round: number
@@ -219,6 +235,10 @@ export interface ScheduleInput {
     team_b_id: number | null
     // Pre-decided result, only used for bracket byes on generate.
     winner_id?: number | null
+    // Knockout advancement wiring (single- and double-elim). Absent for
+    // round robin.
+    winner_to?: BracketTarget | null
+    loser_to?: BracketTarget | null
   }[]
 }
 
