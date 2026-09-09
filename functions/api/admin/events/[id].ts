@@ -4,6 +4,37 @@ import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
 import { requireOwner } from '../_lib/permissions'
 
+// GET /api/admin/events/:id -> one event for the admin event page, shaped
+// exactly like a row from GET /api/admin/events (drafts included, plus
+// form_name / signup_count / is_past).
+export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, params }) => {
+  const id = Number(params.id)
+  if (!Number.isInteger(id)) return badRequest('Invalid id')
+
+  const event = await env.DB.prepare(
+    `SELECT e.*, f.name AS form_name,
+            (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id) AS signup_count,
+            datetime(COALESCE(e.end_time, e.start_time)) < datetime('now') AS is_past
+     FROM events e
+     LEFT JOIN forms f ON f.id = e.form_id
+     WHERE e.id = ?1`
+  )
+    .bind(id)
+    .first<(Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; is_past: number }) | null>()
+
+  if (!event) return notFound('Event not found')
+
+  return json({
+    event: {
+      ...event,
+      signup_enabled: Boolean(event.signup_enabled),
+      rsvp_gated: Boolean(event.rsvp_gated),
+      released_early: Boolean(event.released_early),
+      is_past: Boolean(event.is_past),
+    },
+  })
+}
+
 // Recurrence is create-time only — creating an event with recurrence_days set
 // expands it into independent occurrence rows (see events.ts), so a single
 // occurrence row has nothing recurrence-related left to edit here.

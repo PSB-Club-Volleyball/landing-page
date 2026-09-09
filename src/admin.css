@@ -247,6 +247,71 @@
   gap: 0.5rem;
   margin-left: auto;
 }
+
+/* ---- Routed event page (/admin/events/:id) ---- */
+.admin-event-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+.admin-back-link {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ace-fg);
+  text-decoration: none;
+}
+.admin-back-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.admin-event-eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ace-fg);
+}
+.admin-event-sub {
+  margin: 0.3rem 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.admin-subtabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+}
+.admin-subtabs button {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.admin-subtabs button.active {
+  color: var(--page-fg);
+  border-color: var(--ace);
+}
+.admin-subtabs button:focus-visible {
+  outline: 2px solid var(--ace-fg);
+  outline-offset: -2px;
+}
+.admin-subtab-count {
+  margin-left: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--page-fg) 12%, transparent);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
 .admin-error {
   color: #b23b2c;
   font-size: 0.88rem;

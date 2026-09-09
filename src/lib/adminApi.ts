@@ -49,6 +49,7 @@ export const adminApi = {
   },
   events: {
     list: () => request<{ events: AdminEventRow[] }>('/api/admin/events'),
+    get: (id: number) => request<{ event: AdminEventRow }>(`/api/admin/events/${id}`),
     create: (input: Partial<AdminEventRow>) =>
       request<{ id: number }>('/api/admin/events', { method: 'POST', body: JSON.stringify(input) }),
     update: (id: number, input: Partial<AdminEventRow>) =>
