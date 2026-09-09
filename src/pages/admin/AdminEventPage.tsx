@@ -6,8 +6,13 @@ import { EVENT_TYPE_LABELS } from '../../lib/eventFormat'
 import { emptyDraft, eventToDraft, toInput, type Draft } from './eventDraft'
 import { EventFormFields } from './eventForm'
 import SignupsPanel from './SignupsPanel'
+import TeamsAdmin from './TeamsAdmin'
 
-type Tab = 'details' | 'signups'
+type Tab = 'details' | 'signups' | 'teams'
+
+// Event types where splitting people into teams makes sense (everything but
+// a purely social gathering).
+const TEAM_TYPES = new Set(['practice', 'tournament', 'open_gym', 'game'])
 
 // The routed admin page for one event at /admin/events/:eventId — replaces
 // the old "Edit event" modal and the inline expanding signups row. Details
@@ -17,7 +22,8 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
   const id = Number(eventId)
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab: Tab = searchParams.get('tab') === 'signups' ? 'signups' : 'details'
+  const tabParam = searchParams.get('tab')
+  const tab: Tab = tabParam === 'signups' ? 'signups' : tabParam === 'teams' ? 'teams' : 'details'
 
   const [event, setEvent] = useState<AdminEventRow | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -76,8 +82,8 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
     setSearchParams(
       (prev) => {
         const p = new URLSearchParams(prev)
-        if (next === 'signups') p.set('tab', 'signups')
-        else p.delete('tab')
+        if (next === 'details') p.delete('tab')
+        else p.set('tab', next)
         return p
       },
       { replace: true }
@@ -163,6 +169,17 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
         >
           Signups {e.signup_count > 0 && <span className="admin-subtab-count">{e.signup_count}</span>}
         </button>
+        {TEAM_TYPES.has(e.event_type) && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'teams'}
+            className={tab === 'teams' ? 'active' : undefined}
+            onClick={() => setTab('teams')}
+          >
+            Teams &amp; format
+          </button>
+        )}
       </div>
 
       {tab === 'details' && (
@@ -197,6 +214,8 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
       {tab === 'signups' && (
         <SignupsPanel eventId={id} eventTitle={e.title} onChanged={() => refetch(false)} />
       )}
+
+      {tab === 'teams' && TEAM_TYPES.has(e.event_type) && <TeamsAdmin eventId={id} />}
     </div>
   )
 }

@@ -13,6 +13,8 @@ import type {
   Player,
   SignupStatus,
   Team,
+  TeamsInput,
+  TeamsResponse,
   UserRole,
 } from '../types'
 
@@ -77,6 +79,9 @@ export const adminApi = {
         method: 'POST',
         body: JSON.stringify(input),
       }),
+    teams: (eventId: number) => request<TeamsResponse>(`/api/admin/events/${eventId}/teams`),
+    saveTeams: (eventId: number, input: TeamsInput) =>
+      request<{ ok: true }>(`/api/admin/events/${eventId}/teams`, { method: 'PUT', body: JSON.stringify(input) }),
   },
   forms: {
     list: () => request<{ forms: FormTemplate[] }>('/api/admin/forms'),
