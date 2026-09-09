@@ -93,9 +93,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   let scheduleConfig = readScheduleConfig(event.format_config)
   let matches: unknown[] = []
   let standings: unknown[] = []
+  let pools: { label: string; standings: unknown[]; complete: boolean }[] = []
   if (teamList.length > 0) {
     const matchRes = await env.DB.prepare(
-      `SELECT m.id, m.bracket, m.round, m.slot, m.court, m.team_a_id, m.team_b_id,
+      `SELECT m.id, m.bracket, m.pool, m.round, m.slot, m.court, m.team_a_id, m.team_b_id,
               ta.name AS team_a_name, tb.name AS team_b_name,
               m.scores, m.forfeit_team_id, m.winner_id
        FROM event_matches m
@@ -108,6 +109,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       .all<{
         id: number
         bracket: string
+        pool: string | null
         round: number
         slot: number
         court: string | null
@@ -123,32 +125,43 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       ...r,
       scores: r.scores ? (JSON.parse(r.scores) as [number, number][]) : null,
     }))
-    // Pool matches are timed by slot; bracket matches by round (see the admin
-    // matches endpoint for the same split).
+    // Pool matches are timed by slot; bracket matches by round.
     const isBracket = parsedMatches.some((r) => r.bracket !== 'pool')
-    const slotCount = parsedMatches.reduce((max, r) => Math.max(max, r.slot + 1), 0)
-    const timeUnits = isBracket
-      ? parsedMatches.reduce((max, r) => Math.max(max, r.round), 0)
-      : slotCount
+    const slotCount = parsedMatches.reduce((max, r) => (r.bracket === 'pool' ? Math.max(max, r.slot + 1) : max), 0)
+    const bracketRounds = parsedMatches.reduce((max, r) => (r.bracket !== 'pool' ? Math.max(max, r.round) : max), 0)
     scheduleConfig = readScheduleConfig(event.format_config, isBracket ? undefined : slotCount)
     matches = parsedMatches.map((r) => ({
       ...r,
-      start_time: slotStartTime(
-        event.start_time,
-        isBracket ? r.round - 1 : r.slot,
-        timeUnits,
-        scheduleConfig.total_minutes
-      ),
+      start_time:
+        r.bracket === 'pool'
+          ? slotStartTime(event.start_time, r.slot, slotCount || 1, scheduleConfig.total_minutes)
+          : slotStartTime(event.start_time, r.round - 1, bracketRounds || 1, scheduleConfig.total_minutes),
     }))
     if (!scheduleConfig.timed_only) {
       const poolMatches = parsedMatches.filter((r) => r.bracket === 'pool')
-      const rows = computeStandings(
-        teamList.map((t) => ({ id: t.id, name: t.name })),
-        poolMatches,
-        scheduleConfig.sets_per_match
-      )
-      // Hide the table until at least one match has actually been played.
-      if (rows.some((r) => r.played > 0)) standings = rows
+      const hasPools = poolMatches.some((r) => r.pool != null)
+      if (poolMatches.length > 0 && !hasPools) {
+        const rows = computeStandings(
+          teamList.map((t) => ({ id: t.id, name: t.name })),
+          poolMatches,
+          scheduleConfig.sets_per_match
+        )
+        if (rows.some((r) => r.played > 0)) standings = rows
+      } else if (hasPools) {
+        const labels = [...new Set(poolMatches.map((r) => r.pool).filter((p): p is string => p != null))].sort()
+        pools = labels.map((label) => {
+          const pm = poolMatches.filter((r) => r.pool === label)
+          return {
+            label,
+            standings: computeStandings(
+              teamList.filter((t) => t.pool === label).map((t) => ({ id: t.id, name: t.name })),
+              pm,
+              scheduleConfig.sets_per_match
+            ),
+            complete: pm.every((r) => r.winner_id != null),
+          }
+        })
+      }
     }
   }
 
@@ -164,6 +177,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       schedule_config: scheduleConfig,
       matches,
       standings,
+      pools,
     },
   })
 }

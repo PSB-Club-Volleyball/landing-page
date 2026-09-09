@@ -4,6 +4,7 @@ import SignupModal from '../components/SignupModal'
 import EventTeams from '../components/EventTeams'
 import EventScores from '../components/EventScores'
 import EventBracket from '../components/EventBracket'
+import EventPools from '../components/EventPools'
 import { WAIVER_URL } from '../constants'
 import { ApiError, getEvent } from '../lib/api'
 import {
@@ -109,18 +110,23 @@ function EventDetail() {
   const teams = e.teams ?? []
   const matches = e.matches ?? []
   const standings = e.standings ?? []
+  const pools = e.pools ?? []
+  const isPool = pools.length > 0
+  const bracketStarted = matches.some((m) => m.bracket === 'winners')
   const timedOnly = Boolean(e.schedule_config?.timed_only)
-  const hasScores = matches.length > 0
-  const isBracket = matches.some((m) => m.bracket !== 'pool')
+  const hasScores = isPool ? bracketStarted : matches.length > 0
+  const isBracket = isPool ? bracketStarted : matches.some((m) => m.bracket !== 'pool')
   const scoresLabel = isBracket ? 'Bracket' : timedOnly ? 'Schedule' : 'Scores'
-  type PageTab = 'details' | 'teams' | 'scores'
+  type PageTab = 'details' | 'teams' | 'pools' | 'scores'
   const requested = searchParams.get('tab')
   const tab: PageTab =
     requested === 'teams' && teams.length > 0
       ? 'teams'
-      : requested === 'scores' && hasScores
-        ? 'scores'
-        : 'details'
+      : requested === 'pools' && isPool
+        ? 'pools'
+        : requested === 'scores' && hasScores
+          ? 'scores'
+          : 'details'
   const setTab = (next: PageTab) =>
     setSearchParams(
       (prev) => {
@@ -178,7 +184,7 @@ function EventDetail() {
           </div>
         )}
 
-        {(teams.length > 0 || hasScores) && (
+        {(teams.length > 0 || hasScores || isPool) && (
           <div className="event-page-tabbar" role="tablist">
             <button
               type="button"
@@ -200,6 +206,17 @@ function EventDetail() {
                 Teams <span className="event-tab-count">{teams.length}</span>
               </button>
             )}
+            {isPool && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'pools'}
+                className={tab === 'pools' ? 'active' : undefined}
+                onClick={() => setTab('pools')}
+              >
+                Pools <span className="event-tab-count">{pools.length}</span>
+              </button>
+            )}
             {hasScores && (
               <button
                 type="button"
@@ -216,6 +233,8 @@ function EventDetail() {
 
         {tab === 'teams' ? (
           <EventTeams teams={teams} />
+        ) : tab === 'pools' ? (
+          <EventPools pools={pools} matches={matches} />
         ) : tab === 'scores' ? (
           isBracket ? (
             <EventBracket matches={matches} />

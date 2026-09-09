@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import { buildRoundRobinSchedule } from '../../lib/schedule'
 import { buildSingleElimBracket } from '../../lib/bracket'
+import { buildPoolSchedule, seedFromPools } from '../../lib/pool'
 import { roundName } from '../../lib/bracketLabels'
-import type { EventMatch, MatchesResponse, PlayFormat, ScheduleConfig } from '../../types'
+import type { EventMatch, MatchesResponse, PlayFormat, ScheduleConfig, StandingRow } from '../../types'
 
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
 function slotTime(iso: string | null) {
@@ -27,6 +28,42 @@ function draftToScores(d: ResultDraft): [number, number][] {
   return d.sets
     .filter(([a, b]) => a.trim() !== '' || b.trim() !== '')
     .map(([a, b]) => [Number(a) || 0, Number(b) || 0] as [number, number])
+}
+
+function StandingsTable({ rows }: { rows: StandingRow[] }) {
+  return (
+    <div className="data-table">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Team</th>
+            <th>W</th>
+            <th>L</th>
+            <th>Sets</th>
+            <th>Pts</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r.team_id}>
+              <td>{i + 1}</td>
+              <td>{r.name}</td>
+              <td>{r.wins}</td>
+              <td>{r.losses}</td>
+              <td>
+                {r.sets_won}&ndash;{r.sets_lost}
+              </td>
+              <td>
+                {r.points_for - r.points_against > 0 ? '+' : ''}
+                {r.points_for - r.points_against}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
 }
 
 function ScoreEntry({
@@ -91,8 +128,14 @@ function ScoreEntry({
 }
 
 export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number; playFormat: PlayFormat }) {
-  const mode: 'rr' | 'bracket' | 'unsupported' =
-    playFormat === 'round_robin' ? 'rr' : playFormat === 'single_elim' ? 'bracket' : 'unsupported'
+  const mode: 'rr' | 'bracket' | 'pool' | 'unsupported' =
+    playFormat === 'round_robin'
+      ? 'rr'
+      : playFormat === 'single_elim'
+        ? 'bracket'
+        : playFormat === 'pool_bracket'
+          ? 'pool'
+          : 'unsupported'
 
   const [data, setData] = useState<MatchesResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -154,7 +197,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   if (mode === 'unsupported') {
     return (
       <p className="admin-note">
-        Scheduling for this format isn&rsquo;t built yet. Round robin and single elimination are available.
+        Double elimination isn&rsquo;t built yet. Round robin, single elimination, and pool play are available.
       </p>
     )
   }
@@ -163,7 +206,12 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
 
   const teamIds = data.teams.map((t) => t.id)
   const hasResults = data.standings.some((s) => s.played > 0)
-  const noun = mode === 'bracket' ? 'bracket' : 'schedule'
+  const noun = mode === 'bracket' ? 'bracket' : mode === 'pool' ? 'pools' : 'schedule'
+
+  const poolLabels = [...new Set(data.teams.map((t) => t.pool).filter((p): p is string => p != null))].sort()
+  const poolGroups = poolLabels.map((label) => data.teams.filter((t) => t.pool === label).map((t) => t.id))
+  const bracketStarted = data.matches.some((m) => m.bracket === 'winners')
+  const poolsComplete = data.pools.length > 0 && data.pools.every((p) => p.complete)
 
   async function saveSettings() {
     if (!config) return
@@ -186,6 +234,10 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
       setError('Build at least two teams on the Teams & format tab first.')
       return
     }
+    if (mode === 'pool' && poolGroups.length < 2) {
+      setError('Assign teams to at least two pools on the Teams & format tab first.')
+      return
+    }
     if (data && data.matches.length > 0 && !confirm(`Replace the current ${noun}? Any entered scores are cleared.`)) return
     setBusy(true)
     setError(null)
@@ -194,9 +246,32 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
       const matches =
         mode === 'bracket'
           ? buildSingleElimBracket(teamIds)
-          : buildRoundRobinSchedule(teamIds, config.courts, config.double_round_robin)
+          : mode === 'pool'
+            ? buildPoolSchedule(poolGroups, config.courts)
+            : buildRoundRobinSchedule(teamIds, config.courts, config.double_round_robin)
       hydrate(await adminApi.events.saveSchedule(eventId, { config, matches }))
       setNote(`${noun[0].toUpperCase()}${noun.slice(1)} generated.`)
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function startBracket() {
+    if (!config || !data) return
+    if (!poolsComplete) {
+      setError('Enter every pool result before starting the bracket.')
+      return
+    }
+    if (!confirm('Start the knockout bracket from the pool standings?')) return
+    setBusy(true)
+    setError(null)
+    setNote(null)
+    try {
+      const seeds = seedFromPools(data.pools, config.advance_per_pool)
+      hydrate(await adminApi.events.startBracket(eventId, buildSingleElimBracket(seeds)))
+      setNote('Bracket started.')
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -233,7 +308,6 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   }
 
   const rounds = [...new Set(data.matches.map((m) => m.round))].sort((a, b) => a - b)
-  const totalRounds = rounds[rounds.length - 1] ?? 0
   const rrRoundLabel = (round: number) => {
     const first = data.matches.find((m) => m.round === round)
     return slotTime(first?.start_time ?? null) || `Round ${round}`
@@ -242,9 +316,9 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   return (
     <div className="schedule-admin">
       <section>
-        <h3>{mode === 'bracket' ? 'Bracket settings' : 'Schedule settings'}</h3>
+        <h3>{mode === 'bracket' ? 'Bracket settings' : mode === 'pool' ? 'Pool settings' : 'Schedule settings'}</h3>
         <div className="schedule-config">
-          {mode === 'rr' && (
+          {mode !== 'bracket' && (
             <label className="field">
               Courts
               <input
@@ -332,15 +406,80 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
         {note && <p className="admin-note">{note}</p>}
       </section>
 
-      {mode === 'bracket' && data.matches.length > 0 && (
+      {mode === 'pool' && data.pools.length > 0 && (
+        <section>
+          <div className="admin-main-head">
+            <h3>Pools</h3>
+            {!bracketStarted && (
+              <button
+                type="button"
+                className="btn btn-ace btn-sm"
+                disabled={busy || !poolsComplete}
+                onClick={startBracket}
+              >
+                Start bracket
+              </button>
+            )}
+          </div>
+          {!poolsComplete && !bracketStarted && (
+            <p className="field-hint">Enter every pool result to unlock the bracket.</p>
+          )}
+          {data.pools.map((pool) => (
+            <div className="pool-block" key={pool.label}>
+              <h4>Pool {pool.label}</h4>
+              <div className="match-list">
+                {data.matches
+                  .filter((m) => m.pool === pool.label)
+                  .map((m) => {
+                    const d = drafts[m.id]
+                    return (
+                      <div className="match-row" key={m.id}>
+                        <span className="match-when">
+                          {slotTime(m.start_time)}
+                          {m.court && <span className="match-court">Court {m.court}</span>}
+                        </span>
+                        <span className="match-teams">
+                          <span className={m.winner_id === m.team_a_id ? 'match-team win' : 'match-team'}>
+                            {m.team_a_name}
+                          </span>
+                          <span className="match-v">v</span>
+                          <span className={m.winner_id === m.team_b_id ? 'match-team win' : 'match-team'}>
+                            {m.team_b_name}
+                          </span>
+                        </span>
+                        {d && (
+                          <ScoreEntry
+                            match={m}
+                            draft={d}
+                            busy={busy}
+                            onChange={(next) => setDraft(m.id, next)}
+                            onSave={() => saveResult(m)}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+              </div>
+              {pool.standings.some((s) => s.played > 0) && <StandingsTable rows={pool.standings} />}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {(mode === 'bracket' || (mode === 'pool' && bracketStarted)) && data.matches.some((m) => m.bracket === 'winners') && (
         <section>
           <h3>Bracket</h3>
           <div className="bracket-grid admin">
-            {rounds.map((round) => (
+            {(() => {
+              const bracketRounds = [...new Set(data.matches.filter((m) => m.bracket === 'winners').map((m) => m.round))].sort(
+                (a, b) => a - b
+              )
+              const lastRound = bracketRounds[bracketRounds.length - 1] ?? 0
+              return bracketRounds.map((round) => (
               <div className="bracket-col" key={round}>
-                <h4>{roundName(round, totalRounds)}</h4>
+                <h4>{roundName(round, lastRound)}</h4>
                 {data.matches
-                  .filter((m) => m.round === round)
+                  .filter((m) => m.bracket === 'winners' && m.round === round)
                   .sort((a, b) => a.slot - b.slot)
                   .map((m) => {
                     const d = drafts[m.id]
@@ -369,7 +508,8 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
                     )
                   })}
               </div>
-            ))}
+            ))
+            })()}
           </div>
         </section>
       )}
@@ -421,37 +561,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
       {mode === 'rr' && !config.timed_only && hasResults && (
         <section>
           <h3>Standings</h3>
-          <div className="data-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Team</th>
-                  <th>W</th>
-                  <th>L</th>
-                  <th>Sets</th>
-                  <th>Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.standings.map((r, i) => (
-                  <tr key={r.team_id}>
-                    <td>{i + 1}</td>
-                    <td>{r.name}</td>
-                    <td>{r.wins}</td>
-                    <td>{r.losses}</td>
-                    <td>
-                      {r.sets_won}&ndash;{r.sets_lost}
-                    </td>
-                    <td>
-                      {r.points_for - r.points_against > 0 ? '+' : ''}
-                      {r.points_for - r.points_against}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <StandingsTable rows={data.standings} />
         </section>
       )}
     </div>

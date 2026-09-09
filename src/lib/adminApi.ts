@@ -99,6 +99,11 @@ export const adminApi = {
         method: 'PATCH',
         body: JSON.stringify(input),
       }),
+    startBracket: (eventId: number, matches: ScheduleInput['matches']) =>
+      request<MatchesResponse>(`/api/admin/events/${eventId}/matches/bracket`, {
+        method: 'POST',
+        body: JSON.stringify({ matches }),
+      }),
   },
   forms: {
     list: () => request<{ forms: FormTemplate[] }>('/api/admin/forms'),

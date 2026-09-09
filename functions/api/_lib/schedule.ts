@@ -7,6 +7,8 @@ export interface ScheduleConfig {
   total_minutes: number
   timed_only: boolean
   double_round_robin: boolean
+  pools: number
+  advance_per_pool: number
 }
 
 export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
@@ -15,6 +17,8 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
   total_minutes: 180,
   timed_only: false,
   double_round_robin: false,
+  pools: 2,
+  advance_per_pool: 2,
 }
 
 // `slotCount`, when known (the caller has the match rows), lets a legacy
@@ -45,6 +49,12 @@ export function readScheduleConfig(rawJson: string | null, slotCount?: number): 
     total_minutes: total,
     timed_only: Boolean(cfg.timed_only),
     double_round_robin: Boolean(cfg.double_round_robin),
+    pools:
+      typeof cfg.pools === 'number' && cfg.pools >= 1 ? Math.floor(cfg.pools) : DEFAULT_SCHEDULE_CONFIG.pools,
+    advance_per_pool:
+      typeof cfg.advance_per_pool === 'number' && cfg.advance_per_pool >= 1
+        ? Math.floor(cfg.advance_per_pool)
+        : DEFAULT_SCHEDULE_CONFIG.advance_per_pool,
   }
 }
 

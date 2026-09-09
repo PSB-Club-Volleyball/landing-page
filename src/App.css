@@ -1089,6 +1089,12 @@ main {
 .public-standings table {
   font-variant-numeric: tabular-nums;
 }
+.public-pool + .public-pool {
+  margin-top: 1.8rem;
+}
+.public-pool .public-match-list {
+  margin-top: 0.6rem;
+}
 .public-match-round + .public-match-round {
   margin-top: 1.1rem;
 }
