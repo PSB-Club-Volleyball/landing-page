@@ -67,6 +67,7 @@ export interface PublicClubEvent extends ClubEvent {
   schedule_config?: ScheduleConfig | null
   matches?: EventMatch[]
   standings?: StandingRow[]
+  pools?: PoolStanding[]
 }
 
 // How an event is contested once teams are formed. 'none' means teams only —
@@ -150,11 +151,16 @@ export interface ScheduleConfig {
   timed_only: boolean
   // Round robin only: every pairing plays twice.
   double_round_robin: boolean
+  // Pool play → bracket only.
+  pools: number
+  advance_per_pool: number
 }
 
 export interface EventMatch {
   id: number
   bracket: string
+  // Pool label ('A', 'B', …) for a pool-play match; null for a bracket match.
+  pool: string | null
   round: number
   slot: number
   court: string | null
@@ -182,18 +188,30 @@ export interface StandingRow {
   points_against: number
 }
 
+// One pool's ranked table plus whether every match in it has a result.
+export interface PoolStanding {
+  label: string
+  standings: StandingRow[]
+  complete: boolean
+}
+
 export interface MatchesResponse {
   config: ScheduleConfig
-  teams: { id: number; name: string }[]
+  teams: { id: number; name: string; pool: string | null; seed: number }[]
   matches: EventMatch[]
+  // Single round robin: the one table. Pool play: empty (see `pools`).
   standings: StandingRow[]
+  // Pool play: one entry per pool. Empty otherwise.
+  pools: PoolStanding[]
 }
 
 export interface ScheduleInput {
   config: ScheduleConfig
   matches: {
-    // 'pool' for round robin; 'winners' for a single-elim bracket.
+    // 'pool' for round robin (with `pool` set to the label); 'winners' for a
+    // single-elim bracket.
     bracket: string
+    pool?: string | null
     round: number
     slot: number
     court: string | null

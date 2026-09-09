@@ -227,6 +227,9 @@
   gap: 1rem;
   flex-wrap: wrap;
 }
+.admin-main-head h3 {
+  margin: 0;
+}
 .admin-main-head h2 {
   margin: 0;
   font-size: 1.3rem;
@@ -509,6 +512,28 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  color: var(--ace-fg);
+}
+.pool-block + .pool-block {
+  margin-top: 1.2rem;
+}
+.pool-block h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+.pool-block .data-table {
+  margin-top: 0.5rem;
+}
+.team-pool-tag {
+  align-self: flex-start;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--ace-fg) 16%, transparent);
   color: var(--ace-fg);
 }
 .match-list {

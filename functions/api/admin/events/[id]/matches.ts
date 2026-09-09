@@ -8,6 +8,7 @@ import { readScheduleConfig, slotStartTime, type ScheduleConfig } from '../../..
 interface MatchRow {
   id: number
   bracket: string
+  pool: string | null
   round: number
   slot: number
   court: string | null
@@ -20,18 +21,18 @@ interface MatchRow {
   winner_id: number | null
 }
 
-async function loadPayload(env: Env, eventId: number) {
+export async function loadPayload(env: Env, eventId: number) {
   const event = await env.DB.prepare(`SELECT start_time, format_config FROM events WHERE id = ?1`)
     .bind(eventId)
     .first<{ start_time: string; format_config: string | null }>()
   if (!event) return null
 
-  const teams = await env.DB.prepare(`SELECT id, name FROM event_teams WHERE event_id = ?1 ORDER BY seed, id`)
+  const teams = await env.DB.prepare(`SELECT id, name, pool, seed FROM event_teams WHERE event_id = ?1 ORDER BY seed, id`)
     .bind(eventId)
-    .all<{ id: number; name: string }>()
+    .all<{ id: number; name: string; pool: string | null; seed: number }>()
 
   const matchRows = await env.DB.prepare(
-    `SELECT m.id, m.bracket, m.round, m.slot, m.court, m.team_a_id, m.team_b_id,
+    `SELECT m.id, m.bracket, m.pool, m.round, m.slot, m.court, m.team_a_id, m.team_b_id,
             ta.name AS team_a_name, tb.name AS team_b_name,
             m.scores, m.forfeit_team_id, m.winner_id
      FROM event_matches m
@@ -44,16 +45,17 @@ async function loadPayload(env: Env, eventId: number) {
     .all<MatchRow>()
 
   const rows = matchRows.results ?? []
-  // Round robin ("pool") uses `slot` as a time-slot index. A knockout bracket
-  // uses `slot` as the match's position in its round, so its matches are
-  // timed by round instead.
+  // Round robin / pool play ("pool") uses `slot` as a time-slot index. A
+  // knockout bracket uses `slot` as the match's position in its round, so its
+  // matches are timed by round instead.
   const isBracket = rows.some((r) => r.bracket !== 'pool')
-  const slotCount = rows.reduce((max, r) => Math.max(max, r.slot + 1), 0)
-  const timeUnits = isBracket ? rows.reduce((max, r) => Math.max(max, r.round), 0) : slotCount
+  const slotCount = rows.reduce((max, r) => (r.bracket === 'pool' ? Math.max(max, r.slot + 1) : max), 0)
+  const bracketRounds = rows.reduce((max, r) => (r.bracket !== 'pool' ? Math.max(max, r.round) : max), 0)
   const config = readScheduleConfig(event.format_config, isBracket ? undefined : slotCount)
   const matches = rows.map((r) => ({
     id: r.id,
     bracket: r.bracket,
+    pool: r.pool,
     round: r.round,
     slot: r.slot,
     court: r.court,
@@ -64,16 +66,35 @@ async function loadPayload(env: Env, eventId: number) {
     scores: r.scores ? (JSON.parse(r.scores) as [number, number][]) : null,
     forfeit_team_id: r.forfeit_team_id,
     winner_id: r.winner_id,
-    start_time: slotStartTime(event.start_time, isBracket ? r.round - 1 : r.slot, timeUnits, config.total_minutes),
+    start_time:
+      r.bracket === 'pool'
+        ? slotStartTime(event.start_time, r.slot, slotCount || 1, config.total_minutes)
+        : slotStartTime(event.start_time, r.round - 1, bracketRounds || 1, config.total_minutes),
   }))
 
-  const teamList = (teams.results ?? []).map((t) => ({ id: t.id, name: t.name }))
-  // Standings only come from round-robin ("pool") matches — a knockout
-  // bracket ranks by how far a team got, not a table.
+  const teamList = (teams.results ?? []).map((t) => ({ id: t.id, name: t.name, pool: t.pool, seed: t.seed }))
   const poolMatches = matches.filter((m) => m.bracket === 'pool')
-  const standings = poolMatches.length > 0 ? computeStandings(teamList, poolMatches, config.sets_per_match) : []
+  const hasPools = poolMatches.some((m) => m.pool != null)
 
-  return { config, teams: teamList, matches, standings }
+  // Single round robin -> one flat table. Pool play -> one table per pool.
+  let standings: ReturnType<typeof computeStandings> = []
+  const pools: { label: string; standings: ReturnType<typeof computeStandings>; complete: boolean }[] = []
+  if (poolMatches.length > 0 && !hasPools) {
+    standings = computeStandings(teamList, poolMatches, config.sets_per_match)
+  } else if (hasPools) {
+    const labels = [...new Set(poolMatches.map((m) => m.pool).filter((p): p is string => p != null))].sort()
+    for (const label of labels) {
+      const pm = poolMatches.filter((m) => m.pool === label)
+      const teamsInPool = teamList.filter((t) => t.pool === label)
+      pools.push({
+        label,
+        standings: computeStandings(teamsInPool, pm, config.sets_per_match),
+        complete: pm.every((m) => m.winner_id != null),
+      })
+    }
+  }
+
+  return { config, teams: teamList, matches, standings, pools }
 }
 
 // GET /api/admin/events/:id/matches
@@ -89,6 +110,7 @@ interface ScheduleInput {
   config: ScheduleConfig
   matches: {
     bracket: string
+    pool?: string | null
     round: number
     slot: number
     court: string | null
@@ -115,6 +137,7 @@ function validateSchedule(body: unknown, teamIds: Set<number>): ScheduleInput | 
       if (v !== null && (typeof v !== 'number' || !teamIds.has(v))) return 'a match references a team that is not on this event'
     }
     if (m.team_a_id != null && m.team_a_id === m.team_b_id) return 'a match has the same team on both sides'
+    if (m.pool != null && (typeof m.pool !== 'string' || m.pool.length > 4)) return 'pool label must be a short string'
     // A pre-filled winner is only valid for a round-1 bracket bye — one team,
     // no opponent — so no fabricated results can be seeded through the PUT.
     if (m.winner_id != null) {
@@ -158,6 +181,8 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     total_minutes: Math.floor(parsed.config.total_minutes),
     timed_only: Boolean(parsed.config.timed_only),
     double_round_robin: Boolean(parsed.config.double_round_robin),
+    pools: Math.max(1, Math.floor(parsed.config.pools || 2)),
+    advance_per_pool: Math.max(1, Math.floor(parsed.config.advance_per_pool || 2)),
   }
 
   const statements = [
@@ -170,11 +195,12 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   for (const m of parsed.matches) {
     statements.push(
       env.DB.prepare(
-        `INSERT INTO event_matches (event_id, bracket, round, slot, court, team_a_id, team_b_id, winner_id)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+        `INSERT INTO event_matches (event_id, bracket, pool, round, slot, court, team_a_id, team_b_id, winner_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
       ).bind(
         eventId,
         m.bracket || 'pool',
+        m.pool ?? null,
         m.round,
         m.slot,
         m.court ?? null,
@@ -226,6 +252,8 @@ export const onRequestPatch: PagesFunction<Env, 'id', AdminData> = async ({ requ
     ...(c.total_minutes != null ? { total_minutes: Math.floor(c.total_minutes) } : {}),
     ...(c.timed_only != null ? { timed_only: Boolean(c.timed_only) } : {}),
     ...(c.double_round_robin != null ? { double_round_robin: Boolean(c.double_round_robin) } : {}),
+    ...(c.pools != null ? { pools: Math.max(1, Math.floor(c.pools)) } : {}),
+    ...(c.advance_per_pool != null ? { advance_per_pool: Math.max(1, Math.floor(c.advance_per_pool)) } : {}),
   }
   await env.DB.prepare(`UPDATE events SET format_config = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2`)
     .bind(JSON.stringify(merged), eventId)

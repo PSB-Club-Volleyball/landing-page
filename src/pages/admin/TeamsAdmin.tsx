@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import { distributeTeams } from '../../lib/teamBuilder'
+import { clampPoolCount, poolLabelAt } from '../../lib/pool'
 import type { PlayFormat, TeamParticipant, TeamsResponse } from '../../types'
 
 const FORMAT_LABELS: Record<PlayFormat, string> = {
@@ -69,6 +70,8 @@ export default function TeamsAdmin({
   const [teams, setTeams] = useState<DraftTeam[]>([])
   const [published, setPublished] = useState(false)
   const [hasSchedule, setHasSchedule] = useState(false)
+  const [poolCount, setPoolCount] = useState('2')
+  const [advanceCount, setAdvanceCount] = useState('2')
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,6 +92,9 @@ export default function TeamsAdmin({
     )
     const fallbackCount = data.teams.length || Math.max(2, Math.ceil(data.participants.length / 4)) || 2
     setTeamCount(String(cfgCount ?? fallbackCount))
+    const cfg = data.format_config ?? {}
+    setPoolCount(String(typeof cfg.pools === 'number' ? cfg.pools : 2))
+    setAdvanceCount(String(typeof cfg.advance_per_pool === 'number' ? cfg.advance_per_pool : 2))
   }
 
   function load() {
@@ -205,14 +211,19 @@ export default function TeamsAdmin({
     setError(null)
     setNote(null)
     try {
+      const pools = clampPoolCount(Number(poolCount) || 2, teams.length)
       await adminApi.events.saveTeams(eventId, {
         play_format: format,
-        format_config: { team_count: Number(teamCount) || teams.length },
+        format_config: {
+          team_count: Number(teamCount) || teams.length,
+          pools,
+          advance_per_pool: Math.max(1, Number(advanceCount) || 2),
+        },
         published,
         teams: teams.map((t, i) => ({
           name: t.name.trim() || `Team ${i + 1}`,
           seed: i + 1,
-          pool: null,
+          pool: format === 'pool_bracket' ? poolLabelAt(i, pools) : null,
           members: t.members.map((m) => ({
             signup_id: m.signup_id,
             display_name: m.signup_id === null ? m.display_name : null,
@@ -248,11 +259,38 @@ export default function TeamsAdmin({
             ))}
           </select>
         </label>
-        {format !== 'none' && (
+        {(format === 'double_elim' || format === 'pool_bracket') && (
           <p className="field-hint">
-            Team-building works now. The schedule, bracket, and score tracking for this format arrive in a later
-            update.
+            {format === 'double_elim'
+              ? 'Double elimination isn’t built yet — pick single elimination or pool play.'
+              : 'Pools play a round robin, then the top finishers seed into a single-elim bracket.'}
           </p>
+        )}
+        {format === 'pool_bracket' && (
+          <dl className="kv" style={{ marginTop: '0.6rem', maxWidth: '20rem' }}>
+            <dt>Pools</dt>
+            <dd>
+              <input
+                type="number"
+                min="1"
+                value={poolCount}
+                onChange={(e) => setPoolCount(e.target.value)}
+                style={{ width: '4rem' }}
+              />
+            </dd>
+            <dt>Advance</dt>
+            <dd>
+              top{' '}
+              <input
+                type="number"
+                min="1"
+                value={advanceCount}
+                onChange={(e) => setAdvanceCount(e.target.value)}
+                style={{ width: '4rem' }}
+              />{' '}
+              per pool
+            </dd>
+          </dl>
         )}
       </section>
 
@@ -345,6 +383,11 @@ export default function TeamsAdmin({
                     value={team.name}
                     onChange={(e) => renameTeam(ti, e.target.value)}
                   />
+                  {format === 'pool_bracket' && (
+                    <span className="team-pool-tag">
+                      Pool {poolLabelAt(ti, clampPoolCount(Number(poolCount) || 2, teams.length))}
+                    </span>
+                  )}
                   <ul>
                     {team.members.map((m) => (
                       <li key={m.key}>
