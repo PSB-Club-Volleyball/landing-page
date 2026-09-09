@@ -2,7 +2,7 @@ import type { Env } from '../_lib/env'
 import { badRequest, json, notFound } from '../_lib/http'
 import { getSessionUser } from '../_lib/session'
 import { computeStandings } from '../_lib/standings'
-import { addMinutes, readScheduleConfig } from '../_lib/schedule'
+import { readScheduleConfig, slotStartTime } from '../_lib/schedule'
 
 // GET /api/events/:id -> a single published or cancelled event, for its own
 // public page at /events/:eventId. Drafts stay admin-only (404 here). Unlike
@@ -124,9 +124,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       ...r,
       scores: r.scores ? (JSON.parse(r.scores) as [number, number][]) : null,
     }))
+    const slotCount = parsedMatches.reduce((max, r) => Math.max(max, r.slot + 1), 0)
     matches = parsedMatches.map((r) => ({
       ...r,
-      start_time: addMinutes(event.start_time, r.slot * scheduleConfig.slot_minutes),
+      start_time: slotStartTime(event.start_time, r.slot, slotCount, scheduleConfig.total_minutes),
     }))
     if (!scheduleConfig.timed_only) {
       const rows = computeStandings(

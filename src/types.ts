@@ -142,7 +142,9 @@ export interface TeamsResponse {
 export interface ScheduleConfig {
   courts: number
   sets_per_match: 1 | 3 | 5
-  slot_minutes: number
+  // Whole minutes the whole event runs for; match start times are spread
+  // evenly across it (start_time .. start_time + total_minutes).
+  total_minutes: number
   // No score entry — the event just publishes the rotation with courts and
   // times. Standings are hidden.
   timed_only: boolean
@@ -163,7 +165,8 @@ export interface EventMatch {
   scores: [number, number][] | null
   forfeit_team_id: number | null
   winner_id: number | null
-  // Wall-clock start, derived from the event start + slot * slot_minutes.
+  // Wall-clock start, derived from the event start + the slot's share of
+  // total_minutes.
   start_time: string | null
 }
 

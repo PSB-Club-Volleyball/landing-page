@@ -3,7 +3,7 @@ import { badRequest, json, notFound } from '../../../_lib/http'
 import type { AdminData } from '../../_lib/types'
 import { logAudit } from '../../_lib/audit'
 import { computeStandings } from '../../../_lib/standings'
-import { addMinutes, readScheduleConfig, type ScheduleConfig } from '../../../_lib/schedule'
+import { readScheduleConfig, slotStartTime, type ScheduleConfig } from '../../../_lib/schedule'
 
 interface MatchRow {
   id: number
@@ -45,7 +45,9 @@ async function loadPayload(env: Env, eventId: number) {
     .bind(eventId)
     .all<MatchRow>()
 
-  const matches = (matchRows.results ?? []).map((r) => ({
+  const rows = matchRows.results ?? []
+  const slotCount = rows.reduce((max, r) => Math.max(max, r.slot + 1), 0)
+  const matches = rows.map((r) => ({
     id: r.id,
     bracket: r.bracket,
     round: r.round,
@@ -58,7 +60,7 @@ async function loadPayload(env: Env, eventId: number) {
     scores: r.scores ? (JSON.parse(r.scores) as [number, number][]) : null,
     forfeit_team_id: r.forfeit_team_id,
     winner_id: r.winner_id,
-    start_time: addMinutes(event.start_time, r.slot * config.slot_minutes),
+    start_time: slotStartTime(event.start_time, r.slot, slotCount, config.total_minutes),
   }))
 
   const teamList = (teams.results ?? []).map((t) => ({ id: t.id, name: t.name }))
@@ -95,7 +97,7 @@ function validateSchedule(body: unknown, teamIds: Set<number>): ScheduleInput | 
   if (!c) return 'config is required'
   if (typeof c.courts !== 'number' || c.courts < 1) return 'courts must be at least 1'
   if (c.sets_per_match !== 1 && c.sets_per_match !== 3 && c.sets_per_match !== 5) return 'sets_per_match must be 1, 3, or 5'
-  if (typeof c.slot_minutes !== 'number' || c.slot_minutes < 1) return 'slot_minutes must be at least 1'
+  if (typeof c.total_minutes !== 'number' || c.total_minutes < 1) return 'total_minutes must be at least 1'
   if (!Array.isArray(b.matches)) return 'matches must be an array'
   for (const m of b.matches as Record<string, unknown>[]) {
     if (!Number.isInteger(m.round) || (m.round as number) < 1) return 'each match needs a round of 1 or more'
@@ -133,9 +135,10 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const existingConfig = event.format_config ? (JSON.parse(event.format_config) as Record<string, unknown>) : {}
   const mergedConfig = {
     ...existingConfig,
+    slot_minutes: undefined, // drop the legacy per-slot field
     courts: Math.floor(parsed.config.courts),
     sets_per_match: parsed.config.sets_per_match,
-    slot_minutes: Math.floor(parsed.config.slot_minutes),
+    total_minutes: Math.floor(parsed.config.total_minutes),
     timed_only: Boolean(parsed.config.timed_only),
     double_round_robin: Boolean(parsed.config.double_round_robin),
   }
@@ -167,9 +170,9 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 }
 
 // PATCH /api/admin/events/:id/matches -> update only the schedule knobs
-// (courts, sets per match, slot length, timed-only, double round robin),
+// (courts, sets per match, total time, timed-only, double round robin),
 // leaving the match list and any entered scores untouched. Slot times in the
-// response reflect the new slot_minutes.
+// response reflect the new total.
 export const onRequestPatch: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
@@ -185,15 +188,16 @@ export const onRequestPatch: PagesFunction<Env, 'id', AdminData> = async ({ requ
   if (c.courts != null && (typeof c.courts !== 'number' || c.courts < 1)) return badRequest('courts must be at least 1')
   if (c.sets_per_match != null && c.sets_per_match !== 1 && c.sets_per_match !== 3 && c.sets_per_match !== 5)
     return badRequest('sets_per_match must be 1, 3, or 5')
-  if (c.slot_minutes != null && (typeof c.slot_minutes !== 'number' || c.slot_minutes < 1))
-    return badRequest('slot_minutes must be at least 1')
+  if (c.total_minutes != null && (typeof c.total_minutes !== 'number' || c.total_minutes < 1))
+    return badRequest('total_minutes must be at least 1')
 
   const existing = event.format_config ? (JSON.parse(event.format_config) as Record<string, unknown>) : {}
   const merged = {
     ...existing,
+    slot_minutes: undefined,
     ...(c.courts != null ? { courts: Math.floor(c.courts) } : {}),
     ...(c.sets_per_match != null ? { sets_per_match: c.sets_per_match } : {}),
-    ...(c.slot_minutes != null ? { slot_minutes: Math.floor(c.slot_minutes) } : {}),
+    ...(c.total_minutes != null ? { total_minutes: Math.floor(c.total_minutes) } : {}),
     ...(c.timed_only != null ? { timed_only: Boolean(c.timed_only) } : {}),
     ...(c.double_round_robin != null ? { double_round_robin: Boolean(c.double_round_robin) } : {}),
   }
