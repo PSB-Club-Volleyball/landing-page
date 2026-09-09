@@ -140,6 +140,7 @@ function SignupModal({
   }
 
   const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
+  const deadlinePassed = event.signup_deadline !== null && new Date(event.signup_deadline) < new Date()
   const verb = event.rsvp_gated
     ? 'Request'
     : event.event_type === 'game' || event.event_type === 'tournament'
@@ -242,8 +243,13 @@ function SignupModal({
             </div>
 
             {loadError && <p className="admin-error" role="alert">{loadError}</p>}
+            {!loadError && deadlinePassed && (
+              <p className="admin-error" role="alert">
+                The signup deadline for this event has passed.
+              </p>
+            )}
 
-            {!loadError && (
+            {!loadError && !deadlinePassed && (
               <form className="signup-form" onSubmit={onLastPage ? handleSubmit : (e) => e.preventDefault()}>
                 {pageIndex === 0 && (
                   <>

@@ -55,6 +55,7 @@ const emptyDraft = {
   form_id: '' as string, // '' = none chosen yet
   capacity: '' as string,
   tags: '' as string, // comma-separated
+  signup_deadline: '' as string, // '' = no deadline, signup stays open until the event starts
 }
 type Draft = typeof emptyDraft
 
@@ -74,6 +75,7 @@ function toInput(draft: Draft) {
     rsvp_gated: draft.signup_enabled && draft.rsvp_gated,
     form_id: draft.signup_enabled && draft.form_id ? Number(draft.form_id) : null,
     capacity: draft.signup_enabled && draft.capacity ? Number(draft.capacity) : null,
+    signup_deadline: draft.signup_enabled && draft.signup_deadline ? draft.signup_deadline : null,
     tags: draft.tags
       ? draft.tags
           .split(',')
@@ -102,6 +104,7 @@ function eventToDraft(e: AdminEventRow): Draft {
     form_id: e.form_id !== null ? String(e.form_id) : '',
     capacity: e.capacity !== null ? String(e.capacity) : '',
     tags: e.tags ?? '',
+    signup_deadline: e.signup_deadline ?? '',
   }
 }
 
@@ -265,6 +268,14 @@ function SignupFields({
               min="0"
               value={draft.capacity}
               onChange={(e) => onChange({ ...draft, capacity: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            Signup deadline <span className="field-hint">(optional &mdash; closes signup before the event starts)</span>
+            <input
+              type="datetime-local"
+              value={draft.signup_deadline}
+              onChange={(e) => onChange({ ...draft, signup_deadline: e.target.value })}
             />
           </label>
         </div>

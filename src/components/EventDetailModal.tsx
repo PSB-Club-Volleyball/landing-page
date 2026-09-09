@@ -1,6 +1,13 @@
 import { useId } from 'react'
 import { WAIVER_URL } from '../constants'
-import { directionsUrl, EVENT_TYPE_LABELS, formatEventDate, formatTimeRange, getSignupState } from '../lib/eventFormat'
+import {
+  directionsUrl,
+  EVENT_TYPE_LABELS,
+  formatEventDate,
+  formatSignupDeadline,
+  formatTimeRange,
+  getSignupState,
+} from '../lib/eventFormat'
 import { renderMarkdown } from '../lib/markdown'
 import { useModalFocus } from '../lib/useModalFocus'
 import type { PublicClubEvent, SignupStatus } from '../types'
@@ -19,7 +26,7 @@ function EventDetailModal({
   const dialogRef = useModalFocus<HTMLDivElement>(onClose)
   const titleId = useId()
 
-  const { spotsLeft, isFull, joinsWaitlist, verb } = getSignupState(event)
+  const { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb } = getSignupState(event)
   const mySignupId = event.my_signup_id
   const myStatus: SignupStatus | null = event.my_signup_status
   const tags = event.tags
@@ -102,14 +109,22 @@ function EventDetailModal({
               <button
                 className={isFull && !joinsWaitlist ? 'btn btn-outline' : 'btn btn-ace'}
                 type="button"
-                disabled={isFull && !joinsWaitlist}
+                disabled={deadlinePassed || (isFull && !joinsWaitlist)}
                 onClick={() => onOpenSignup(event)}
               >
-                {joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
+                {deadlinePassed ? 'Signup closed' : joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
               </button>
             )}
           </div>
         )}
+
+        {event.status !== 'cancelled' &&
+          event.signup_enabled &&
+          !mySignupId &&
+          !deadlinePassed &&
+          event.signup_deadline && (
+            <p className="event-card-deadline">Signup closes {formatSignupDeadline(event.signup_deadline)}</p>
+          )}
 
         {event.status !== 'cancelled' && event.signup_enabled && (
           <p className="waiver-download-note">

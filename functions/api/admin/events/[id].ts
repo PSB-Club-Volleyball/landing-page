@@ -21,6 +21,7 @@ const FIELDS = [
   'form_id',
   'capacity',
   'tags',
+  'signup_deadline',
 ] as const
 
 // PUT /api/admin/events/:id -> partial update, any subset of FIELDS

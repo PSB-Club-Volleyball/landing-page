@@ -31,7 +31,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const event = await env.DB.prepare(
-    `SELECT id, title, start_time, location_name, status, signup_enabled, rsvp_gated, form_id, capacity
+    `SELECT id, title, start_time, location_name, status, signup_enabled, rsvp_gated, form_id, capacity,
+            signup_deadline, datetime(signup_deadline) < datetime('now') AS deadline_passed
      FROM events WHERE id = ?1`
   )
     .bind(eventId)
@@ -45,9 +46,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       rsvp_gated: number
       form_id: number | null
       capacity: number | null
+      signup_deadline: string | null
+      deadline_passed: number | null
     }>()
   if (!event || event.status !== 'published') return notFound('Event not found')
   if (!event.signup_enabled) return badRequest('Signup is not open for this event')
+  if (event.signup_deadline && event.deadline_passed) return badRequest('The signup deadline for this event has passed')
 
   const body = await request.json<Partial<SignupInput>>().catch(() => null)
   if (!body || !body.name?.trim() || !body.email?.trim()) return badRequest('name and email are required')
