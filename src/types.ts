@@ -308,7 +308,6 @@ export interface MediaItem {
   created_at: string
 }
 
-export type UserStatus = 'pending' | 'approved' | 'denied'
 // Hierarchical, not independent flags: each tier includes the permissions
 // of the ones below it — outsider < club_member < admin < owner.
 export type UserRole = 'outsider' | 'club_member' | 'admin' | 'owner'
@@ -319,7 +318,6 @@ export interface AuthUser {
   name: string | null
   avatarUrl: string | null
   provider: string
-  status: UserStatus
   role: UserRole
   waiverSignedYear: number | null
 }
@@ -331,13 +329,12 @@ export interface LoginSettings {
   roster_visible: boolean
 }
 
-export interface PendingUser {
+export interface AdminUser {
   id: number
   email: string
   name: string | null
   avatar_url: string | null
   provider: string
-  status: UserStatus
   role: UserRole
   position: string | null
   team: Team | null
@@ -348,9 +345,7 @@ export interface PendingUser {
   // Flagged by an admin (e.g. repeated no-shows/late cancellations) so this
   // person's signups never auto-confirm — see events/[id]/signups.ts.
   rsvp_restricted: boolean
-  requested_at: string
-  decided_at: string | null
-  decided_by: number | null
+  created_at: string
 }
 
 export interface AuditEntry {

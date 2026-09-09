@@ -3,7 +3,7 @@ import { adminApi } from '../../lib/adminApi'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { useSelection } from '../../lib/useSelection'
-import type { BoardMember, PendingUser, Player } from '../../types'
+import type { BoardMember, AdminUser, Player } from '../../types'
 
 const emptyDraft = { season: '', role: '', first_name: '', last_name: '', email: '' }
 type Draft = typeof emptyDraft
@@ -24,7 +24,7 @@ function splitName(name: string): { first_name: string; last_name: string } {
   return { first_name: first_name ?? '', last_name: rest.join(' ') }
 }
 
-function userToPerson(u: PendingUser): Person {
+function userToPerson(u: AdminUser): Person {
   return { source: 'member', id: u.id, email: u.email, ...splitName(u.name || u.email) }
 }
 
@@ -156,7 +156,7 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editDraft, setEditDraft] = useState<Draft>(emptyDraft)
-  const [clubMembers, setClubMembers] = useState<PendingUser[]>([])
+  const [clubMembers, setClubMembers] = useState<AdminUser[]>([])
   const [players, setPlayers] = useState<Player[]>([])
   // The role-slot section always assigns into whatever season is set as
   // current (Settings tab) — no separate season picker here to keep in sync.
@@ -177,7 +177,7 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   useEffect(() => {
     adminApi.users
       .list()
-      .then((res) => setClubMembers(res.users.filter((u) => u.status === 'approved')))
+      .then((res) => setClubMembers(res.users))
       .catch(() => {})
     adminApi.roster
       .list()

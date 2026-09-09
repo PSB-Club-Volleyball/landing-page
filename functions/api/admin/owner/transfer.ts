@@ -5,8 +5,8 @@ import { logAudit } from '../_lib/audit'
 import { requireOwner } from '../_lib/permissions'
 
 // POST /api/admin/owner/transfer  Body: { to_user_id: number }
-// Hands ownership to another approved user, e.g. at end of year. Both role
-// flips run in one batch so the DB never has zero or two owners mid-flight.
+// Hands ownership to another user, e.g. at end of year. Both role flips run
+// in one batch so the DB never has zero or two owners mid-flight.
 export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ request, env, data }) => {
   const denied = requireOwner(data)
   if (denied) return denied
@@ -16,11 +16,10 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
   if (!toUserId || !Number.isInteger(toUserId)) return badRequest('to_user_id is required')
   if (toUserId === data.user.id) return badRequest('Already the owner')
 
-  const target = await env.DB.prepare(`SELECT id, status FROM users WHERE id = ?1`)
+  const target = await env.DB.prepare(`SELECT id FROM users WHERE id = ?1`)
     .bind(toUserId)
-    .first<{ id: number; status: string }>()
+    .first<{ id: number }>()
   if (!target) return notFound('User not found')
-  if (target.status !== 'approved') return badRequest('Ownership can only transfer to an approved user')
 
   await env.DB.batch([
     env.DB.prepare(`UPDATE users SET role = 'admin' WHERE id = ?1`).bind(data.user.id),

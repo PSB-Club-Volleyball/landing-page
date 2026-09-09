@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../../types'
-import { adminApi, logout } from '../../lib/adminApi'
+import { logout } from '../../lib/adminApi'
 import MenuIcon from '../../components/MenuIcon'
 import RosterAdmin from './RosterAdmin'
 import BoardAdmin from './BoardAdmin'
@@ -40,12 +40,10 @@ function ConsoleTab({
   tab,
   user,
   isOwner,
-  onUsersChange,
 }: {
   tab: Tab
   user: AuthUser
   isOwner: boolean
-  onUsersChange: () => void
 }) {
   switch (tab) {
     case 'roster':
@@ -59,7 +57,7 @@ function ConsoleTab({
     case 'media':
       return <MediaAdmin isOwner={isOwner} />
     case 'users':
-      return <UsersAdmin currentUser={user} onChange={onUsersChange} />
+      return <UsersAdmin currentUser={user} />
     case 'audit-log':
       return isOwner ? <AuditLogAdmin /> : null
     case 'settings':
@@ -72,21 +70,12 @@ function AdminLayout({ user }: { user: AuthUser }) {
   const location = useLocation()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('roster')
-  const [pendingCount, setPendingCount] = useState(0)
-  const [pendingRefresh, setPendingRefresh] = useState(0)
   const [navOpen, setNavOpen] = useState(false)
 
   // The console's own screens are on the /admin index; a routed sub-page
   // (e.g. an event) lives at its own path. The sidebar always returns to the
   // console — the tab state persists because AdminLayout never unmounts.
   const onConsole = location.pathname === '/admin' || location.pathname === '/admin/'
-
-  useEffect(() => {
-    adminApi.users
-      .list()
-      .then((res) => setPendingCount(res.users.filter((u) => u.status === 'pending').length))
-      .catch(() => {})
-  }, [tab, pendingRefresh])
 
   function pickTab(next: Tab) {
     setTab(next)
@@ -135,7 +124,6 @@ function AdminLayout({ user }: { user: AuthUser }) {
               onClick={() => pickTab(t.key)}
             >
               {t.label}
-              {t.key === 'users' && isOwner && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
             </button>
           ))}
         </nav>
@@ -144,12 +132,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
             <Route
               index
               element={
-                <ConsoleTab
-                  tab={tab}
-                  user={user}
-                  isOwner={isOwner}
-                  onUsersChange={() => setPendingRefresh((n) => n + 1)}
-                />
+                <ConsoleTab tab={tab} user={user} isOwner={isOwner} />
               }
             />
             <Route path="events/:eventId" element={<AdminEventPage isOwner={isOwner} />} />

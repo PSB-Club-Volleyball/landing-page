@@ -4,18 +4,17 @@ import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { downloadCsv, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
-import type { AuthUser, PendingUser, Team, UserRole } from '../../types'
+import type { AdminUser, AuthUser, Team, UserRole } from '../../types'
 
 // No CSV import here: accounts are created by signing in (OAuth), not by an
 // admin typing rows into a spreadsheet, so there's no legitimate "create a
 // user from a CSV" action to offer.
-function exportUsersCsv(users: PendingUser[]) {
+function exportUsersCsv(users: AdminUser[]) {
   const csv = toCsv(
-    ['Name', 'Email', 'Status', 'Role', 'Position', 'Team', 'Waiver signed year', 'Dues paid year', 'RSVP restricted'],
+    ['Name', 'Email', 'Role', 'Position', 'Team', 'Waiver signed year', 'Dues paid year', 'RSVP restricted'],
     users.map((u) => [
       u.name,
       u.email,
-      u.status,
       u.role,
       u.position,
       u.team,
@@ -41,16 +40,14 @@ function UserRow({
   onToggleSelected,
   onSaved,
   onError,
-  onDecide,
   onRemove,
 }: {
-  user: PendingUser
+  user: AdminUser
   isOwner: boolean
   selected: boolean
   onToggleSelected: () => void
   onSaved: () => void
   onError: (msg: string) => void
-  onDecide: (status: 'approved' | 'denied') => void
   onRemove: () => void
 }) {
   const [role, setRole] = useState<Exclude<UserRole, 'owner'>>(user.role === 'owner' ? 'admin' : user.role)
@@ -106,11 +103,10 @@ function UserRow({
     }
   }
 
-  // Only the owner may touch role or approval status on a row that's
-  // currently admin — even the admin's own row. Waiver/dues verification and
-  // basic profile fields (name/position/team) are never guarded — any admin
-  // can mark another admin's waiver/dues and edit their basic info,
-  // including their own.
+  // Only the owner may re-role a row that's currently admin — even the
+  // admin's own row. Waiver/dues verification and basic profile fields
+  // (name/position/team) are never guarded — any admin can mark another
+  // admin's waiver/dues and edit their basic info, including their own.
   const ownerOnly = !isOwner && user.role === 'admin'
   const roleOptions: Exclude<UserRole, 'owner'>[] = isOwner
     ? ['outsider', 'club_member', 'admin']
@@ -154,9 +150,6 @@ function UserRow({
         />
       </td>
       <td>{user.email}</td>
-      <td>
-        <span className={`status-chip status-${user.status}`}>{user.status}</span>
-      </td>
       <td>
         {ownerOnly ? (
           <span className={`role-chip role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
@@ -250,16 +243,6 @@ function UserRow({
           <button type="button" disabled={!dirty || saving} onClick={save}>
             {saving ? 'Saving…' : 'Save'}
           </button>
-          {!ownerOnly && user.status !== 'denied' && (
-            <button type="button" className="danger" onClick={() => onDecide('denied')}>
-              Deny
-            </button>
-          )}
-          {!ownerOnly && user.status === 'denied' && (
-            <button type="button" onClick={() => onDecide('approved')}>
-              Re-approve
-            </button>
-          )}
           {!ownerOnly && (
             <button type="button" className="danger" onClick={onRemove}>
               Delete
@@ -275,9 +258,9 @@ function UserRow({
 // its own header row, so e.g. all club members sit together.
 const ROLE_GROUP_ORDER: UserRole[] = ['admin', 'club_member', 'outsider']
 
-function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange: () => void }) {
+function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
   const isOwner = currentUser.role === 'owner'
-  const [users, setUsers] = useState<PendingUser[]>([])
+  const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [transferTo, setTransferTo] = useState('')
@@ -296,23 +279,12 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
 
   useEffect(refresh, [])
 
-  async function decide(id: number, status: 'approved' | 'denied') {
-    try {
-      await adminApi.users.decide(id, status)
-      refresh()
-      onChange()
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }
-
   async function remove(id: number, label: string) {
     if (!confirm(`Delete ${label}? This removes their account, sessions, and roster link. This can't be undone.`))
       return
     try {
       await adminApi.users.remove(id)
       refresh()
-      onChange()
     } catch (e) {
       setError((e as Error).message)
     }
@@ -324,12 +296,9 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
     setError(summarizeBulk(result, verb))
     selection.clear()
     refresh()
-    onChange()
     setBulkBusy(false)
   }
 
-  const applyBulkApprove = () => runSelectedBulk('Bulk approve', (id) => adminApi.users.decide(id, 'approved'))
-  const applyBulkDeny = () => runSelectedBulk('Bulk deny', (id) => adminApi.users.decide(id, 'denied'))
   const applyBulkRole = () => runSelectedBulk('Bulk role change', (id) => adminApi.users.update(id, { role: bulkRole }))
 
   async function transferOwnership() {
@@ -341,21 +310,18 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
       await adminApi.users.transferOwnership(target.id)
       setTransferTo('')
       refresh()
-      onChange()
     } catch (e) {
       setError((e as Error).message)
     }
   }
 
-  const pending = users.filter((u) => u.status === 'pending')
-  const decided = users.filter((u) => u.status !== 'pending')
   const owner = users.find((u) => u.role === 'owner')
-  const others = decided.filter((u) => u.role !== 'owner')
+  const others = users.filter((u) => u.role !== 'owner')
   const roleGroups = ROLE_GROUP_ORDER.map((role) => ({
     role,
     members: others.filter((u) => u.role === role),
   })).filter((g) => g.members.length > 0)
-  const transferCandidates = users.filter((u) => u.status === 'approved' && u.role !== 'owner')
+  const transferCandidates = others
 
   return (
     <>
@@ -372,49 +338,11 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
         Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
         someone to club member or admin below.
         {!isOwner &&
-          " Only the owner can grant admin, or change another admin's role or approval status — anyone's name, position, team, waiver, and dues can still be edited by an admin."}
+          " Only the owner can grant admin or change another admin's role — anyone's name, position, team, waiver, and dues can still be edited by an admin."}
       </p>
       {loading && <p>Loading&hellip;</p>}
 
-      {!loading && pending.length > 0 && (
-        <div className="approvals-panel">
-          <div className="ap-head">Pending approvals — {pending.length}</div>
-          {pending.map((u) => (
-            <div className="ap-row" key={u.id}>
-              <input
-                type="checkbox"
-                checked={selection.isSelected(u.id)}
-                onChange={() => selection.toggle(u.id)}
-              />
-              <div className="ap-info">
-                <span className="ap-name">{u.name || u.email}</span>
-                <br />
-                <span className="ap-email">{u.email}</span>
-              </div>
-              <span className="provider-chip">{u.provider}</span>
-              <div className="ap-actions">
-                <button className="approve-btn" type="button" onClick={() => decide(u.id, 'approved')}>
-                  Approve
-                </button>
-                <button className="deny-btn" type="button" onClick={() => decide(u.id, 'denied')}>
-                  Deny
-                </button>
-                <button className="deny-btn" type="button" onClick={() => remove(u.id, u.name || u.email)}>
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
-        <button type="button" disabled={bulkBusy} onClick={applyBulkApprove}>
-          Approve selected
-        </button>
-        <button type="button" className="danger" disabled={bulkBusy} onClick={applyBulkDeny}>
-          Deny selected
-        </button>
         <select value={bulkRole} onChange={(e) => setBulkRole(e.target.value as Exclude<UserRole, 'owner'>)}>
           <option value="outsider">Outsider</option>
           <option value="club_member">Club member</option>
@@ -439,7 +367,6 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                 </th>
                 <th>Name</th>
                 <th>Email</th>
-                <th>Status</th>
                 <th>Role</th>
                 <th>Position</th>
                 <th>Team</th>
@@ -455,9 +382,6 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                   <td />
                   <td>{owner.name || '—'}</td>
                   <td>{owner.email}</td>
-                  <td>
-                    <span className={`status-chip status-${owner.status}`}>{owner.status}</span>
-                  </td>
                   <td>
                     <span className="role-chip role-owner">Owner</span>
                   </td>
@@ -481,7 +405,6 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                       onToggleSelected={() => selection.toggle(u.id)}
                       onSaved={refresh}
                       onError={setError}
-                      onDecide={(status) => decide(u.id, status)}
                       onRemove={() => remove(u.id, u.name || u.email)}
                     />
                   ))}
@@ -496,7 +419,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
         <div className="admin-form" style={{ marginTop: '1.5rem' }}>
           <span>Transfer ownership to:</span>
           <select value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>
-            <option value="">Select an approved user&hellip;</option>
+            <option value="">Select a user&hellip;</option>
             {transferCandidates.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name || u.email}
