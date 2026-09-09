@@ -245,7 +245,7 @@ function SignupModal({
             {loadError && <p className="admin-error" role="alert">{loadError}</p>}
             {!loadError && deadlinePassed && (
               <p className="admin-error" role="alert">
-                The signup deadline for this event has passed.
+                Deadline for registration passed.
               </p>
             )}
 
