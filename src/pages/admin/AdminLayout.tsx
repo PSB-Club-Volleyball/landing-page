@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../../types'
 import { adminApi, logout } from '../../lib/adminApi'
 import MenuIcon from '../../components/MenuIcon'
 import RosterAdmin from './RosterAdmin'
 import BoardAdmin from './BoardAdmin'
 import EventsAdmin from './EventsAdmin'
+import AdminEventPage from './AdminEventPage'
 import FormsAdmin from './FormsAdmin'
 import MediaAdmin from './MediaAdmin'
 import UsersAdmin from './UsersAdmin'
@@ -35,18 +36,63 @@ function initials(user: AuthUser) {
     .toUpperCase()
 }
 
+function ConsoleTab({
+  tab,
+  user,
+  isOwner,
+  onUsersChange,
+}: {
+  tab: Tab
+  user: AuthUser
+  isOwner: boolean
+  onUsersChange: () => void
+}) {
+  switch (tab) {
+    case 'roster':
+      return <RosterAdmin isOwner={isOwner} />
+    case 'board':
+      return <BoardAdmin isOwner={isOwner} />
+    case 'events':
+      return <EventsAdmin isOwner={isOwner} />
+    case 'forms':
+      return <FormsAdmin isOwner={isOwner} />
+    case 'media':
+      return <MediaAdmin isOwner={isOwner} />
+    case 'users':
+      return <UsersAdmin currentUser={user} onChange={onUsersChange} />
+    case 'audit-log':
+      return isOwner ? <AuditLogAdmin /> : null
+    case 'settings':
+      return isOwner ? <SettingsAdmin /> : null
+  }
+}
+
 function AdminLayout({ user }: { user: AuthUser }) {
   const isOwner = user.role === 'owner'
+  const location = useLocation()
+  const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('roster')
   const [pendingCount, setPendingCount] = useState(0)
+  const [pendingRefresh, setPendingRefresh] = useState(0)
   const [navOpen, setNavOpen] = useState(false)
+
+  // The console's own screens are on the /admin index; a routed sub-page
+  // (e.g. an event) lives at its own path. The sidebar always returns to the
+  // console — the tab state persists because AdminLayout never unmounts.
+  const onConsole = location.pathname === '/admin' || location.pathname === '/admin/'
 
   useEffect(() => {
     adminApi.users
       .list()
       .then((res) => setPendingCount(res.users.filter((u) => u.status === 'pending').length))
       .catch(() => {})
-  }, [tab])
+  }, [tab, pendingRefresh])
+
+  function pickTab(next: Tab) {
+    setTab(next)
+    setNavOpen(false)
+    if (!onConsole) navigate('/admin')
+  }
 
   return (
     <div className="admin-shell">
@@ -85,11 +131,8 @@ function AdminLayout({ user }: { user: AuthUser }) {
             <button
               key={t.key}
               type="button"
-              className={tab === t.key ? 'active' : undefined}
-              onClick={() => {
-                setTab(t.key)
-                setNavOpen(false)
-              }}
+              className={onConsole && tab === t.key ? 'active' : undefined}
+              onClick={() => pickTab(t.key)}
             >
               {t.label}
               {t.key === 'users' && isOwner && pendingCount > 0 && <span className="badge">{pendingCount}</span>}
@@ -97,14 +140,20 @@ function AdminLayout({ user }: { user: AuthUser }) {
           ))}
         </nav>
         <div className="admin-main">
-          {tab === 'roster' && <RosterAdmin isOwner={isOwner} />}
-          {tab === 'board' && <BoardAdmin isOwner={isOwner} />}
-          {tab === 'events' && <EventsAdmin isOwner={isOwner} />}
-          {tab === 'forms' && <FormsAdmin isOwner={isOwner} />}
-          {tab === 'media' && <MediaAdmin isOwner={isOwner} />}
-          {tab === 'users' && <UsersAdmin currentUser={user} onChange={() => setTab('users')} />}
-          {tab === 'audit-log' && isOwner && <AuditLogAdmin />}
-          {tab === 'settings' && isOwner && <SettingsAdmin />}
+          <Routes>
+            <Route
+              index
+              element={
+                <ConsoleTab
+                  tab={tab}
+                  user={user}
+                  isOwner={isOwner}
+                  onUsersChange={() => setPendingRefresh((n) => n + 1)}
+                />
+              }
+            />
+            <Route path="events/:eventId" element={<AdminEventPage isOwner={isOwner} />} />
+          </Routes>
         </div>
       </div>
     </div>
