@@ -143,7 +143,7 @@ function EventCard({
                 onOpenSignup(event)
               }}
             >
-              {deadlinePassed ? 'Signup closed' : joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
+              {deadlinePassed ? 'Deadline for registration passed' : joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
             </button>
           )}
         </div>

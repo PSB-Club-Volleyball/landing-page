@@ -51,7 +51,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     }>()
   if (!event || event.status !== 'published') return notFound('Event not found')
   if (!event.signup_enabled) return badRequest('Signup is not open for this event')
-  if (event.signup_deadline && event.deadline_passed) return badRequest('The signup deadline for this event has passed')
+  if (event.signup_deadline && event.deadline_passed) return badRequest('Deadline for registration passed')
 
   const body = await request.json<Partial<SignupInput>>().catch(() => null)
   if (!body || !body.name?.trim() || !body.email?.trim()) return badRequest('name and email are required')
