@@ -22,6 +22,7 @@ const FIELDS = [
   'capacity',
   'tags',
   'signup_deadline',
+  'released_early',
 ] as const
 
 // PUT /api/admin/events/:id -> partial update, any subset of FIELDS
@@ -37,7 +38,9 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 
   const setClause = updates.map((field, i) => `${field} = ?${i + 1}`).join(', ')
   const values = updates.map((field) =>
-    field === 'signup_enabled' || field === 'rsvp_gated' ? (body[field] ? 1 : 0) : body[field]
+    field === 'signup_enabled' || field === 'rsvp_gated' || field === 'released_early'
+      ? (body[field] ? 1 : 0)
+      : body[field]
   )
 
   const result = await env.DB.prepare(
