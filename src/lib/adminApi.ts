@@ -124,6 +124,7 @@ export const adminApi = {
         rsvp_restricted?: boolean
       }
     ) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
+    remove: (id: number) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'DELETE' }),
     transferOwnership: (toUserId: number) =>
       request<{ ok: true }>('/api/admin/owner/transfer', {
         method: 'POST',

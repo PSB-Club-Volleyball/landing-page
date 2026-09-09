@@ -42,6 +42,7 @@ function UserRow({
   onSaved,
   onError,
   onDecide,
+  onRemove,
 }: {
   user: PendingUser
   isOwner: boolean
@@ -50,6 +51,7 @@ function UserRow({
   onSaved: () => void
   onError: (msg: string) => void
   onDecide: (status: 'approved' | 'denied') => void
+  onRemove: () => void
 }) {
   const [role, setRole] = useState<Exclude<UserRole, 'owner'>>(user.role === 'owner' ? 'admin' : user.role)
   const [name, setName] = useState(user.name ?? '')
@@ -258,6 +260,11 @@ function UserRow({
               Re-approve
             </button>
           )}
+          {!ownerOnly && (
+            <button type="button" className="danger" onClick={onRemove}>
+              Delete
+            </button>
+          )}
         </span>
       </td>
     </tr>
@@ -292,6 +299,18 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
   async function decide(id: number, status: 'approved' | 'denied') {
     try {
       await adminApi.users.decide(id, status)
+      refresh()
+      onChange()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
+  async function remove(id: number, label: string) {
+    if (!confirm(`Delete ${label}? This removes their account, sessions, and roster link. This can't be undone.`))
+      return
+    try {
+      await adminApi.users.remove(id)
       refresh()
       onChange()
     } catch (e) {
@@ -380,6 +399,9 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                 <button className="deny-btn" type="button" onClick={() => decide(u.id, 'denied')}>
                   Deny
                 </button>
+                <button className="deny-btn" type="button" onClick={() => remove(u.id, u.name || u.email)}>
+                  Delete
+                </button>
               </div>
             </div>
           ))}
@@ -460,6 +482,7 @@ function UsersAdmin({ currentUser, onChange }: { currentUser: AuthUser; onChange
                       onSaved={refresh}
                       onError={setError}
                       onDecide={(status) => decide(u.id, status)}
+                      onRemove={() => remove(u.id, u.name || u.email)}
                     />
                   ))}
                 </Fragment>
