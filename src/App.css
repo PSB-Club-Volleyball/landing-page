@@ -921,11 +921,9 @@ main {
 }
 
 /* Public event page at /events/:eventId — replaces the old detail modal.
-   Shares the .board page frame; these rules cover the header, the meta
+   Uses the shared .board page frame at its full width, matching Roster,
+   the Events list, and Photos; these rules cover the header, the meta
    block, and the description body. */
-.event-page {
-  max-width: 780px;
-}
 .event-page-back {
   display: inline-block;
   margin-bottom: 1.4rem;
@@ -970,9 +968,19 @@ main {
 }
 .event-page-desc {
   margin-bottom: 1.4rem;
+  /* The page column matches the other pages' full width; the description is
+     the one prose block, so keep its measure readable. */
+  max-width: 68ch;
 }
 .event-page-signup {
-  margin-top: 0.4rem;
+  margin-top: 1.4rem;
+}
+/* Keep the liability-waiver note clear of the signup / RSVP row above it. */
+.event-page .waiver-download-note {
+  margin-top: 1.5rem;
+}
+.event-page .event-card-deadline + .waiver-download-note {
+  margin-top: 1rem;
 }
 .event-detail-desc {
   font-size: 0.88rem;
