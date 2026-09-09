@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import SignupModal from '../components/SignupModal'
 import EventTeams from '../components/EventTeams'
+import EventScores from '../components/EventScores'
 import { WAIVER_URL } from '../constants'
 import { ApiError, getEvent } from '../lib/api'
 import {
@@ -105,13 +106,25 @@ function EventDetail() {
   const tags = e.tags ? e.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
   const isCancelled = e.status === 'cancelled'
   const teams = e.teams ?? []
-  const tab: 'details' | 'teams' = searchParams.get('tab') === 'teams' && teams.length > 0 ? 'teams' : 'details'
-  const setTab = (next: 'details' | 'teams') =>
+  const matches = e.matches ?? []
+  const standings = e.standings ?? []
+  const timedOnly = Boolean(e.schedule_config?.timed_only)
+  const hasScores = matches.length > 0
+  const scoresLabel = timedOnly ? 'Schedule' : 'Scores'
+  type PageTab = 'details' | 'teams' | 'scores'
+  const requested = searchParams.get('tab')
+  const tab: PageTab =
+    requested === 'teams' && teams.length > 0
+      ? 'teams'
+      : requested === 'scores' && hasScores
+        ? 'scores'
+        : 'details'
+  const setTab = (next: PageTab) =>
     setSearchParams(
       (prev) => {
         const p = new URLSearchParams(prev)
-        if (next === 'teams') p.set('tab', 'teams')
-        else p.delete('tab')
+        if (next === 'details') p.delete('tab')
+        else p.set('tab', next)
         return p
       },
       { replace: true }
@@ -163,7 +176,7 @@ function EventDetail() {
           </div>
         )}
 
-        {teams.length > 0 && (
+        {(teams.length > 0 || hasScores) && (
           <div className="event-page-tabbar" role="tablist">
             <button
               type="button"
@@ -174,20 +187,35 @@ function EventDetail() {
             >
               Details
             </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'teams'}
-              className={tab === 'teams' ? 'active' : undefined}
-              onClick={() => setTab('teams')}
-            >
-              Teams <span className="event-tab-count">{teams.length}</span>
-            </button>
+            {teams.length > 0 && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'teams'}
+                className={tab === 'teams' ? 'active' : undefined}
+                onClick={() => setTab('teams')}
+              >
+                Teams <span className="event-tab-count">{teams.length}</span>
+              </button>
+            )}
+            {hasScores && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'scores'}
+                className={tab === 'scores' ? 'active' : undefined}
+                onClick={() => setTab('scores')}
+              >
+                {scoresLabel}
+              </button>
+            )}
           </div>
         )}
 
         {tab === 'teams' ? (
           <EventTeams teams={teams} />
+        ) : tab === 'scores' ? (
+          <EventScores matches={matches} standings={standings} timedOnly={timedOnly} />
         ) : (
           <>
         {isCancelled && <p className="event-card-desc">This event has been cancelled.</p>}

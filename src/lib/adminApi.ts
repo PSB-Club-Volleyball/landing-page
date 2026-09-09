@@ -11,6 +11,10 @@ import type {
   MediaType,
   PendingUser,
   Player,
+  MatchesResponse,
+  MatchResultInput,
+  ScheduleConfig,
+  ScheduleInput,
   SignupStatus,
   Team,
   TeamsInput,
@@ -82,6 +86,19 @@ export const adminApi = {
     teams: (eventId: number) => request<TeamsResponse>(`/api/admin/events/${eventId}/teams`),
     saveTeams: (eventId: number, input: TeamsInput) =>
       request<{ ok: true }>(`/api/admin/events/${eventId}/teams`, { method: 'PUT', body: JSON.stringify(input) }),
+    matches: (eventId: number) => request<MatchesResponse>(`/api/admin/events/${eventId}/matches`),
+    saveSchedule: (eventId: number, input: ScheduleInput) =>
+      request<MatchesResponse>(`/api/admin/events/${eventId}/matches`, { method: 'PUT', body: JSON.stringify(input) }),
+    saveScheduleConfig: (eventId: number, config: ScheduleConfig) =>
+      request<MatchesResponse>(`/api/admin/events/${eventId}/matches`, {
+        method: 'PATCH',
+        body: JSON.stringify({ config }),
+      }),
+    saveMatchResult: (eventId: number, matchId: number, input: MatchResultInput) =>
+      request<{ ok: true; winner_id: number | null }>(`/api/admin/events/${eventId}/matches/${matchId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      }),
   },
   forms: {
     list: () => request<{ forms: FormTemplate[] }>('/api/admin/forms'),

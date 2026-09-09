@@ -61,6 +61,12 @@ export interface PublicClubEvent extends ClubEvent {
   // the published teams, if any — drives the public "Teams" tab. Members
   // carry no contact info.
   teams?: PublicEventTeam[]
+  // Also single-event only: the chosen format and, once teams are published,
+  // the schedule + standings for the "Scores" / "Schedule" tab.
+  play_format?: PlayFormat | null
+  schedule_config?: ScheduleConfig | null
+  matches?: EventMatch[]
+  standings?: StandingRow[]
 }
 
 // How an event is contested once teams are formed. 'none' means teams only —
@@ -125,8 +131,76 @@ export interface TeamsResponse {
   play_format: PlayFormat | null
   format_config: Record<string, unknown> | null
   published: boolean
+  // True when a schedule already exists — re-saving teams clears it.
+  has_schedule: boolean
   teams: EventTeam[]
   participants: TeamParticipant[]
+}
+
+// Schedule knobs for a scored format, stored inside events.format_config
+// alongside team_count.
+export interface ScheduleConfig {
+  courts: number
+  sets_per_match: 1 | 3 | 5
+  slot_minutes: number
+  // No score entry — the event just publishes the rotation with courts and
+  // times. Standings are hidden.
+  timed_only: boolean
+  // Round robin only: every pairing plays twice.
+  double_round_robin: boolean
+}
+
+export interface EventMatch {
+  id: number
+  bracket: string
+  round: number
+  slot: number
+  court: string | null
+  team_a_id: number | null
+  team_b_id: number | null
+  team_a_name: string | null
+  team_b_name: string | null
+  scores: [number, number][] | null
+  forfeit_team_id: number | null
+  winner_id: number | null
+  // Wall-clock start, derived from the event start + slot * slot_minutes.
+  start_time: string | null
+}
+
+export interface StandingRow {
+  team_id: number
+  name: string
+  played: number
+  wins: number
+  losses: number
+  sets_won: number
+  sets_lost: number
+  points_for: number
+  points_against: number
+}
+
+export interface MatchesResponse {
+  config: ScheduleConfig
+  teams: { id: number; name: string }[]
+  matches: EventMatch[]
+  standings: StandingRow[]
+}
+
+export interface ScheduleInput {
+  config: ScheduleConfig
+  matches: {
+    bracket: string
+    round: number
+    slot: number
+    court: string | null
+    team_a_id: number | null
+    team_b_id: number | null
+  }[]
+}
+
+export interface MatchResultInput {
+  scores: [number, number][] | null
+  forfeit_team_id: number | null
 }
 
 // Admin's Events-tab row: same event, joined with the attached form's name
@@ -138,6 +212,7 @@ export interface AdminEventRow extends ClubEvent {
   signup_count: number
   series_id: number | null
   is_past: boolean
+  play_format: PlayFormat | null
   // Overrides the "series occurrences hide until 7 days out" rule (see
   // functions/api/events.ts) for this one occurrence — admin-only, like
   // series_id.
