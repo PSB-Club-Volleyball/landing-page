@@ -68,6 +68,10 @@ export interface AdminEventRow extends ClubEvent {
   signup_count: number
   series_id: number | null
   is_past: boolean
+  // Overrides the "series occurrences hide until 7 days out" rule (see
+  // functions/api/events.ts) for this one occurrence — admin-only, like
+  // series_id.
+  released_early: boolean
 }
 
 export type FieldType =

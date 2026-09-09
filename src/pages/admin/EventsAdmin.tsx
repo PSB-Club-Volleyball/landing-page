@@ -918,6 +918,15 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
     }
   }
 
+  async function handleToggleReleaseEarly(ev: AdminEventRow) {
+    try {
+      await adminApi.events.update(ev.id, { released_early: !ev.released_early })
+      refresh()
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   const seriesCounts = new Map<number, number>()
   for (const ev of events) {
     if (ev.series_id) seriesCounts.set(ev.series_id, (seriesCounts.get(ev.series_id) ?? 0) + 1)
@@ -1114,7 +1123,19 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                         <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
                       )}
                     </td>
-                    <td>{ev.series_id ? `Series of ${seriesCounts.get(ev.series_id) ?? 1}` : '—'}</td>
+                    <td>
+                      {ev.series_id ? (
+                        <>
+                          {`Series of ${seriesCounts.get(ev.series_id) ?? 1}`}
+                          <br />
+                          <button type="button" className="signups-toggle" onClick={() => handleToggleReleaseEarly(ev)}>
+                            {ev.released_early ? 'Showing early · hide again' : 'Show now'}
+                          </button>
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td>
                       {ev.signup_enabled ? (
                         <button

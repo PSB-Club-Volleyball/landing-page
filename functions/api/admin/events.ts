@@ -22,6 +22,7 @@ export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env 
     ...e,
     signup_enabled: Boolean(e.signup_enabled),
     rsvp_gated: Boolean(e.rsvp_gated),
+    released_early: Boolean(e.released_early),
     is_past: Boolean(e.is_past),
   }))
   return json({ events: withBooleans })
