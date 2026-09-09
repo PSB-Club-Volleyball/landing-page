@@ -37,7 +37,7 @@ export const onRequestDelete: PagesFunction<Env, 'id' | 'signupId'> = async ({ r
   let emailMatches = false
   if (!tokenMatches) {
     const sessionUser = await getSessionUser(request, env)
-    emailMatches = Boolean(sessionUser && sessionUser.status === 'approved' && sessionUser.email.toLowerCase() === signup.email.toLowerCase())
+    emailMatches = Boolean(sessionUser && sessionUser.email.toLowerCase() === signup.email.toLowerCase())
   }
 
   if (!tokenMatches && !emailMatches) return forbidden("This isn't your signup to cancel")

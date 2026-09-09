@@ -8,7 +8,6 @@ const SETTABLE_ROLES = ['outsider', 'club_member', 'admin'] as const
 type SettableRole = (typeof SETTABLE_ROLES)[number]
 
 interface UsersPatchInput {
-  status?: 'approved' | 'denied'
   role?: SettableRole
   name?: string
   position?: string | null
@@ -18,17 +17,16 @@ interface UsersPatchInput {
   rsvp_restricted?: boolean
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { status, role, name, position, team, waiver_signed, dues_paid, rsvp_restricted }
-// Any admin can approve/deny, promote/demote between outsider and
-// club_member, edit a member's display name/position/team, and mark/unmark a
-// waiver or dues as on file for the current year — the latter is an annual,
-// admin-verified thing (e.g. a signed paper form or cash/check received),
-// never something the member self-attests to. rsvp_restricted flags someone
-// (e.g. repeated no-shows/late cancellations) so their future signups never
-// auto-confirm — see functions/api/events/[id]/signups.ts. Granting 'admin',
-// or touching status/role on a row that's currently admin, is owner-only —
-// an admin can't create or remove other admins, or approve/deny or re-role
-// another admin. Waiver/dues verification, rsvp_restricted, and basic
+// PUT /api/admin/users/:id  Body: any subset of { role, name, position, team, waiver_signed, dues_paid, rsvp_restricted }
+// Any admin can promote/demote between outsider and club_member, edit a
+// member's display name/position/team, and mark/unmark a waiver or dues as
+// on file for the current year — the latter is an annual, admin-verified
+// thing (e.g. a signed paper form or cash/check received), never something
+// the member self-attests to. rsvp_restricted flags someone (e.g. repeated
+// no-shows/late cancellations) so their future signups never auto-confirm —
+// see functions/api/events/[id]/signups.ts. Granting 'admin', or re-roling a
+// row that's currently admin, is owner-only — an admin can't create or
+// remove other admins. Waiver/dues verification, rsvp_restricted, and basic
 // profile fields (name/position/team) on an admin row are NOT guarded — any
 // admin can mark another admin's waiver/dues/restriction and edit their
 // basic info, including their own. Nobody can set role to 'owner' here or
@@ -41,37 +39,21 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const body = await request.json<UsersPatchInput>().catch(() => null)
   if (!body) return badRequest('Invalid JSON body')
 
-  // Fetched once regardless of which fields are being changed — status and
-  // role on a row that's currently admin are owner-only, regardless of
-  // which other fields are also present in the same request.
-  const target = await env.DB.prepare(`SELECT id, role, status FROM users WHERE id = ?1`).bind(id).first<{
+  // Fetched once regardless of which fields are being changed — a role change
+  // on a row that's currently admin is owner-only, regardless of which other
+  // fields are also present in the same request.
+  const target = await env.DB.prepare(`SELECT id, role FROM users WHERE id = ?1`).bind(id).first<{
     id: number
     role: string
-    status: string
   }>()
   if (!target) return notFound('User not found')
-  if (target.role === 'admin' && data.user.role !== 'owner') {
-    const touchesGuardedField = body.role !== undefined || body.status !== undefined
-    if (touchesGuardedField) {
-      return badRequest("Only the owner can change an admin's access or role")
-    }
+  if (target.role === 'admin' && data.user.role !== 'owner' && body.role !== undefined) {
+    return badRequest("Only the owner can change an admin's role")
   }
 
   const setClauses: string[] = []
   const values: unknown[] = []
   const auditDetails: Record<string, unknown> = {}
-
-  if (body.status !== undefined) {
-    if (body.status !== 'approved' && body.status !== 'denied') {
-      return badRequest('status must be "approved" or "denied"')
-    }
-    values.push(body.status)
-    setClauses.push(`status = ?${values.length}`)
-    values.push(data.user.id)
-    setClauses.push(`decided_by = ?${values.length}`)
-    setClauses.push(`decided_at = CURRENT_TIMESTAMP`)
-    auditDetails.status = body.status
-  }
 
   if (body.role !== undefined) {
     if (!SETTABLE_ROLES.includes(body.role)) {
@@ -154,14 +136,13 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   if (result.meta.changes === 0) {
     const exists = await env.DB.prepare(`SELECT 1 FROM users WHERE id = ?1`).bind(id).first()
     if (!exists) return notFound('User not found')
-    return badRequest("The owner's access can't be changed here — transfer ownership first")
+    return badRequest("The owner's row can't be changed here — transfer ownership first")
   }
 
   await logAudit(env, data.user.id, 'update', 'users', id, auditDetails)
 
   const finalRole = body.role ?? target.role
-  const finalStatus = body.status ?? target.status
-  if (finalStatus === 'approved' && (finalRole === 'club_member' || finalRole === 'admin')) {
+  if (finalRole === 'club_member' || finalRole === 'admin') {
     await ensureRosterEntry(env, id)
   }
 
@@ -172,11 +153,11 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 // admin can delete an outsider or club member; only the owner can delete
 // another admin. Nobody can delete the owner (transfer ownership first) or
 // their own account. The roster row is kept but unlinked (roster is season
-// history); *_by references elsewhere (account decided_by, waiver/dues
-// verifier, media uploader, audit_log actor, event_signups.decided_by) are
-// nulled so the delete doesn't fail an FK and doesn't erase unrelated
-// history. A signup's own identity keys off email, not user id, so
-// event_signups rows and event_team_members are otherwise untouched.
+// history); *_by references elsewhere (waiver/dues verifier, media uploader,
+// audit_log actor, event_signups.decided_by) are nulled so the delete
+// doesn't fail an FK and doesn't erase unrelated history. A signup's own
+// identity keys off email, not user id, so event_signups rows and
+// event_team_members are otherwise untouched.
 export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
@@ -200,7 +181,6 @@ export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env
   const results = await env.DB.batch([
     env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?1`).bind(id),
     env.DB.prepare(`UPDATE roster SET user_id = NULL WHERE user_id = ?1`).bind(id),
-    env.DB.prepare(`UPDATE users SET decided_by = NULL WHERE decided_by = ?1`).bind(id),
     env.DB.prepare(`UPDATE users SET waiver_signed_by = NULL WHERE waiver_signed_by = ?1`).bind(id),
     env.DB.prepare(`UPDATE users SET dues_paid_by = NULL WHERE dues_paid_by = ?1`).bind(id),
     env.DB.prepare(`UPDATE media SET uploaded_by = NULL WHERE uploaded_by = ?1`).bind(id),

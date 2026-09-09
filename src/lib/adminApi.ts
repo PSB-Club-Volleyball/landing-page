@@ -9,7 +9,7 @@ import type {
   LoginSettings,
   MediaItem,
   MediaType,
-  PendingUser,
+  AdminUser,
   Player,
   MatchesResponse,
   MatchResultInput,
@@ -126,9 +126,7 @@ export const adminApi = {
     remove: (id: number) => request<{ ok: true }>(`/api/admin/media/${id}`, { method: 'DELETE' }),
   },
   users: {
-    list: () => request<{ users: PendingUser[] }>('/api/admin/users'),
-    decide: (id: number, status: 'approved' | 'denied') =>
-      request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
+    list: () => request<{ users: AdminUser[] }>('/api/admin/users'),
     update: (
       id: number,
       input: {

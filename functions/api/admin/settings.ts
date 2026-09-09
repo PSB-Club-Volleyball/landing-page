@@ -51,13 +51,13 @@ export const onRequestPut: PagesFunction<Env, string, AdminData> = async ({ requ
 
   await logAudit(env, data.user.id, 'update', 'login_settings', null, body)
 
-  // Setting (or changing) the current season backfills every already-
-  // approved club member/admin into that season's roster — ensureRosterEntry
-  // is a no-op for anyone who already has a row there, so this is safe to
-  // run again on every save.
+  // Setting (or changing) the current season backfills every club member/
+  // admin into that season's roster — ensureRosterEntry is a no-op for
+  // anyone who already has a row there, so this is safe to run again on
+  // every save.
   if (season) {
     const members = await env.DB.prepare(
-      `SELECT id FROM users WHERE status = 'approved' AND role IN ('club_member', 'admin')`
+      `SELECT id FROM users WHERE role IN ('club_member', 'admin')`
     ).all<{ id: number }>()
     for (const member of members.results ?? []) {
       await ensureRosterEntry(env, member.id)

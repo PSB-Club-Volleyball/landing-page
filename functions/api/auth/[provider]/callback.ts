@@ -11,8 +11,8 @@ import { randomToken, sha256Hex } from '../../_lib/crypto'
 import { getProvider, normalizeProfile } from '../_lib/providers'
 
 // GET /api/auth/:provider/callback -> exchanges the auth code, upserts the
-// user (auto-approved as an outsider unless they're in ADMIN_BOOTSTRAP_EMAILS,
-// in which case they land as admin/owner), opens a session.
+// user (an outsider unless they're in ADMIN_BOOTSTRAP_EMAILS, in which case
+// they land as admin/owner), opens a session.
 export const onRequestGet: PagesFunction<Env> = async ({ request, params, env }) => {
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
@@ -86,16 +86,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   let userId: number
   if (existing) {
     userId = existing.id
-    // Re-approve and re-assert admin rank on every login, not just at account
-    // creation — otherwise a bootstrap email that landed as `pending`/demoted
-    // before it was added to (or corrected in) ADMIN_BOOTSTRAP_EMAILS stays
-    // stuck, with no other admin able to unstick it. Never downgrades an
-    // existing owner.
+    // Re-assert admin rank on every login, not just at account creation —
+    // otherwise a bootstrap email that was demoted before it was added to
+    // (or corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck, with no other
+    // admin able to unstick it. Never downgrades an existing owner.
     if (isBootstrap) {
       const approve = () =>
         env.DB.prepare(
-          `UPDATE users SET name = ?1, avatar_url = ?2, email = ?3, status = 'approved',
-                  decided_at = COALESCE(decided_at, CURRENT_TIMESTAMP),
+          `UPDATE users SET name = ?1, avatar_url = ?2, email = ?3,
                   role = ${assignOwner ? `'owner'` : `CASE WHEN role = 'owner' THEN role ELSE 'admin' END`}
            WHERE id = ?4`
         )
@@ -119,13 +117,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
         .run()
     }
   } else {
-    // Non-bootstrap signups are auto-approved as outsiders: there's nothing to
-    // review since an outsider has no admin permissions. An existing admin/
-    // owner promotes them to club_member/admin later from the Users tab.
+    // A new signup is just an outsider with no admin permissions; an existing
+    // admin/owner promotes them to club_member/admin later from the Users tab.
     const insert = () =>
       env.DB.prepare(
-        `INSERT INTO users (email, name, avatar_url, provider, provider_sub, status, decided_at, role)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+        `INSERT INTO users (email, name, avatar_url, provider, provider_sub, role)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
       )
         .bind(
           profile.email,
@@ -133,8 +130,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
           profile.picture,
           providerName,
           profile.sub,
-          'approved',
-          isBootstrap ? new Date().toISOString() : null,
           assignOwner ? 'owner' : isBootstrap ? 'admin' : 'outsider'
         )
         .run()
