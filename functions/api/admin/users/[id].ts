@@ -167,3 +167,50 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 
   return json({ ok: true })
 }
+
+// DELETE /api/admin/users/:id  Hard-deletes the account and its sessions. Any
+// admin can delete an outsider or club member; only the owner can delete
+// another admin. Nobody can delete the owner (transfer ownership first) or
+// their own account. The roster row is kept but unlinked (roster is season
+// history); *_by references elsewhere (account decided_by, waiver/dues
+// verifier, media uploader, audit_log actor, event_signups.decided_by) are
+// nulled so the delete doesn't fail an FK and doesn't erase unrelated
+// history. A signup's own identity keys off email, not user id, so
+// event_signups rows and event_team_members are otherwise untouched.
+export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env, params, data }) => {
+  const id = Number(params.id)
+  if (!Number.isInteger(id)) return badRequest('Invalid id')
+
+  const target = await env.DB.prepare(`SELECT id, role FROM users WHERE id = ?1`).bind(id).first<{
+    id: number
+    role: string
+  }>()
+  if (!target) return notFound('User not found')
+
+  if (target.role === 'owner') {
+    return badRequest("The owner can't be deleted — transfer ownership first")
+  }
+  if (target.id === data.user.id) {
+    return badRequest("You can't delete your own account")
+  }
+  if (target.role === 'admin' && data.user.role !== 'owner') {
+    return badRequest('Only the owner can delete an admin')
+  }
+
+  const results = await env.DB.batch([
+    env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?1`).bind(id),
+    env.DB.prepare(`UPDATE roster SET user_id = NULL WHERE user_id = ?1`).bind(id),
+    env.DB.prepare(`UPDATE users SET decided_by = NULL WHERE decided_by = ?1`).bind(id),
+    env.DB.prepare(`UPDATE users SET waiver_signed_by = NULL WHERE waiver_signed_by = ?1`).bind(id),
+    env.DB.prepare(`UPDATE users SET dues_paid_by = NULL WHERE dues_paid_by = ?1`).bind(id),
+    env.DB.prepare(`UPDATE media SET uploaded_by = NULL WHERE uploaded_by = ?1`).bind(id),
+    env.DB.prepare(`UPDATE event_signups SET decided_by = NULL WHERE decided_by = ?1`).bind(id),
+    env.DB.prepare(`UPDATE audit_log SET user_id = NULL WHERE user_id = ?1`).bind(id),
+    env.DB.prepare(`DELETE FROM users WHERE id = ?1`).bind(id),
+  ])
+
+  if (results[results.length - 1].meta.changes === 0) return notFound('User not found')
+
+  await logAudit(env, data.user.id, 'delete', 'users', id)
+  return json({ ok: true })
+}
