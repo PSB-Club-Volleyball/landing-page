@@ -7,12 +7,15 @@ import { emptyDraft, eventToDraft, toInput, type Draft } from './eventDraft'
 import { EventFormFields } from './eventForm'
 import SignupsPanel from './SignupsPanel'
 import TeamsAdmin from './TeamsAdmin'
+import ScheduleAdmin from './ScheduleAdmin'
 
-type Tab = 'details' | 'signups' | 'teams'
+type Tab = 'details' | 'signups' | 'teams' | 'scores'
 
 // Event types where splitting people into teams makes sense (everything but
 // a purely social gathering).
 const TEAM_TYPES = new Set(['practice', 'tournament', 'open_gym', 'game'])
+// Formats that produce a schedule + results (everything but "teams only").
+const SCORED_FORMATS = new Set(['round_robin', 'pool_bracket', 'single_elim', 'double_elim'])
 
 // The routed admin page for one event at /admin/events/:eventId — replaces
 // the old "Edit event" modal and the inline expanding signups row. Details
@@ -23,7 +26,8 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
-  const tab: Tab = tabParam === 'signups' ? 'signups' : tabParam === 'teams' ? 'teams' : 'details'
+  const tab: Tab =
+    tabParam === 'signups' ? 'signups' : tabParam === 'teams' ? 'teams' : tabParam === 'scores' ? 'scores' : 'details'
 
   const [event, setEvent] = useState<AdminEventRow | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading')
@@ -180,6 +184,17 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
             Teams &amp; format
           </button>
         )}
+        {TEAM_TYPES.has(e.event_type) && e.play_format != null && SCORED_FORMATS.has(e.play_format) && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'scores'}
+            className={tab === 'scores' ? 'active' : undefined}
+            onClick={() => setTab('scores')}
+          >
+            Schedule &amp; scores
+          </button>
+        )}
       </div>
 
       {tab === 'details' && (
@@ -215,7 +230,11 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
         <SignupsPanel eventId={id} eventTitle={e.title} onChanged={() => refetch(false)} />
       )}
 
-      {tab === 'teams' && TEAM_TYPES.has(e.event_type) && <TeamsAdmin eventId={id} />}
+      {tab === 'teams' && TEAM_TYPES.has(e.event_type) && <TeamsAdmin eventId={id} onFormatChange={() => refetch(false)} />}
+
+      {tab === 'scores' && e.play_format != null && SCORED_FORMATS.has(e.play_format) && (
+        <ScheduleAdmin eventId={id} playFormat={e.play_format} />
+      )}
     </div>
   )
 }

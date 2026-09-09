@@ -49,7 +49,15 @@ function respToTeams(resp: TeamsResponse): DraftTeam[] {
   }))
 }
 
-export default function TeamsAdmin({ eventId }: { eventId: number }) {
+export default function TeamsAdmin({
+  eventId,
+  onFormatChange,
+}: {
+  eventId: number
+  // Called after a successful save so the parent can refetch the event and
+  // show/hide the "Schedule & scores" tab when the format changes.
+  onFormatChange?: () => void
+}) {
   const [resp, setResp] = useState<TeamsResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -60,6 +68,7 @@ export default function TeamsAdmin({ eventId }: { eventId: number }) {
   const [newWalkIn, setNewWalkIn] = useState('')
   const [teams, setTeams] = useState<DraftTeam[]>([])
   const [published, setPublished] = useState(false)
+  const [hasSchedule, setHasSchedule] = useState(false)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -71,6 +80,7 @@ export default function TeamsAdmin({ eventId }: { eventId: number }) {
     const cfgCount = data.format_config && typeof data.format_config.team_count === 'number' ? data.format_config.team_count : null
     setTeams(respToTeams(data))
     setPublished(data.published)
+    setHasSchedule(data.has_schedule)
     setWalkIns(
       data.teams
         .flatMap((t) => t.members)
@@ -212,6 +222,7 @@ export default function TeamsAdmin({ eventId }: { eventId: number }) {
       })
       setNote('Saved.')
       load()
+      onFormatChange?.()
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -379,6 +390,9 @@ export default function TeamsAdmin({ eventId }: { eventId: number }) {
           </>
         )}
 
+        {hasSchedule && (
+          <p className="field-hint">Saving these teams clears the current schedule &mdash; you&rsquo;ll regenerate it on the Schedule &amp; scores tab.</p>
+        )}
         {error && <p className="admin-error">{error}</p>}
         {note && <p className="admin-note">{note}</p>}
 

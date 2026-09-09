@@ -42,6 +42,10 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
     .bind(eventId)
     .all<{ signup_id: number; name: string; email: string; checked_in_at: string | null }>()
 
+  const scheduleCount = await env.DB.prepare(`SELECT COUNT(*) AS n FROM event_matches WHERE event_id = ?1`)
+    .bind(eventId)
+    .first<{ n: number }>()
+
   const teamRows = await env.DB.prepare(
     `SELECT id, name, seed, pool, published FROM event_teams WHERE event_id = ?1 ORDER BY seed, id`
   )
@@ -85,6 +89,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
     play_format: event.play_format,
     format_config: event.format_config ? JSON.parse(event.format_config) : null,
     published: teams.length > 0 && teams.every((t) => t.published),
+    has_schedule: (scheduleCount?.n ?? 0) > 0,
     teams,
     participants: (participants.results ?? []).map((p) => ({
       signup_id: p.signup_id,
@@ -133,11 +138,18 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
-  const exists = await env.DB.prepare(`SELECT 1 FROM events WHERE id = ?1`).bind(eventId).first()
-  if (!exists) return notFound('Event not found')
+  const event = await env.DB.prepare(`SELECT format_config FROM events WHERE id = ?1`)
+    .bind(eventId)
+    .first<{ format_config: string | null }>()
+  if (!event) return notFound('Event not found')
 
   const parsed = validateShape(await request.json().catch(() => null))
   if (typeof parsed === 'string') return badRequest(parsed)
+
+  // Merge team_count into any existing config so the schedule knobs (courts,
+  // sets per match, ...) set on the Scores tab survive a teams re-save.
+  const existingConfig = event.format_config ? (JSON.parse(event.format_config) as Record<string, unknown>) : {}
+  const mergedConfig = { ...existingConfig, ...parsed.format_config }
 
   // Every linked member must be an approved signup for THIS event, and can
   // appear on only one team.
@@ -163,10 +175,14 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const statements = [
     env.DB.prepare(
       `UPDATE events SET play_format = ?1, format_config = ?2, updated_at = CURRENT_TIMESTAMP WHERE id = ?3`
-    ).bind(parsed.play_format, JSON.stringify(parsed.format_config), eventId),
+    ).bind(parsed.play_format, JSON.stringify(mergedConfig), eventId),
     env.DB.prepare(
       `DELETE FROM event_team_members WHERE team_id IN (SELECT id FROM event_teams WHERE event_id = ?1)`
     ).bind(eventId),
+    // Teams are re-created with fresh ids on every save, so any existing
+    // schedule is invalidated — clear it explicitly (don't rely on FK
+    // cascade) and let the admin regenerate.
+    env.DB.prepare(`DELETE FROM event_matches WHERE event_id = ?1`).bind(eventId),
     env.DB.prepare(`DELETE FROM event_teams WHERE event_id = ?1`).bind(eventId),
   ]
   // Seeds are assigned here (1..N), not trusted from the client, so members
