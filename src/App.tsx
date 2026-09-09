@@ -6,6 +6,7 @@ import Footer from './components/Footer'
 import Home from './pages/Home'
 import Roster from './pages/Roster'
 import Events from './pages/Events'
+import EventDetail from './pages/EventDetail'
 import Photos from './pages/Photos'
 import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
@@ -29,6 +30,7 @@ function App() {
         <Route path="/roster" element={<Roster />} />
         <Route path="/events" element={<Events />} />
         <Route path="/events/:eventId/cancel/:signupId" element={<CancelRsvp />} />
+        <Route path="/events/:eventId" element={<EventDetail />} />
         <Route path="/photos" element={<Photos />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />

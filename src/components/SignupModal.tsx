@@ -264,7 +264,7 @@ function SignupModal({
                           {providers.google && (
                             <a
                               className="oauth-btn"
-                              href={`/api/auth/google/start?redirect=${encodeURIComponent(`/events?signup=${event.id}`)}`}
+                              href={`/api/auth/google/start?redirect=${encodeURIComponent(`/events/${event.id}?signup=${event.id}`)}`}
                             >
                               <span className="oauth-g">G</span> Continue with Google
                             </a>
@@ -272,7 +272,7 @@ function SignupModal({
                           {providers.microsoft && (
                             <a
                               className="oauth-btn"
-                              href={`/api/auth/microsoft/start?redirect=${encodeURIComponent(`/events?signup=${event.id}`)}`}
+                              href={`/api/auth/microsoft/start?redirect=${encodeURIComponent(`/events/${event.id}?signup=${event.id}`)}`}
                             >
                               <span className="oauth-ms">
                                 <span />

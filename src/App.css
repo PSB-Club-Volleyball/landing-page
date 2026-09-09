@@ -625,6 +625,7 @@ main {
   font-size: 1.02rem;
   color: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 .event-card-title:hover {
@@ -919,15 +920,59 @@ main {
   font-size: 0.82rem;
 }
 
-.event-detail-modal {
-  width: min(640px, 100%);
+/* Public event page at /events/:eventId — replaces the old detail modal.
+   Shares the .board page frame; these rules cover the header, the meta
+   block, and the description body. */
+.event-page {
+  max-width: 780px;
 }
-.event-detail-meta {
+.event-page-back {
+  display: inline-block;
+  margin-bottom: 1.4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ace-fg);
+  text-decoration: none;
+}
+.event-page-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.event-page-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ace-fg);
+}
+.event-page-cancelled-tag {
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  border-radius: var(--radius-xs);
+  padding: 0.05rem 0.4rem;
+}
+.event-page-meta {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
-  font-size: 0.88rem;
+  margin: 0.4rem 0 1rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
   color: var(--muted);
+}
+.event-page-tags {
+  margin-bottom: 1rem;
+}
+.event-page-desc {
+  margin-bottom: 1.4rem;
+}
+.event-page-signup {
+  margin-top: 0.4rem;
 }
 .event-detail-desc {
   font-size: 0.88rem;

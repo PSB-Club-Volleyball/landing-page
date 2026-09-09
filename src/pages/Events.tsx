@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import EventDetailModal from '../components/EventDetailModal'
+import { Link, useNavigate } from 'react-router-dom'
 import SignupModal from '../components/SignupModal'
 import { getEvents } from '../lib/api'
 import {
@@ -17,15 +17,15 @@ const DESCRIPTION_PREVIEW_LEN = 140
 
 function EventCard({
   event,
-  onOpenDetail,
   onOpenSignup,
   onManageSignup,
 }: {
   event: PublicClubEvent
-  onOpenDetail: (e: PublicClubEvent) => void
   onOpenSignup: (e: PublicClubEvent) => void
   onManageSignup: (e: PublicClubEvent, signupId: number, status: SignupStatus | null) => void
 }) {
+  const navigate = useNavigate()
+  const detailHref = `/events/${event.id}`
   const { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb } = getSignupState(event)
   const tags = event.tags
     ? event.tags.split(',').map((t) => t.trim()).filter(Boolean)
@@ -43,21 +43,17 @@ function EventCard({
     <div
       className={`event-card${event.status === 'cancelled' ? ' cancelled' : ''}`}
       // Mouse convenience only — the card is not a control. Keyboard and
-      // assistive-tech users reach the same detail view through the title
-      // button below, so the inner buttons/links aren't nested in a widget.
+      // assistive-tech users reach the same event page through the title
+      // link below, so the inner buttons/links aren't nested in a widget.
       onClick={(e) => {
         if ((e.target as HTMLElement).closest('a, button')) return
-        onOpenDetail(event)
+        navigate(detailHref)
       }}
     >
       <div className="event-card-row1">
-        <button
-          type="button"
-          className="event-card-title"
-          onClick={() => onOpenDetail(event)}
-        >
+        <Link to={detailHref} className="event-card-title">
           {event.title}
-        </button>
+        </Link>
         <span className="event-card-type">{EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}</span>
       </div>
       <div className="event-card-when">{formatTimeRange(event)}</div>
@@ -94,16 +90,9 @@ function EventCard({
         <p className="event-card-desc">
           {preview.text}
           {preview.truncated && (
-            <button
-              className="link-btn see-more-btn"
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation()
-                onOpenDetail(event)
-              }}
-            >
+            <Link className="link-btn see-more-btn" to={detailHref} onClick={(e) => e.stopPropagation()}>
               Click to see more
-            </button>
+            </Link>
           )}
         </p>
       )}
@@ -158,7 +147,6 @@ function EventCard({
 function Events() {
   const [events, setEvents] = useState<PublicClubEvent[] | null>(null)
   const [error, setError] = useState(false)
-  const [detailEvent, setDetailEvent] = useState<PublicClubEvent | null>(null)
   const [signupEvent, setSignupEvent] = useState<PublicClubEvent | null>(null)
   const [manage, setManage] = useState<{
     event: PublicClubEvent
@@ -173,32 +161,6 @@ function Events() {
   }
 
   useEffect(refresh, [])
-
-  // After an optional "sign in with Google" round-trip from the signup
-  // modal, the OAuth callback lands back here with ?signup=<eventId> —
-  // reopen that event's signup modal (now with the account's name/email
-  // prefilled) instead of dropping the visitor back at a bare event list.
-  useEffect(() => {
-    if (!events) return
-    const params = new URLSearchParams(window.location.search)
-    const signupId = params.get('signup')
-    if (!signupId) return
-    const match = events.find((e) => e.id === Number(signupId))
-    if (match) setSignupEvent(match)
-    params.delete('signup')
-    const rest = params.toString()
-    window.history.replaceState(null, '', rest ? `?${rest}` : window.location.pathname)
-  }, [events])
-
-  function openSignup(e: PublicClubEvent) {
-    setDetailEvent(null)
-    setSignupEvent(e)
-  }
-
-  function openManage(e: PublicClubEvent, signupId: number, status: SignupStatus | null) {
-    setDetailEvent(null)
-    setManage({ event: e, signupId, status })
-  }
 
   const groups = new Map<string, PublicClubEvent[]>()
   for (const event of events ?? []) {
@@ -240,7 +202,6 @@ function Events() {
                     <EventCard
                       key={event.id}
                       event={event}
-                      onOpenDetail={setDetailEvent}
                       onOpenSignup={setSignupEvent}
                       onManageSignup={(e, signupId, status) => setManage({ event: e, signupId, status })}
                     />
@@ -251,14 +212,6 @@ function Events() {
           </>
         )}
 
-        {detailEvent && (
-          <EventDetailModal
-            event={detailEvent}
-            onClose={() => setDetailEvent(null)}
-            onOpenSignup={openSignup}
-            onManageSignup={openManage}
-          />
-        )}
         {signupEvent && (
           <SignupModal
             event={signupEvent}

@@ -1,8 +1,20 @@
 import type { AuthUser, BoardMember, FormWithFields, MediaItem, Player, PublicClubEvent, SignupStatus } from '../types'
 
+// Carries the HTTP status so callers can branch on it (e.g. 404 vs. a real
+// outage) instead of sniffing the message string.
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(path, { credentials: 'include' })
-  if (!res.ok) throw new Error(`${path} responded ${res.status}`)
+  if (!res.ok) throw new ApiError(res.status, `${path} responded ${res.status}`)
   return res.json() as Promise<T>
 }
 
@@ -16,6 +28,10 @@ export function getBoard(season?: string): Promise<{ board: BoardMember[] }> {
 
 export function getEvents(): Promise<{ events: PublicClubEvent[] }> {
   return getJson('/api/events')
+}
+
+export function getEvent(id: number): Promise<{ event: PublicClubEvent }> {
+  return getJson(`/api/events/${id}`)
 }
 
 export function getForm(id: number): Promise<{ form: FormWithFields }> {
