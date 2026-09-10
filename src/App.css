@@ -1243,134 +1243,207 @@ main {
   }
 }
 .public-teams-note {
-  margin: 0 0 1rem;
-  font-size: 0.85rem;
+  margin: 0 0 1.1rem;
+  font-size: 0.82rem;
   color: var(--muted);
 }
 .public-team-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 0.9rem;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.8rem;
 }
 .public-team {
-  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 14%, transparent);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  background: color-mix(in srgb, var(--page-fg) 2.5%, transparent);
 }
 .public-team > header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  padding: 0.5rem 0.7rem;
-  background: color-mix(in srgb, var(--page-fg) 8%, transparent);
-  font-weight: 700;
-  font-size: 0.92rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+}
+.public-team-name {
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
 }
 .public-team-pool {
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.66rem;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
+  border-radius: var(--radius-xs);
+  padding: 0.05rem 0.35rem;
 }
 .public-team ol {
   margin: 0;
-  padding: 0.5rem 0.7rem 0.6rem 1.6rem;
-  font-size: 0.88rem;
+  padding: 0.5rem 0.75rem 0.6rem;
+  list-style: none;
+  font-size: 0.86rem;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.1rem;
 }
-.public-team li.captain {
-  font-weight: 600;
+.public-team li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.12rem 0;
 }
-.captain-tag {
-  color: var(--ace-fg);
+.public-team-num {
+  min-width: 1.1rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  text-align: right;
+}
+.public-team-player {
+  flex: 1;
+  min-width: 0;
+}
+.public-team li.captain .public-team-player {
   font-weight: 700;
 }
+.captain-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  padding: 0 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 800;
+  border-radius: var(--radius-xs);
+  background: var(--ace);
+  color: var(--ink);
+}
 .public-team-empty {
-  list-style: none;
-  margin-left: -0.9rem;
   color: var(--muted);
   font-style: italic;
 }
 
-/* Public Scores / Schedule tab */
+/* Public Scores / Schedule / Pools tab */
 .public-scores h2 {
   font-size: 1.05rem;
   font-weight: 800;
-  margin: 1.6rem 0 0.6rem;
+  margin: 1.8rem 0 0.7rem;
 }
 .public-scores h2:first-child {
   margin-top: 0;
+}
+.public-standings {
+  margin-bottom: 0.4rem;
 }
 .public-standings table {
   font-variant-numeric: tabular-nums;
 }
 .public-pool + .public-pool {
-  margin-top: 1.8rem;
+  margin-top: 2rem;
 }
 .public-pool .public-match-list {
   margin-top: 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 13%, transparent);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+/* Each round is a card: a time band header, then its matches as rows. */
+.public-match-round {
+  border: 1px solid color-mix(in srgb, var(--page-fg) 13%, transparent);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 .public-match-round + .public-match-round {
-  margin-top: 1.1rem;
+  margin-top: 0.7rem;
 }
 .public-match-round h3 {
-  margin: 0 0 0.4rem;
-  font-size: 0.78rem;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--ace-fg);
+  background: color-mix(in srgb, var(--page-fg) 4%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
 }
 .public-match-list {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
 }
 .public-match-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.3rem 0.9rem;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
-  border-radius: var(--radius-xs);
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+  padding: 0.5rem 0.75rem;
   font-size: 0.86rem;
+}
+.public-match-list li + li {
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 8%, transparent);
 }
 .pm-when {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
-  display: inline-flex;
-  gap: 0.5rem;
-  min-width: 7rem;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
 }
 .pm-court {
-  font-size: 0.7rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
 .pm-teams {
-  display: inline-flex;
+  display: flex;
   align-items: baseline;
-  gap: 0.4rem;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.pm-team {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .pm-v {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
+  flex: 0 0 auto;
 }
 .pm-team.win {
   font-weight: 700;
 }
 .pm-score {
-  margin-left: auto;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .public-match-list li {
+    grid-template-columns: 1fr auto;
+    gap: 0.25rem 0.7rem;
+  }
+  .pm-when {
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: baseline;
+    grid-column: 1 / -1;
+    order: -1;
+  }
+  .pm-score {
+    grid-column: 2;
+    grid-row: 2;
+  }
 }
 
 /* Knockout bracket (single + double elimination) — shared by the public

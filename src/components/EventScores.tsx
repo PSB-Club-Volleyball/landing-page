@@ -24,6 +24,7 @@ export default function EventScores({
   if (matches.length === 0) return null
   const rounds = [...new Set(matches.map((m) => m.round))].sort((a, b) => a - b)
   const roundLabel = (round: number) => {
+    if (!timedOnly) return `Round ${round}`
     const first = matches.find((m) => m.round === round)
     return slotTime(first?.start_time ?? null) || `Round ${round}`
   }
