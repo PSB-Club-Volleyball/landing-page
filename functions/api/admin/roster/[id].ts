@@ -2,7 +2,6 @@ import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
 import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
-import { requireOwner } from '../_lib/permissions'
 
 const FIELDS = [
   'season',
@@ -41,11 +40,8 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   return json({ ok: true })
 }
 
-// DELETE /api/admin/roster/:id -> owner only
+// DELETE /api/admin/roster/:id -> any admin
 export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env, params, data }) => {
-  const denied = requireOwner(data)
-  if (denied) return denied
-
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
 
