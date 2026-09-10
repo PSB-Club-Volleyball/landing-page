@@ -104,10 +104,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
     // otherwise a bootstrap email that was demoted before it was added to
     // (or corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck, with no other
     // admin able to unstick it. Never downgrades an existing owner.
+    // name is intentionally not synced from the provider on login (either
+    // branch below) — it's the provider's value only at account creation, and
+    // stays editable from the Users tab thereafter without a login clobbering it.
     if (isBootstrap) {
-      // name is intentionally not synced from the provider on login — it's the
-      // provider's value only at account creation, and stays editable from the
-      // Users tab thereafter without a later login clobbering it.
       const approve = () =>
         env.DB.prepare(
           `UPDATE users SET avatar_url = ?1, email = ?2,
