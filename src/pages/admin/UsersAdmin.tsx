@@ -335,7 +335,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
             className="btn btn-outline btn-sm"
             type="button"
             disabled={!users.some((u) => u.email)}
-            onClick={() => downloadEmailList('users-emails.txt', users.map((u) => u.email))}
+            onClick={() => downloadEmailList('users-emails.csv', users.map((u) => u.email))}
           >
             Emails only
           </button>

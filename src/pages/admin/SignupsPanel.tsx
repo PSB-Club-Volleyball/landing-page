@@ -134,7 +134,7 @@ export default function SignupsPanel({
           className="btn btn-outline btn-sm"
           type="button"
           disabled={signups.length === 0}
-          onClick={() => downloadEmailList(`${eventSlug(eventTitle)}-emails.txt`, signups.map((s) => s.email))}
+          onClick={() => downloadEmailList(`${eventSlug(eventTitle)}-emails.csv`, signups.map((s) => s.email))}
         >
           Emails only
         </button>
