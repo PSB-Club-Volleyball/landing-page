@@ -162,6 +162,26 @@ RSVP confirmation, RSVP request, and RSVP approval emails
 If `RESEND_API_KEY` isn't set, RSVP/signup actions still work — the email
 send is skipped and logged, never blocking the request.
 
+#### Deliverability
+
+- Every send sets a `Reply-To` (defaults to `EVENTS_EMAIL_FROM`; override with
+  the optional `EVENTS_EMAIL_REPLY_TO` var to point replies at a monitored
+  inbox) and a `List-Unsubscribe` header. `List-Unsubscribe` is `mailto:`-only,
+  which covers Gmail/Yahoo's bulk-sender guidance at this volume; a one-click
+  (`List-Unsubscribe-Post`, RFC 8058) endpoint would need a POST route that
+  records a suppression and isn't built.
+- The `_dmarc.behrendclubvolleyball.org` record should use **relaxed**
+  alignment, not strict. Resend's envelope (Return-Path) domain is
+  `send.behrendclubvolleyball.org`, so `aspf=s` can never align and the domain
+  passes DMARC on DKIM alone with no margin. Recommended record:
+
+  ```
+  v=DMARC1; p=reject; sp=reject; adkim=r; aspf=r; rua=mailto:<existing-rua-address>
+  ```
+
+  Keep the existing `rua=` value. `p=reject` stays; only the `adkim`/`aspf`
+  flags change from `s` to `r`.
+
 ## 8. Check `ADMIN_BOOTSTRAP_EMAILS`
 
 `wrangler.toml` has:

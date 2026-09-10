@@ -113,6 +113,7 @@ export function sendRsvpConfirmationEmail(env: Env, to: string, name: string, ev
     subject: `You're confirmed: ${event.title}`,
     html: wrapHtml("You're confirmed", body, details, links),
     text: wrapText("You're confirmed", body, details, links),
+    unsubscribeUrl: cancelUrl,
   })
 }
 
@@ -132,6 +133,7 @@ export function sendRsvpRequestEmail(env: Env, to: string, name: string, event: 
     subject: `Request received: ${event.title}`,
     html: wrapHtml('Request received', body, details, links),
     text: wrapText('Request received', body, details, links),
+    unsubscribeUrl: cancelUrl,
   })
 }
 
@@ -145,6 +147,7 @@ export function sendRsvpApprovedEmail(env: Env, to: string, name: string, event:
     subject: `You're approved: ${event.title}`,
     html: wrapHtml("You're approved", body, details, links),
     text: wrapText("You're approved", body, details, links),
+    unsubscribeUrl: cancelUrl,
   })
 }
 
@@ -162,6 +165,7 @@ export function sendWaitlistEmail(env: Env, to: string, name: string, event: Eve
     subject: `You're on the waitlist: ${event.title}`,
     html: wrapHtml("You're on the waitlist", body, details, links),
     text: wrapText("You're on the waitlist", body, details, links),
+    unsubscribeUrl: cancelUrl,
   })
 }
 
@@ -176,6 +180,7 @@ export function sendWaitlistPromotedEmail(env: Env, to: string, name: string, ev
     subject: `You're in: ${event.title}`,
     html: wrapHtml("You're in!", body, details, links),
     text: wrapText("You're in!", body, details, links),
+    unsubscribeUrl: cancelUrl,
   })
 }
 
