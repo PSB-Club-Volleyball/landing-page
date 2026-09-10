@@ -135,37 +135,36 @@ registration:
 
 ## 7. Set the secrets
 
-Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`, `EVENTS_EMAIL_FROM`)
-already lives in `wrangler.toml` / `wrangler.staging.toml`. The actual OAuth
-credentials are secrets — never commit them, and set them separately per
-environment:
+Non-secret config (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`, `EVENTS_EMAIL_FROM`,
+`MICROSOFT_TENANT_ID`) lives in `wrangler.toml` / `wrangler.staging.toml`. The
+OAuth client secrets and the Resend key are secrets — never commit them, and
+set them per Pages project.
 
-`wrangler pages secret put` doesn't read `wrangler.toml` at all — it just needs
-`--project-name` (which Pages project) and `--env` (`production` or `preview`;
-defaults to `production`), so no `--config` flag is needed or supported here:
-
-`MICROSOFT_TENANT_ID` is non-secret and lives in `wrangler.toml` /
-`wrangler.staging.toml` alongside the other vars — don't set it as a secret.
-The `MICROSOFT_OTHER_*` secrets are only needed once you've done step 6b and
-want to enable the non-PSU provider; skip them otherwise.
+Keep the secrets in a gitignored `.prod.secrets` file (one `KEY=VALUE` per
+line — copy `.prod.secrets.example`) and push the whole file at once:
 
 ```
-# Production
-npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name=behrend-club-volleyball --env production
-npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_ID --project-name=behrend-club-volleyball --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
-npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_ID --project-name=behrend-club-volleyball --env production
-npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
+cp .prod.secrets.example .prod.secrets   # then fill in the values
 
-# Staging (separate Pages project)
-npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
-npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
-npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
-npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
-npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
+npm run secrets:push:production
+npm run secrets:push:staging
 ```
+
+Both scripts run `wrangler pages secret bulk .prod.secrets
+--project-name=<project> --env production`. `secret bulk` reads a `KEY=VALUE`
+(or JSON) file and sets every key in it as a secret in one API call; it never
+reads `wrangler.toml`, so it only needs `--project-name` and `--env`
+(`production` or `preview`; defaults to `production`).
+
+`.prod.secrets` holds secrets only — not the non-secret vars above. Those stay
+in `wrangler.toml`; setting them as secrets too would shadow the config values
+(a Pages secret wins over a `[vars]` entry of the same name). The
+`MICROSOFT_OTHER_*` pair is only needed once step 6b is done and you want the
+non-PSU provider on; delete those two lines from `.prod.secrets` otherwise so
+they aren't pushed as empty secrets.
+
+To set or rotate one secret without touching the others:
+`wrangler pages secret put <NAME> --project-name=<project> --env production`.
 
 After changing any secret, **redeploy** the affected Pages project — Pages
 only picks up secret changes on the next deployment.
@@ -173,14 +172,14 @@ only picks up secret changes on the next deployment.
 PR previews use the shared `preview` environment; sign-in won't complete
 there (see the note in step 5), so preview secrets are optional.
 
-For local development, copy `.dev.vars.example` to `.dev.vars` and fill in
-the same values there instead (that file is gitignored). `wrangler pages dev`
-does not read the `[env.preview.vars]` block, so `.dev.vars` must also carry
-the non-secret vars (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`,
-`EVENTS_EMAIL_FROM`, `MICROSOFT_TENANT_ID`) — `.dev.vars.example` lists them.
-`npm run pages:dev` binds the local D1/R2 to the preview databases explicitly
-(the current wrangler `pages dev` has no `--env` flag), and `npm run
-db:migrate:local` migrates that same local D1.
+For local development, copy `.dev.vars.example` to `.dev.vars` and fill in the
+same values there (that file is gitignored, and separate from `.prod.secrets`).
+`wrangler pages dev` does not read the `[env.preview.vars]` block, so `.dev.vars`
+carries both the secrets and the non-secret vars (`PUBLIC_URL`,
+`ADMIN_BOOTSTRAP_EMAILS`, `EVENTS_EMAIL_FROM`, `MICROSOFT_TENANT_ID`) —
+`.dev.vars.example` lists them. `npm run pages:dev` binds the local D1/R2 to the
+preview databases explicitly (the current wrangler `pages dev` has no `--env`
+flag), and `npm run db:migrate:local` migrates that same local D1.
 
 ### RSVP emails (Resend)
 
@@ -195,14 +194,12 @@ RSVP confirmation, RSVP request, and RSVP approval emails
    including the DMARC one — Microsoft/Outlook.com mailboxes in particular
    are strict about DMARC alignment and are more likely to spam-box or drop
    mail from a domain that only has SPF/DKIM set up.
-2. Create an API key and set it as a secret, per environment:
-   ```
-   npx wrangler pages secret put RESEND_API_KEY --project-name=behrend-club-volleyball --env production
-   npx wrangler pages secret put RESEND_API_KEY --project-name=behrend-club-volleyball-staging --env production
-   ```
+2. Create an API key and add it as `RESEND_API_KEY=...` to both `.prod.secrets`
+   (so the `npm run secrets:push:*` scripts in step 7 upload it) and `.dev.vars`
+   (for local dev). To set just this one without a full bulk push:
+   `wrangler pages secret put RESEND_API_KEY --project-name=<project> --env production`.
    PR previews use the shared `preview` environment; the API key there is
-   optional (see the fallback below). For local dev, put the same value in
-   `.dev.vars` as `RESEND_API_KEY=...`.
+   optional (see the fallback below).
 
 If `RESEND_API_KEY` isn't set, RSVP/signup actions still work — the email
 send is skipped and logged, never blocking the request.
