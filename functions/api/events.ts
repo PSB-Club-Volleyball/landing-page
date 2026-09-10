@@ -2,6 +2,7 @@ import type { Env } from './_lib/env'
 import { json } from './_lib/http'
 import { getSessionUser } from './_lib/session'
 import { isAtLeast } from './_lib/roles'
+import { eventCutoff } from './_lib/time'
 
 // GET /api/events -> published + cancelled events (drafts stay admin-only), soonest
 // first. Two things are filtered out here rather than in the admin table, since
@@ -37,11 +38,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
      FROM events e
      WHERE e.status IN ('published', 'cancelled')
        AND e.visibility IN (${visibilityPlaceholders})
-       AND datetime(COALESCE(e.end_time, e.start_time), '+2 hours') >= datetime('now')
-       AND (e.series_id IS NULL OR e.released_early = 1 OR date(e.start_time) <= date('now', '+7 days'))
+       AND COALESCE(e.end_time, e.start_time) >= ?${allowedVisibilities.length + 1}
+       AND (e.series_id IS NULL OR e.released_early = 1 OR date(e.start_time) <= date(?${allowedVisibilities.length + 2}, '+7 days'))
      ORDER BY e.start_time ASC`
   )
-    .bind(...allowedVisibilities)
+    .bind(...allowedVisibilities, eventCutoff(2), eventCutoff(0))
     .all<Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; id: number }>()
 
   const mySignupsByEvent = new Map<number, { id: number; status: string }>()

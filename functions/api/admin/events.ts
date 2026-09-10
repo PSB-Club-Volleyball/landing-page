@@ -3,6 +3,7 @@ import { badRequest, json } from '../_lib/http'
 import type { AdminData } from './_lib/types'
 import { logAudit } from './_lib/audit'
 import { expandOccurrences, validateRecurrence } from './_lib/recurrence'
+import { eventCutoff } from '../_lib/time'
 
 // GET /api/admin/events -> every event regardless of status (drafts included),
 // joined with the attached form's name and signup count for the table.
@@ -13,11 +14,13 @@ export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env 
   const events = await env.DB.prepare(
     `SELECT e.*, f.name AS form_name,
             (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id) AS signup_count,
-            datetime(COALESCE(e.end_time, e.start_time)) < datetime('now') AS is_past
+            COALESCE(e.end_time, e.start_time) < ?1 AS is_past
      FROM events e
      LEFT JOIN forms f ON f.id = e.form_id
      ORDER BY e.start_time ASC`
-  ).all<Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; is_past: number }>()
+  )
+    .bind(eventCutoff(0))
+    .all<Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; is_past: number }>()
   const withBooleans = (events.results ?? []).map((e) => ({
     ...e,
     signup_enabled: Boolean(e.signup_enabled),
