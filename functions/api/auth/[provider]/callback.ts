@@ -105,13 +105,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
     // (or corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck, with no other
     // admin able to unstick it. Never downgrades an existing owner.
     if (isBootstrap) {
+      // name is intentionally not synced from the provider on login — it's the
+      // provider's value only at account creation, and stays editable from the
+      // Users tab thereafter without a later login clobbering it.
       const approve = () =>
         env.DB.prepare(
-          `UPDATE users SET name = ?1, avatar_url = ?2, email = ?3,
+          `UPDATE users SET avatar_url = ?1, email = ?2,
                   role = ${assignOwner ? `'owner'` : `CASE WHEN role = 'owner' THEN role ELSE 'admin' END`}
-           WHERE id = ?4`
+           WHERE id = ?3`
         )
-          .bind(profile.name, profile.picture, profile.email, userId)
+          .bind(profile.picture, profile.email, userId)
           .run()
       try {
         await approve()
@@ -126,8 +129,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
         await approve()
       }
     } else {
-      await env.DB.prepare(`UPDATE users SET name = ?1, avatar_url = ?2, email = ?3 WHERE id = ?4`)
-        .bind(profile.name, profile.picture, profile.email, userId)
+      await env.DB.prepare(`UPDATE users SET avatar_url = ?1, email = ?2 WHERE id = ?3`)
+        .bind(profile.picture, profile.email, userId)
         .run()
     }
   } else {
