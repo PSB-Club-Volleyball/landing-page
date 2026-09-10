@@ -29,6 +29,8 @@ ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
 # From address for RSVP confirmation/request/approval emails (must be a
 # verified sender/domain with the RESEND_API_KEY secret below).
 EVENTS_EMAIL_FROM = "events@behrendclubvolleyball.org"
+# Optional: address the Reply-To header points at (defaults to EVENTS_EMAIL_FROM).
+# EVENTS_EMAIL_REPLY_TO = "eboard@behrendclubvolleyball.org"
 
 [[env.preview.d1_databases]]
 binding = "DB"
