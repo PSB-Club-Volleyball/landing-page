@@ -4,4 +4,12 @@
 -- PSU-tenant registration. Defaults OFF: the provider is inert until its
 -- MICROSOFT_OTHER_CLIENT_ID/SECRET secrets and redirect URI are configured, so
 -- the owner turns it on from Admin -> Settings once that's done.
+--
+-- Account continuity: users are keyed by (provider, provider_sub). A PSU
+-- account keeps working under provider 'microsoft' (same client id, stable
+-- sub). A non-PSU account that had somehow signed in under the old /common
+-- 'microsoft' app would land under 'microsoft-other' as a new row -- acceptable
+-- because Microsoft sign-in never completed in production before this fix (the
+-- /common + single-tenant combination always errored). Confirm with
+-- `SELECT provider, count(*) FROM users GROUP BY provider` before deploying.
 ALTER TABLE login_settings ADD COLUMN microsoft_other_enabled INTEGER NOT NULL DEFAULT 0;

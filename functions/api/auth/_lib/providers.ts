@@ -44,6 +44,12 @@ export function getProvider(name: string, env: Env): ProviderConfig | null {
     }
   }
   if (name === 'microsoft-other') {
+    // Symmetric with the tenant-id check above: fail loudly rather than build
+    // an authorize URL with client_id=undefined if the toggle is on before the
+    // separate app registration's secrets are set.
+    if (!env.MICROSOFT_OTHER_CLIENT_ID || !env.MICROSOFT_OTHER_CLIENT_SECRET) {
+      throw new Error('MICROSOFT_OTHER_CLIENT_ID / MICROSOFT_OTHER_CLIENT_SECRET not set')
+    }
     return {
       authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
       tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
