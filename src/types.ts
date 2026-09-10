@@ -9,6 +9,7 @@ export interface Player {
   photo_key: string | null
   sort_order: number
   user_id: number | null // set when this row was auto-added from an approved club member/admin account
+  email?: string | null // admin roster only — from the linked account (user_id); absent from the public roster
 }
 
 export interface BoardMember {

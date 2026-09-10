@@ -2,7 +2,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
-import { downloadCsv, toCsv } from '../../lib/csv'
+import { downloadCsv, downloadEmailList, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
 import type { AdminUser, AuthUser, Team, UserRole } from '../../types'
 
@@ -330,6 +330,14 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
         <span className="admin-head-actions">
           <button className="btn btn-outline btn-sm" type="button" onClick={() => exportUsersCsv(users)}>
             Download CSV
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            type="button"
+            disabled={!users.some((u) => u.email)}
+            onClick={() => downloadEmailList('users-emails.txt', users.map((u) => u.email))}
+          >
+            Emails only
           </button>
         </span>
       </div>

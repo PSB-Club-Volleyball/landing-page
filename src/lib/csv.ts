@@ -15,10 +15,7 @@ export function toCsv(headers: string[], rows: (string | number | null | undefin
   return lines.join('\r\n')
 }
 
-// Triggers a browser download of `csv` as `filename` — no server round trip,
-// the data's already in hand from the admin table's own state.
-export function downloadCsv(filename: string, csv: string) {
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+function triggerDownload(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -27,6 +24,30 @@ export function downloadCsv(filename: string, csv: string) {
   a.click()
   a.remove()
   URL.revokeObjectURL(url)
+}
+
+// Triggers a browser download of `csv` as `filename` — no server round trip,
+// the data's already in hand from the admin table's own state.
+export function downloadCsv(filename: string, csv: string) {
+  triggerDownload(filename, new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }))
+}
+
+// Triggers a browser download of a plain email list — one address per line,
+// trimmed, blanks dropped, de-duplicated case-insensitively (first spelling
+// kept). Handy for pasting into a BCC field.
+export function downloadEmailList(filename: string, emails: (string | null | undefined)[]) {
+  const seen = new Set<string>()
+  const list: string[] = []
+  for (const raw of emails) {
+    const email = (raw ?? '').trim()
+    if (!email) continue
+    const key = email.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    list.push(email)
+  }
+  const body = list.length > 0 ? list.join('\r\n') + '\r\n' : ''
+  triggerDownload(filename, new Blob([body], { type: 'text/plain;charset=utf-8;' }))
 }
 
 // Parses CSV text into rows of string cells. Handles quoted fields (commas,

@@ -9,13 +9,19 @@ export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ requ
   const url = new URL(request.url)
   const season = url.searchParams.get('season')
 
+  // `email` rides along from the linked account (roster.user_id) when there is
+  // one — used by the admin roster's "emails only" export.
   const players = season
     ? await env.DB.prepare(
-        `SELECT * FROM roster WHERE season = ?1 ORDER BY sort_order, last_name`
+        `SELECT r.*, u.email AS email FROM roster r LEFT JOIN users u ON u.id = r.user_id
+         WHERE r.season = ?1 ORDER BY r.sort_order, r.last_name`
       )
         .bind(season)
         .all()
-    : await env.DB.prepare(`SELECT * FROM roster ORDER BY season DESC, sort_order, last_name`).all()
+    : await env.DB.prepare(
+        `SELECT r.*, u.email AS email FROM roster r LEFT JOIN users u ON u.id = r.user_id
+         ORDER BY r.season DESC, r.sort_order, r.last_name`
+      ).all()
 
   return json({ players: players.results ?? [] })
 }
