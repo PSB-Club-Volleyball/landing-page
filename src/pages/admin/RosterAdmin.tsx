@@ -63,7 +63,7 @@ function playerToDraft(p: Player): Draft {
   }
 }
 
-function RosterAdmin({ isOwner }: { isOwner: boolean }) {
+function RosterAdmin() {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -259,11 +259,9 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
         <button type="button" disabled={bulkBusy || !bulkSeason.trim()} onClick={applyBulkSeason}>
           Set season
         </button>
-        {isOwner && (
-          <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
-            Delete selected
-          </button>
-        )}
+        <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
+          Delete selected
+        </button>
       </BulkActionBar>
       <div className="data-table">
         <table>
@@ -375,11 +373,9 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
                       >
                         Edit
                       </button>
-                      {isOwner && (
-                        <button type="button" className="danger" onClick={() => handleDelete(p.id)}>
-                          Delete
-                        </button>
-                      )}
+                      <button type="button" className="danger" onClick={() => handleDelete(p.id)}>
+                        Delete
+                      </button>
                     </span>
                   </td>
                 </tr>

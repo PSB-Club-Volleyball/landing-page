@@ -47,7 +47,7 @@ function ConsoleTab({
 }) {
   switch (tab) {
     case 'roster':
-      return <RosterAdmin isOwner={isOwner} />
+      return <RosterAdmin />
     case 'board':
       return <BoardAdmin isOwner={isOwner} />
     case 'events':
