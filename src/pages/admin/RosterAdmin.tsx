@@ -183,7 +183,7 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
             type="button"
             disabled={!players.some((p) => p.email)}
             title="Email addresses from linked club accounts"
-            onClick={() => downloadEmailList('roster-emails.txt', players.map((p) => p.email))}
+            onClick={() => downloadEmailList('roster-emails.csv', players.map((p) => p.email))}
           >
             Emails only
           </button>
