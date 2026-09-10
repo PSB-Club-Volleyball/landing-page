@@ -134,6 +134,14 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
   }
 
   const e = event as AdminEventRow
+  const statusWord =
+    e.status === 'cancelled'
+      ? 'cancelled'
+      : e.is_past
+        ? 'completed'
+        : e.status === 'published'
+          ? 'open'
+          : e.status
 
   return (
     <div className="admin-event-page">
@@ -143,8 +151,8 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
       <div className="admin-main-head">
         <div>
           <p className="admin-event-eyebrow">
-            {EVENT_TYPE_LABELS[e.event_type] ?? e.event_type} &middot;{' '}
-            {e.status !== 'cancelled' && e.is_past ? 'completed' : e.status}
+            {EVENT_TYPE_LABELS[e.event_type] ?? e.event_type}
+            <span className={`admin-status-pill status-${statusWord}`}>{statusWord}</span>
           </p>
           <h2>{e.title}</h2>
           <p className="admin-event-sub">
@@ -227,7 +235,7 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
       )}
 
       {tab === 'signups' && (
-        <SignupsPanel eventId={id} eventTitle={e.title} onChanged={() => refetch(false)} />
+        <SignupsPanel eventId={id} eventTitle={e.title} capacity={e.capacity} onChanged={() => refetch(false)} />
       )}
 
       {tab === 'teams' && TEAM_TYPES.has(e.event_type) && <TeamsAdmin eventId={id} onFormatChange={() => refetch(false)} />}
