@@ -278,6 +278,7 @@
   gap: 0.25rem;
   border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
   overflow-x: auto;
+  overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
 }
 .admin-subtabs button {
