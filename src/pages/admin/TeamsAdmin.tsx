@@ -278,8 +278,13 @@ export default function TeamsAdmin({
   if (!resp) return <p className="admin-note">Loading&hellip;</p>
 
   const avgSize = teams.length > 0 ? assignedCount / teams.length : 0
-  const dragProps = (from: Loc, key: string) => ({
+  // Drag handle + keyboard fallback for one member. With the handle focused,
+  // 1-9 moves to that team and 0 sends to the bench — the a11y path now that
+  // the per-row "move to" select is gone.
+  const moveHandleProps = (from: Loc, key: string) => ({
     draggable: true,
+    tabIndex: 0,
+    role: 'button' as const,
     onDragStart: (e: React.DragEvent) => {
       drag.current = { from, key }
       // Firefox won't start a drag unless dataTransfer carries something.
@@ -289,6 +294,18 @@ export default function TeamsAdmin({
     onDragEnd: () => {
       drag.current = null
       setDropTarget(null)
+    },
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === '0') {
+        e.preventDefault()
+        moveMember(from, key, 'bench')
+      } else if (/^[1-9]$/.test(e.key)) {
+        const idx = Number(e.key) - 1
+        if (idx < teams.length) {
+          e.preventDefault()
+          moveMember(from, key, idx)
+        }
+      }
     },
   })
   const dropZone = (to: Loc) => ({
@@ -389,8 +406,9 @@ export default function TeamsAdmin({
           Roster <span className="admin-subtab-count">{totalPlaceable}</span>
         </h3>
         <p className="field-hint">
-          Everyone approved starts on the bench. Drag people onto teams, or use the &ldquo;move&rdquo; menu on each
-          name. Mark a no-show with &times; to keep them out of the shuffle; add a walk-in below.
+          Everyone approved starts on the bench. Drag people between the bench and teams &mdash; or focus a name and
+          press a team number (1&ndash;9), or 0 for the bench. Mark a no-show with &times; to keep them out of the
+          shuffle; add a walk-in below.
         </p>
 
         <div className="teams-generate-row">
@@ -460,7 +478,13 @@ export default function TeamsAdmin({
               <p className="team-bench-empty">Everyone&rsquo;s placed.</p>
             ) : (
               bench.map((m) => (
-                <div key={m.key} className="player-chip" {...dragProps('bench', m.key)}>
+                <div
+                  key={m.key}
+                  className="player-chip"
+                  title="Drag onto a team (or focus and press 1-9)"
+                  aria-label={`${m.name} — drag onto a team, or press a team number 1-9`}
+                  {...moveHandleProps('bench', m.key)}
+                >
                   {m.name}
                   {m.signup_id === null && <span className="walk-in-tag">walk-in</span>}
                   <button
@@ -508,8 +532,9 @@ export default function TeamsAdmin({
                     <li key={m.key} className="team-member-row">
                       <span
                         className={m.is_captain ? 'team-member-name captain' : 'team-member-name'}
-                        title="Drag to another team"
-                        {...dragProps(ti, m.key)}
+                        title="Drag to another team or the bench (or focus and press 1-9 / 0)"
+                        aria-label={`${m.name} — drag to move, or press a team number 1-9, or 0 for the bench`}
+                        {...moveHandleProps(ti, m.key)}
                       >
                         {m.name}
                       </span>
@@ -522,20 +547,6 @@ export default function TeamsAdmin({
                         >
                           C
                         </button>
-                        <select
-                          value={ti}
-                          aria-label="Move to"
-                          onChange={(e) =>
-                            moveMember(ti, m.key, e.target.value === 'bench' ? 'bench' : Number(e.target.value))
-                          }
-                        >
-                          {teams.map((t, i) => (
-                            <option key={i} value={i}>
-                              {t.name || `Team ${i + 1}`}
-                            </option>
-                          ))}
-                          <option value="bench">Bench</option>
-                        </select>
                         <button
                           type="button"
                           className="danger"
