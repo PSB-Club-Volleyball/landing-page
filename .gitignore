@@ -18,6 +18,7 @@ secrets
 # Cloudflare / wrangler local state and secrets
 .wrangler
 .dev.vars
+.prod.secrets
 
 # Editor directories and files
 .vscode/*

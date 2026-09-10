@@ -12,7 +12,9 @@
     "db:migrate:local": "wrangler d1 migrations apply behrend-club-volleyball-preview --local --env preview",
     "db:migrate:remote": "wrangler d1 migrations apply behrend-club-volleyball --remote --env production",
     "db:migrate:preview": "wrangler d1 migrations apply behrend-club-volleyball-preview --remote --env preview",
-    "db:migrate:staging": "wrangler d1 migrations apply behrend-club-volleyball-staging --remote --config wrangler.staging.toml --env production"
+    "db:migrate:staging": "wrangler d1 migrations apply behrend-club-volleyball-staging --remote --config wrangler.staging.toml --env production",
+    "secrets:push:production": "wrangler pages secret bulk .prod.secrets --project-name=behrend-club-volleyball --env production",
+    "secrets:push:staging": "wrangler pages secret bulk .prod.secrets --project-name=behrend-club-volleyball-staging --env production"
   },
   "dependencies": {
     "react": "^19.2.8",

@@ -1,9 +1,12 @@
 # Copy to .dev.vars for local `npm run pages:dev` (this file itself is gitignored).
 # `wrangler pages dev` does not read the [env.preview.vars] block from
 # wrangler.toml, so the non-secret vars below (PUBLIC_URL etc.) have to be
-# repeated here for local dev. In production, set the secrets with
-# `wrangler pages secret put <NAME>` and leave the non-secret vars in
-# wrangler.toml — see docs/backend-setup.md.
+# repeated here for local dev.
+#
+# For the deployed environments, the non-secret vars live in wrangler.toml and
+# the secrets go in a separate .prod.secrets file pushed with
+# `npm run secrets:push:production` / `:staging` — see .prod.secrets.example and
+# docs/backend-setup.md. Do NOT bulk-push this file; it mixes in the vars.
 
 PUBLIC_URL=http://localhost:8788
 ADMIN_BOOTSTRAP_EMAILS=you@example.com
