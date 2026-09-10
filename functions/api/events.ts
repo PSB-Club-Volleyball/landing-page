@@ -7,7 +7,9 @@ import { isAtLeast } from './_lib/roles'
 // first. Two things are filtered out here rather than in the admin table, since
 // both are purely about what's worth showing a visitor right now, not the
 // event's underlying status:
-//  - events that have already happened ("removed automatically" once over)
+//  - events that ended more than 2 hours ago ("removed automatically" once
+//    over, with a grace period so an event doesn't disappear mid-event or
+//    the moment it ends)
 //  - series occurrences (weekly practices etc.) more than a week out, so a
 //    whole season of practices created at once "releases" one week at a time
 //    instead of all showing up front. One-time events aren't held back this
@@ -35,7 +37,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
      FROM events e
      WHERE e.status IN ('published', 'cancelled')
        AND e.visibility IN (${visibilityPlaceholders})
-       AND datetime(COALESCE(e.end_time, e.start_time)) >= datetime('now')
+       AND datetime(COALESCE(e.end_time, e.start_time), '+2 hours') >= datetime('now')
        AND (e.series_id IS NULL OR e.released_early = 1 OR date(e.start_time) <= date('now', '+7 days'))
      ORDER BY e.start_time ASC`
   )
