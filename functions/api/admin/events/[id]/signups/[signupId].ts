@@ -47,6 +47,8 @@ export const onRequestPut: PagesFunction<Env, 'id' | 'signupId', AdminData> = as
     }>()
   if (!signup) return notFound('Signup not found')
 
+  const oldStatus = signup.status
+
   if (body.status !== undefined) {
     await env.DB.prepare(
       `UPDATE event_signups SET status = ?1, decided_at = CURRENT_TIMESTAMP, decided_by = ?2 WHERE id = ?3`
@@ -62,12 +64,14 @@ export const onRequestPut: PagesFunction<Env, 'id' | 'signupId', AdminData> = as
 
   await logAudit(env, data.user.id, 'update', 'event_signups', signupId, { event_id: eventId, ...body })
 
-  if (body.status === 'approved' && signup.status !== 'approved' && signup.cancel_token) {
+  if (body.status === 'approved' && oldStatus !== 'approved' && signup.cancel_token) {
     const eventInfo = { title: signup.title, start_time: signup.start_time, location_name: signup.location_name }
     const cancelUrl = buildCancelUrl(env, eventId, signupId, signup.cancel_token)
     await sendRsvpApprovedEmail(env, signup.email, signup.name, eventInfo, cancelUrl)
   }
-  if (body.status && body.status !== 'approved' && signup.status === 'approved') {
+
+  // Only auto-promote when explicitly denying (not when moving to waitlist)
+  if (body.status === 'denied' && oldStatus === 'approved') {
     await promoteFromWaitlist(env, eventId)
   }
 
