@@ -4,7 +4,7 @@ import BallIcon from './BallIcon'
 import MenuIcon from './MenuIcon'
 import { getMe, getLoginProviders } from '../lib/api'
 import { logout } from '../lib/adminApi'
-import { signInOptions } from '../lib/signInOptions'
+import { signInOptions, DEFAULT_PROVIDERS } from '../lib/signInOptions'
 import type { AuthUser } from '../types'
 
 const PAGES = [
@@ -27,7 +27,7 @@ function initials(user: AuthUser) {
 function Navbar() {
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
-  const [providers, setProviders] = useState({ google: true, microsoft: true, microsoft_other: false })
+  const [providers, setProviders] = useState(DEFAULT_PROVIDERS)
   const location = useLocation()
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)

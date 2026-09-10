@@ -8,6 +8,13 @@ export interface LoginProviders {
   microsoft_other: boolean
 }
 
+// Optimistic default for surfaces that render before GET /api/auth/providers
+// resolves (Navbar, admin lock screen) — assume the always-on providers are
+// available so the sign-in control doesn't flicker. microsoft_other is
+// opt-in, so it stays false until the fetch confirms it. The signup modal
+// deliberately starts all-false instead (conservative: no prompt until known).
+export const DEFAULT_PROVIDERS: LoginProviders = { google: true, microsoft: true, microsoft_other: false }
+
 export interface SignInOption {
   // The provider path segment for /api/auth/<id>/start.
   id: 'google' | 'microsoft' | 'microsoft-other'

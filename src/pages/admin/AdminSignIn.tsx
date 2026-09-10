@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { getLoginProviders } from '../../lib/api'
-import { signInOptions } from '../../lib/signInOptions'
+import { signInOptions, DEFAULT_PROVIDERS } from '../../lib/signInOptions'
 import OAuthButton from '../../components/OAuthButton'
 
 function AdminSignIn() {
-  const [providers, setProviders] = useState({ google: true, microsoft: true, microsoft_other: false })
+  const [providers, setProviders] = useState(DEFAULT_PROVIDERS)
 
   useEffect(() => {
     getLoginProviders()
