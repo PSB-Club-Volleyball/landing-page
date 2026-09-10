@@ -434,10 +434,6 @@
   align-items: center;
   gap: 0.25rem;
 }
-.team-member-actions select {
-  font-size: 0.75rem;
-  max-width: 6.5rem;
-}
 .cap-btn {
   font: inherit;
   font-size: 0.7rem;
@@ -1834,8 +1830,15 @@
   padding: 0.05rem 0.36rem;
   font-variant-numeric: tabular-nums;
 }
-.team-member-name[draggable="true"] {
+.team-member-name[draggable="true"],
+.player-chip[draggable="true"] {
   cursor: grab;
+}
+.team-member-name[draggable="true"]:focus-visible,
+.player-chip[draggable="true"]:focus-visible {
+  outline: 2px solid var(--ace-fg);
+  outline-offset: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .teams-save-bar {
