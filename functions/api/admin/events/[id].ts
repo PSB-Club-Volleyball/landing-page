@@ -3,6 +3,7 @@ import { badRequest, json, notFound } from '../../_lib/http'
 import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
 import { requireOwner } from '../_lib/permissions'
+import { eventCutoff } from '../../_lib/time'
 
 // GET /api/admin/events/:id -> one event for the admin event page, shaped
 // exactly like a row from GET /api/admin/events (drafts included, plus
@@ -14,12 +15,12 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
   const event = await env.DB.prepare(
     `SELECT e.*, f.name AS form_name,
             (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id) AS signup_count,
-            datetime(COALESCE(e.end_time, e.start_time)) < datetime('now') AS is_past
+            COALESCE(e.end_time, e.start_time) < ?2 AS is_past
      FROM events e
      LEFT JOIN forms f ON f.id = e.form_id
      WHERE e.id = ?1`
   )
-    .bind(id)
+    .bind(id, eventCutoff(0))
     .first<(Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; is_past: number }) | null>()
 
   if (!event) return notFound('Event not found')
