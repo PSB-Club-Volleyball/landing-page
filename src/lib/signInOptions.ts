@@ -35,13 +35,13 @@ export function signInOptions(providers: LoginProviders): SignInOption[] {
     },
     {
       id: 'microsoft',
-      label: 'Continue with Microsoft',
+      label: 'Continue with PSU Microsoft (@psu.edu)',
       enabled: providers.microsoft,
       href: (r) => start('microsoft', r),
     },
     {
       id: 'microsoft-other',
-      label: 'Continue with a non-PSU Microsoft account',
+      label: 'Continue with a personal Microsoft account (not PSU)',
       enabled: providers.microsoft_other,
       href: (r) => start('microsoft-other', r),
     },
