@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
-import { csvRowsToObjects, downloadCsv, parseCsv, toCsv } from '../../lib/csv'
+import { csvRowsToObjects, downloadCsv, downloadEmailList, parseCsv, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
 import type { Player } from '../../types'
 
@@ -177,6 +177,15 @@ function RosterAdmin({ isOwner }: { isOwner: boolean }) {
         <span className="admin-head-actions">
           <button className="btn btn-outline btn-sm" type="button" onClick={() => exportRosterCsv(players)}>
             Download CSV
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            type="button"
+            disabled={!players.some((p) => p.email)}
+            title="Email addresses from linked club accounts"
+            onClick={() => downloadEmailList('roster-emails.txt', players.map((p) => p.email))}
+          >
+            Emails only
           </button>
           <button
             className="btn btn-outline btn-sm"

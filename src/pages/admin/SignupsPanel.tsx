@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
-import { downloadCsv, toCsv } from '../../lib/csv'
+import { downloadCsv, downloadEmailList, toCsv } from '../../lib/csv'
 import type { EventSignup } from '../../types'
 
 function exportSignupsCsv(eventTitle: string, signups: EventSignup[]) {
@@ -15,8 +15,11 @@ function exportSignupsCsv(eventTitle: string, signups: EventSignup[]) {
       new Date(s.created_at).toLocaleString(),
     ])
   )
-  const safeTitle = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-  downloadCsv(`${safeTitle || 'event'}-signups.csv`, csv)
+  downloadCsv(`${eventSlug(eventTitle)}-signups.csv`, csv)
+}
+
+function eventSlug(eventTitle: string) {
+  return eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'event'
 }
 
 // The attendee roster for one event: approve / deny / waitlist / promote /
@@ -126,6 +129,14 @@ export default function SignupsPanel({
           onClick={() => exportSignupsCsv(eventTitle, signups)}
         >
           Download CSV
+        </button>
+        <button
+          className="btn btn-outline btn-sm"
+          type="button"
+          disabled={signups.length === 0}
+          onClick={() => downloadEmailList(`${eventSlug(eventTitle)}-emails.txt`, signups.map((s) => s.email))}
+        >
+          Emails only
         </button>
         <button className="btn btn-outline btn-sm" type="button" disabled={pendingCount === 0 || releasing} onClick={handleRelease}>
           {releasing ? 'Releasing…' : `Release ${pendingCount} pending`}
