@@ -31,6 +31,12 @@ ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
 EVENTS_EMAIL_FROM = "events@behrendclubvolleyball.org"
 # Optional: address the Reply-To header points at (defaults to EVENTS_EMAIL_FROM).
 # EVENTS_EMAIL_REPLY_TO = "eboard@behrendclubvolleyball.org"
+# Entra tenant for the PSU-owned "microsoft" sign-in app. Accepts a directory
+# (tenant) GUID or a verified domain; "psu.edu" resolves to the Penn State
+# tenant. The app registration is single-tenant, so this must NOT be "common".
+# The separate "microsoft-other" provider is hardcoded to /common and needs
+# its own MICROSOFT_OTHER_CLIENT_ID/SECRET secrets.
+MICROSOFT_TENANT_ID = "psu.edu"
 
 [[env.preview.d1_databases]]
 binding = "DB"
@@ -45,3 +51,4 @@ bucket_name = "behrend-club-volleyball-preview"
 PUBLIC_URL = "https://behrendclubvolleyball.org"
 ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
 EVENTS_EMAIL_FROM = "events@behrendclubvolleyball.org"
+MICROSOFT_TENANT_ID = "psu.edu"

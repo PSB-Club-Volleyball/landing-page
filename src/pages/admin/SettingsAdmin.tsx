@@ -35,7 +35,7 @@ function SettingsAdmin() {
   }
 
   function save(previous: LoginSettings, next: LoginSettings) {
-    if (!next.google_enabled && !next.microsoft_enabled) {
+    if (!next.google_enabled && !next.microsoft_enabled && !next.microsoft_other_enabled) {
       setError('At least one sign-in provider must stay enabled')
       return
     }
@@ -81,8 +81,21 @@ function SettingsAdmin() {
               disabled={saving}
               onChange={(e) => save(settings, { ...settings, microsoft_enabled: e.target.checked })}
             />
-            Allow signing in with Microsoft
+            Allow signing in with Microsoft (Penn State accounts)
           </label>
+          <label className="switch-row">
+            <input
+              type="checkbox"
+              checked={settings.microsoft_other_enabled}
+              disabled={saving}
+              onChange={(e) => save(settings, { ...settings, microsoft_other_enabled: e.target.checked })}
+            />
+            Allow signing in with a non-PSU Microsoft account
+          </label>
+          <p className="admin-note">
+            The non-PSU Microsoft option needs its own Azure app registration and secrets configured first
+            &mdash; see docs/backend-setup.md. Leave it off until that&rsquo;s done.
+          </p>
         </fieldset>
       )}
       {settings && (

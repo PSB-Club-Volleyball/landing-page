@@ -4,6 +4,7 @@ import BallIcon from './BallIcon'
 import MenuIcon from './MenuIcon'
 import { getMe, getLoginProviders } from '../lib/api'
 import { logout } from '../lib/adminApi'
+import { signInOptions } from '../lib/signInOptions'
 import type { AuthUser } from '../types'
 
 const PAGES = [
@@ -26,7 +27,7 @@ function initials(user: AuthUser) {
 function Navbar() {
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
-  const [providers, setProviders] = useState({ google: true, microsoft: true })
+  const [providers, setProviders] = useState({ google: true, microsoft: true, microsoft_other: false })
   const location = useLocation()
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -93,6 +94,8 @@ function Navbar() {
     }
   }, [open])
 
+  const signInOpts = signInOptions(providers)
+
   return (
     <header className="navbar">
       <NavLink
@@ -147,33 +150,26 @@ function Navbar() {
         </nav>
         <div className="nav-account">
           {user === undefined && null}
-          {user === null && providers.google && providers.microsoft && (
-            <details className="nav-signin-menu">
-              <summary className="nav-signin">Sign in</summary>
-              <div className="nav-signin-options">
-                <a
-                  href={`/api/auth/google/start?redirect=${encodeURIComponent(location.pathname)}`}
-                  onClick={() => setOpen(false)}
-                >
-                  Continue with Google
-                </a>
-                <a
-                  href={`/api/auth/microsoft/start?redirect=${encodeURIComponent(location.pathname)}`}
-                  onClick={() => setOpen(false)}
-                >
-                  Continue with Microsoft
-                </a>
-              </div>
-            </details>
-          )}
-          {user === null && providers.google !== providers.microsoft && (
+          {user === null && signInOpts.length === 1 && (
             <a
               className="nav-signin"
-              href={`/api/auth/${providers.google ? 'google' : 'microsoft'}/start?redirect=${encodeURIComponent(location.pathname)}`}
+              href={signInOpts[0].href(location.pathname)}
               onClick={() => setOpen(false)}
             >
               Sign in
             </a>
+          )}
+          {user === null && signInOpts.length > 1 && (
+            <details className="nav-signin-menu">
+              <summary className="nav-signin">Sign in</summary>
+              <div className="nav-signin-options">
+                {signInOpts.map((opt) => (
+                  <a key={opt.id} href={opt.href(location.pathname)} onClick={() => setOpen(false)}>
+                    {opt.label}
+                  </a>
+                ))}
+              </div>
+            </details>
           )}
           {user && (
             <span className="nav-account-chip">
