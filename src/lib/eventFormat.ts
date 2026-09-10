@@ -1,4 +1,4 @@
-import type { PublicClubEvent } from '../types'
+import type { PlayFormat, PublicClubEvent } from '../types'
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {
   practice: 'Practice',
@@ -6,6 +6,20 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   open_gym: 'Open gym',
   game: 'Game',
   social: 'Social',
+}
+
+// Public-facing wording for a play format — plainer than the admin labels.
+// 'none' has no schedule/bracket, so the event page shows nothing for it.
+export const PLAY_FORMAT_LABELS: Record<Exclude<PlayFormat, 'none'>, string> = {
+  round_robin: 'Round robin',
+  pool_bracket: 'Pool play, then a bracket',
+  single_elim: 'Single-elimination bracket',
+  double_elim: 'Double-elimination bracket',
+}
+
+export function playFormatLabel(format: PlayFormat | null | undefined): string | null {
+  if (!format || format === 'none') return null
+  return PLAY_FORMAT_LABELS[format]
 }
 
 const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })

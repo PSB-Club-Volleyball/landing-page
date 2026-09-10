@@ -5,8 +5,19 @@ import EventTeams from '../components/EventTeams'
 import EventScores from '../components/EventScores'
 import EventBracket from '../components/EventBracket'
 import EventPools from '../components/EventPools'
+import {
+  AlertIcon,
+  BracketIcon,
+  CalendarIcon,
+  CheckIcon,
+  ClockIcon,
+  PinIcon,
+  ShareIcon,
+  UsersIcon,
+} from '../components/EventIcons'
 import { WAIVER_URL } from '../constants'
 import { ApiError, getEvent } from '../lib/api'
+import { downloadEventIcs } from '../lib/calendar'
 import {
   directionsUrl,
   EVENT_TYPE_LABELS,
@@ -14,6 +25,7 @@ import {
   formatSignupDeadline,
   formatTimeRange,
   getSignupState,
+  playFormatLabel,
 } from '../lib/eventFormat'
 import { renderMarkdown } from '../lib/markdown'
 import type { PublicClubEvent, SignupStatus } from '../types'
@@ -32,6 +44,7 @@ function EventDetail() {
   const [state, setState] = useState<'loading' | 'ready' | 'notfound' | 'error'>('loading')
   const [signupOpen, setSignupOpen] = useState(false)
   const [manage, setManage] = useState<{ signupId: number; status: SignupStatus | null } | null>(null)
+  const [shareNote, setShareNote] = useState<string | null>(null)
 
   function refresh() {
     if (!Number.isInteger(id)) {
@@ -138,6 +151,48 @@ function EventDetail() {
       { replace: true }
     )
 
+  const spotsCopy =
+    e.capacity !== null
+      ? isFull
+        ? joinsWaitlist
+          ? `${e.signup_count} signed up · waitlist open`
+          : 'Full'
+        : `${e.signup_count} of ${e.capacity} spots filled${spotsLeft !== null ? ` · ${spotsLeft} left` : ''}`
+      : `${e.signup_count} ${verb === 'RSVP' ? 'going' : 'signed up'}`
+  const meterPct =
+    e.capacity && e.capacity > 0 ? Math.min(100, Math.round((e.signup_count / e.capacity) * 100)) : null
+  const formatLabel = playFormatLabel(e.play_format)
+  const myStatusClass =
+    e.my_signup_status === 'waitlist'
+      ? 'is-waitlist'
+      : e.my_signup_status === 'denied'
+        ? 'is-denied'
+        : e.my_signup_status === 'pending'
+          ? 'is-pending'
+          : e.my_signup_id
+            ? 'is-going'
+            : ''
+
+  async function handleShare() {
+    const url = window.location.href
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: e.title, url })
+        return
+      } catch {
+        // user cancelled the share sheet — fall through to nothing
+        return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setShareNote('Link copied')
+      window.setTimeout(() => setShareNote(null), 2000)
+    } catch (err) {
+      console.error('Share failed', err)
+    }
+  }
+
   return (
     <main id="main-content" tabIndex={-1}>
       <div className="board event-page">
@@ -151,29 +206,6 @@ function EventDetail() {
         </p>
         <h1>{e.title}</h1>
 
-        <div className="event-page-meta">
-          <div>{formatEventDate(e.start_time)}</div>
-          <div>{formatTimeRange(e)}</div>
-          {e.location_name && (
-            <div>
-              {e.location_name}
-              {e.location_address && (
-                <>
-                  {' · '}
-                  <a
-                    href={directionsUrl(e.location_address)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="directions-link"
-                  >
-                    Directions
-                  </a>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
         {tags.length > 0 && (
           <div className="event-card-tags event-page-tags">
             {tags.map((t) => (
@@ -181,6 +213,81 @@ function EventDetail() {
                 {t}
               </span>
             ))}
+          </div>
+        )}
+
+        <dl className="event-glance">
+          <div className="event-glance-row">
+            <CalendarIcon className="event-glance-icon" />
+            <div>
+              <dt>Date</dt>
+              <dd>{formatEventDate(e.start_time)}</dd>
+            </div>
+          </div>
+          <div className="event-glance-row">
+            <ClockIcon className="event-glance-icon" />
+            <div>
+              <dt>Time</dt>
+              <dd>{formatTimeRange(e)}</dd>
+            </div>
+          </div>
+          {e.location_name && (
+            <div className="event-glance-row">
+              <PinIcon className="event-glance-icon" />
+              <div>
+                <dt>Location</dt>
+                <dd>
+                  {e.location_name}
+                  {e.location_address && (
+                    <>
+                      {' · '}
+                      <a
+                        href={directionsUrl(e.location_address)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="directions-link"
+                      >
+                        Directions
+                      </a>
+                    </>
+                  )}
+                </dd>
+              </div>
+            </div>
+          )}
+          {formatLabel && (
+            <div className="event-glance-row">
+              <BracketIcon className="event-glance-icon" />
+              <div>
+                <dt>Format</dt>
+                <dd>{formatLabel}</dd>
+              </div>
+            </div>
+          )}
+          {!isCancelled && e.signup_enabled && (
+            <div className="event-glance-row">
+              <UsersIcon className="event-glance-icon" />
+              <div>
+                <dt>{verb === 'RSVP' ? 'Attendance' : 'Spots'}</dt>
+                <dd>{spotsCopy}</dd>
+                {meterPct !== null && (
+                  <div className="event-meter" aria-hidden="true">
+                    <i style={{ width: `${meterPct}%` }} />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </dl>
+
+        {!isCancelled && (
+          <div className="event-aux-actions">
+            <button className="btn btn-outline btn-sm" type="button" onClick={() => downloadEventIcs(e)}>
+              <CalendarIcon /> Add to calendar
+            </button>
+            <button className="btn btn-outline btn-sm" type="button" onClick={handleShare}>
+              <ShareIcon /> {shareNote ?? 'Share'}
+            </button>
           </div>
         )}
 
@@ -242,69 +349,130 @@ function EventDetail() {
             <EventScores matches={matches} standings={standings} timedOnly={timedOnly} />
           )
         ) : (
-          <>
-        {isCancelled && <p className="event-card-desc">This event has been cancelled.</p>}
+          <div className="event-page-details">
+        {isCancelled && <p className="event-page-cancelled-msg">This event has been cancelled.</p>}
         {!isCancelled && e.description && (
           <div className="event-detail-desc event-page-desc">{renderMarkdown(e.description)}</div>
         )}
 
         {!isCancelled && e.signup_enabled && (
-          <div className="event-card-signup event-page-signup">
-            <span className="event-card-signup-status">
-              <b>{e.signup_count}</b> {verb === 'RSVP' ? 'going' : 'signed up'}
-              {spotsLeft !== null && !isFull && <span className="cap-chip">{spotsLeft} left</span>}
-              {isFull && !joinsWaitlist && <span className="full-chip">full</span>}
-              {joinsWaitlist && <span className="cap-chip">waitlist open</span>}
-            </span>
+          <div className={`event-signup-card${myStatusClass ? ` ${myStatusClass}` : ''}`}>
             {e.my_signup_id ? (
-              <button
-                className="btn btn-outline"
-                type="button"
-                onClick={() => setManage({ signupId: e.my_signup_id as number, status: e.my_signup_status })}
-              >
-                {e.my_signup_status === 'pending'
-                  ? 'Request pending · Manage'
-                  : e.my_signup_status === 'denied'
-                    ? 'Not approved · Manage'
-                    : e.my_signup_status === 'waitlist'
-                      ? 'On waitlist · Manage'
-                      : "You’re going · Manage"}
-              </button>
+              <>
+                <p className={`event-signup-state${myStatusClass ? ` ${myStatusClass}` : ''}`}>
+                  {e.my_signup_status === 'approved' || e.my_signup_status === null ? (
+                    <CheckIcon />
+                  ) : e.my_signup_status === 'denied' ? (
+                    <AlertIcon />
+                  ) : (
+                    <ClockIcon />
+                  )}
+                  {e.my_signup_status === 'pending'
+                    ? 'Request pending'
+                    : e.my_signup_status === 'denied'
+                      ? 'Not approved'
+                      : e.my_signup_status === 'waitlist'
+                        ? 'On the waitlist'
+                        : "You’re going"}
+                </p>
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={() => setManage({ signupId: e.my_signup_id as number, status: e.my_signup_status })}
+                >
+                  Manage signup
+                </button>
+              </>
             ) : (
-              <button
-                className={isFull && !joinsWaitlist ? 'btn btn-outline' : 'btn btn-ace'}
-                type="button"
-                disabled={deadlinePassed || (isFull && !joinsWaitlist)}
-                onClick={() => setSignupOpen(true)}
-              >
-                {deadlinePassed
-                  ? 'Deadline for registration passed'
-                  : joinsWaitlist
-                    ? 'Join waitlist'
-                    : isFull
-                      ? 'Full'
-                      : verb}
-              </button>
+              <>
+                <div className="event-signup-card-top">
+                  <span className="event-signup-count">
+                    <b>{e.signup_count}</b> {verb === 'RSVP' ? 'going' : 'signed up'}
+                  </span>
+                  {spotsLeft !== null && !isFull && <span className="cap-chip">{spotsLeft} left</span>}
+                  {isFull && !joinsWaitlist && <span className="full-chip">full</span>}
+                  {joinsWaitlist && <span className="cap-chip">waitlist open</span>}
+                </div>
+                {meterPct !== null && (
+                  <div className="event-meter" aria-hidden="true">
+                    <i style={{ width: `${meterPct}%` }} />
+                  </div>
+                )}
+                <button
+                  className={`btn ${isFull && !joinsWaitlist ? 'btn-outline' : 'btn-ace'} event-signup-btn`}
+                  type="button"
+                  disabled={deadlinePassed || (isFull && !joinsWaitlist)}
+                  onClick={() => setSignupOpen(true)}
+                >
+                  {deadlinePassed
+                    ? 'Registration closed'
+                    : joinsWaitlist
+                      ? 'Join waitlist'
+                      : isFull
+                        ? 'Full'
+                        : verb}
+                </button>
+                {!deadlinePassed && e.signup_deadline && (
+                  <p className="event-signup-deadline">
+                    Signup closes {formatSignupDeadline(e.signup_deadline)}
+                  </p>
+                )}
+              </>
             )}
           </div>
         )}
 
-        {!isCancelled && e.signup_enabled && !e.my_signup_id && !deadlinePassed && e.signup_deadline && (
-          <p className="event-card-deadline">Signup closes {formatSignupDeadline(e.signup_deadline)}</p>
-        )}
-
         {!isCancelled && e.signup_enabled && (
-          <p className="waiver-download-note">
-            Playing requires a signed liability waiver &mdash;{' '}
-            <a href={WAIVER_URL} target="_blank" rel="noreferrer">
-              download and print it
-            </a>{' '}
-            ahead of time.
-          </p>
+          <div className="event-waiver-callout">
+            <AlertIcon className="event-waiver-icon" />
+            <p>
+              Playing requires a signed liability waiver.{' '}
+              <a href={WAIVER_URL} target="_blank" rel="noreferrer">
+                Download and print it
+              </a>{' '}
+              ahead of time and bring it with you.
+            </p>
+          </div>
         )}
-          </>
+          </div>
         )}
       </div>
+
+      {!isCancelled && e.signup_enabled && !e.my_signup_id && tab === 'details' && (
+        <div className="event-signup-bar">
+          <span className="event-signup-bar-status">
+            {isFull && !joinsWaitlist ? 'Event full' : spotsCopy}
+          </span>
+          <button
+            className={`btn ${isFull && !joinsWaitlist ? 'btn-outline' : 'btn-ace'}`}
+            type="button"
+            disabled={deadlinePassed || (isFull && !joinsWaitlist)}
+            onClick={() => setSignupOpen(true)}
+          >
+            {deadlinePassed ? 'Closed' : joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
+          </button>
+        </div>
+      )}
+      {!isCancelled && e.signup_enabled && e.my_signup_id && tab === 'details' && (
+        <div className="event-signup-bar">
+          <span className="event-signup-bar-status">
+            {e.my_signup_status === 'pending'
+              ? 'Request pending'
+              : e.my_signup_status === 'waitlist'
+                ? 'On the waitlist'
+                : e.my_signup_status === 'denied'
+                  ? 'Not approved'
+                  : "You’re going"}
+          </span>
+          <button
+            className="btn btn-outline"
+            type="button"
+            onClick={() => setManage({ signupId: e.my_signup_id as number, status: e.my_signup_status })}
+          >
+            Manage
+          </button>
+        </div>
+      )}
 
       {signupOpen && (
         <SignupModal
