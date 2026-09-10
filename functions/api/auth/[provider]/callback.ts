@@ -53,13 +53,27 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
       grant_type: 'authorization_code',
     }),
   })
-  if (!tokenResponse.ok) return toRedirect('error=token_exchange_failed')
+  if (!tokenResponse.ok) {
+    console.error(
+      `OAuth token exchange failed for ${providerName}`,
+      tokenResponse.status,
+      await tokenResponse.text().catch(() => '')
+    )
+    return toRedirect('error=token_exchange_failed')
+  }
   const tokenData = await tokenResponse.json<{ access_token: string }>()
 
   const profileResponse = await fetch(provider.userinfoUrl, {
     headers: { authorization: `Bearer ${tokenData.access_token}` },
   })
-  if (!profileResponse.ok) return toRedirect('error=profile_fetch_failed')
+  if (!profileResponse.ok) {
+    console.error(
+      `OAuth profile fetch failed for ${providerName}`,
+      profileResponse.status,
+      await profileResponse.text().catch(() => '')
+    )
+    return toRedirect('error=profile_fetch_failed')
+  }
   const profile = normalizeProfile(await profileResponse.json<Record<string, unknown>>())
   if (!profile) return toRedirect('error=missing_profile_fields')
 
