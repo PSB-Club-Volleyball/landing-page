@@ -17,6 +17,7 @@ import {
 } from '../components/EventIcons'
 import { WAIVER_URL } from '../constants'
 import { ApiError, getEvent } from '../lib/api'
+import { authErrorMessage } from '../lib/authErrors'
 import { downloadEventIcs } from '../lib/calendar'
 import {
   directionsUrl,
@@ -45,6 +46,7 @@ function EventDetail() {
   const [signupOpen, setSignupOpen] = useState(false)
   const [manage, setManage] = useState<{ signupId: number; status: SignupStatus | null } | null>(null)
   const [shareNote, setShareNote] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   function refresh() {
     if (!Number.isInteger(id)) {
@@ -78,12 +80,20 @@ function EventDetail() {
     const params = new URLSearchParams(window.location.search)
     if (params.get('signup') !== String(id)) return
     const e = event as PublicClubEvent
-    if (e.my_signup_id) {
+
+    // The OAuth callback appends ?error=<code> when sign-in failed (e.g. the
+    // email is already tied to a different provider). Surface it instead of
+    // silently reopening the form as an anonymous guest.
+    const err = authErrorMessage(params.get('error'))
+    if (err) {
+      setAuthError(err)
+    } else if (e.my_signup_id) {
       setManage({ signupId: e.my_signup_id, status: e.my_signup_status })
     } else {
       setSignupOpen(true)
     }
     params.delete('signup')
+    params.delete('error')
     const rest = params.toString()
     window.history.replaceState(null, '', rest ? `?${rest}` : window.location.pathname)
   }, [state, id, event])
@@ -205,6 +215,12 @@ function EventDetail() {
           {isCancelled && <span className="event-page-cancelled-tag">Cancelled</span>}
         </p>
         <h1>{e.title}</h1>
+
+        {authError && (
+          <p className="admin-error" role="alert">
+            {authError}
+          </p>
+        )}
 
         {tags.length > 0 && (
           <div className="event-card-tags event-page-tags">

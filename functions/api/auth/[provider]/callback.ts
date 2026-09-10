@@ -133,14 +133,32 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
           assignOwner ? 'owner' : isBootstrap ? 'admin' : 'outsider'
         )
         .run()
+    const insertWithOwnerRetry = async () => {
+      try {
+        return await insert()
+      } catch (e) {
+        // Same race as above, for a brand-new bootstrap-email user.
+        if (!assignOwner) throw e
+        assignOwner = false
+        return await insert()
+      }
+    }
+
     let inserted
     try {
-      inserted = await insert()
+      inserted = await insertWithOwnerRetry()
     } catch (e) {
-      // Same race as above, for a brand-new bootstrap-email user.
-      if (!assignOwner) throw e
-      assignOwner = false
-      inserted = await insert()
+      // users.email is UNIQUE. This fires when the profile's email already
+      // belongs to an account created through a different OAuth provider
+      // (e.g. signed up with Google, now signing in with Microsoft). That's an
+      // expected user-facing situation, not a server fault, so send the same
+      // graceful ?error= redirect the rest of the handler uses instead of
+      // letting a raw D1 constraint error surface as HTTP 500. Kept separate
+      // from the owner-race catch above, which only ever retries.
+      if (e instanceof Error && /UNIQUE constraint failed: users\.email/i.test(e.message)) {
+        return toRedirect('error=account_exists')
+      }
+      throw e
     }
     userId = Number(inserted.meta.last_row_id)
   }
