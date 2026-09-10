@@ -277,6 +277,8 @@
   display: flex;
   gap: 0.25rem;
   border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .admin-subtabs button {
   appearance: none;
@@ -290,6 +292,8 @@
   font-size: 0.9rem;
   color: var(--muted);
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .admin-subtabs button.active {
   color: var(--page-fg);
