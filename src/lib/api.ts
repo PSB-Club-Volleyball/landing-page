@@ -1,4 +1,5 @@
 import type { AuthUser, BoardMember, FormWithFields, MediaItem, Player, PublicClubEvent, SignupStatus } from '../types'
+import type { LoginProviders } from './signInOptions'
 
 // Carries the HTTP status so callers can branch on it (e.g. 404 vs. a real
 // outage) instead of sniffing the message string.
@@ -84,6 +85,6 @@ export function getMe(): Promise<{ user: AuthUser | null }> {
   return getJson('/api/auth/me')
 }
 
-export function getLoginProviders(): Promise<{ google: boolean; microsoft: boolean }> {
+export function getLoginProviders(): Promise<LoginProviders> {
   return getJson('/api/auth/providers')
 }

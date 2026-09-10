@@ -1,10 +1,26 @@
-# Copy to .dev.vars for local `wrangler pages dev` (this file itself is gitignored).
-# In production, set these with `wrangler pages secret put <NAME>` instead.
+# Copy to .dev.vars for local `npm run pages:dev` (this file itself is gitignored).
+# `wrangler pages dev` does not read the [env.preview.vars] block from
+# wrangler.toml, so the non-secret vars below (PUBLIC_URL etc.) have to be
+# repeated here for local dev. In production, set the secrets with
+# `wrangler pages secret put <NAME>` and leave the non-secret vars in
+# wrangler.toml — see docs/backend-setup.md.
+
+PUBLIC_URL=http://localhost:8788
+ADMIN_BOOTSTRAP_EMAILS=you@example.com
+EVENTS_EMAIL_FROM=events@behrendclubvolleyball.org
 
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
+# PSU-owned single-tenant app ("microsoft" provider). MICROSOFT_TENANT_ID is
+# non-secret config in wrangler.toml for deploys; set it here too for local dev.
+MICROSOFT_TENANT_ID=psu.edu
 MICROSOFT_CLIENT_ID=
 MICROSOFT_CLIENT_SECRET=
+
+# Separate multi-tenant + personal-accounts app ("microsoft-other" provider,
+# any non-PSU Microsoft account). Leave blank to keep that provider disabled.
+MICROSOFT_OTHER_CLIENT_ID=
+MICROSOFT_OTHER_CLIENT_SECRET=
 
 RESEND_API_KEY=

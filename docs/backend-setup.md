@@ -91,20 +91,47 @@ pre-registered as a fixed redirect URI, so Google/Microsoft sign-in won't
 complete on preview deploys — everything else works against the isolated
 preview backend.)
 
-## 6. Register the Microsoft (Entra ID) app
+## 6. Register the Microsoft (Entra ID) apps
 
-1. [Entra admin center](https://entra.microsoft.com/) → Identity → Applications
-   → App registrations → New registration.
-2. Supported account types: **Accounts in any organizational directory and
-   personal Microsoft accounts** (matches Google's "anyone with an account"
-   behavior; the callback code already assumes this).
-3. Redirect URI: platform **Web**, add one per environment:
+There are **two** Microsoft sign-in providers, each backed by its own app
+registration:
+
+- **`microsoft`** — the PSU-owned registration (`E8-BehrendClubVolleyball`).
+  Penn State controls this tenant and keeps the registration **single-tenant**,
+  so the code pins it to the PSU tenant endpoint via `MICROSOFT_TENANT_ID`
+  (`wrangler.toml`, default `psu.edu`) rather than `/common`. Serves Penn State
+  / Behrend accounts.
+- **`microsoft-other`** — a separate registration you own, configured
+  multi-tenant + personal accounts, hardcoded to `/common`. Serves any non-PSU
+  Microsoft account. Off by default (`login_settings.microsoft_other_enabled`);
+  the owner turns it on in Admin → Settings once its secrets are set.
+
+### 6a. The PSU app (`microsoft`)
+
+1. [Entra admin center](https://entra.microsoft.com/) → App registrations →
+   the existing `E8-BehrendClubVolleyball` registration.
+2. Supported account types stays **single-tenant** (PSU won't allow otherwise).
+3. Authentication → platform **Web** → redirect URIs, one per environment:
    - `https://behrendclubvolleyball.org/api/auth/microsoft/callback`
    - `https://staging.behrendclubvolleyball.org/api/auth/microsoft/callback`
    - `http://localhost:8788/api/auth/microsoft/callback` (local dev)
-4. Copy the Application (client) ID from the app's Overview page.
+4. Copy the Application (client) ID from the Overview page. If the PSU tenant's
+   directory (tenant) ID differs from the `psu.edu` domain resolution, set
+   `MICROSOFT_TENANT_ID` to that GUID in `wrangler.toml` / `wrangler.staging.toml`.
 5. Certificates & secrets → New client secret → copy the secret **value**
    (not the secret ID) immediately, since it's hidden after you leave the page.
+
+### 6b. The other-accounts app (`microsoft-other`)
+
+1. Entra admin center (under a **non-PSU** account you control) → App
+   registrations → New registration.
+2. Supported account types: **Accounts in any organizational directory and
+   personal Microsoft accounts**.
+3. Authentication → platform **Web** → redirect URIs:
+   - `https://behrendclubvolleyball.org/api/auth/microsoft-other/callback`
+   - `https://staging.behrendclubvolleyball.org/api/auth/microsoft-other/callback`
+   - `http://localhost:8788/api/auth/microsoft-other/callback` (local dev)
+4. Copy the Application (client) ID; create a client secret as in 6a step 5.
 
 ## 7. Set the secrets
 
@@ -117,25 +144,43 @@ environment:
 `--project-name` (which Pages project) and `--env` (`production` or `preview`;
 defaults to `production`), so no `--config` flag is needed or supported here:
 
+`MICROSOFT_TENANT_ID` is non-secret and lives in `wrangler.toml` /
+`wrangler.staging.toml` alongside the other vars — don't set it as a secret.
+The `MICROSOFT_OTHER_*` secrets are only needed once you've done step 6b and
+want to enable the non-PSU provider; skip them otherwise.
+
 ```
 # Production
 npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name=behrend-club-volleyball --env production
 npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
 npx wrangler pages secret put MICROSOFT_CLIENT_ID --project-name=behrend-club-volleyball --env production
 npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
+npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_ID --project-name=behrend-club-volleyball --env production
+npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_SECRET --project-name=behrend-club-volleyball --env production
 
 # Staging (separate Pages project)
 npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
 npx wrangler pages secret put GOOGLE_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
 npx wrangler pages secret put MICROSOFT_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
 npx wrangler pages secret put MICROSOFT_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
+npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_ID --project-name=behrend-club-volleyball-staging --env production
+npx wrangler pages secret put MICROSOFT_OTHER_CLIENT_SECRET --project-name=behrend-club-volleyball-staging --env production
 ```
+
+After changing any secret, **redeploy** the affected Pages project — Pages
+only picks up secret changes on the next deployment.
 
 PR previews use the shared `preview` environment; sign-in won't complete
 there (see the note in step 5), so preview secrets are optional.
 
 For local development, copy `.dev.vars.example` to `.dev.vars` and fill in
-the same values there instead (that file is gitignored).
+the same values there instead (that file is gitignored). `wrangler pages dev`
+does not read the `[env.preview.vars]` block, so `.dev.vars` must also carry
+the non-secret vars (`PUBLIC_URL`, `ADMIN_BOOTSTRAP_EMAILS`,
+`EVENTS_EMAIL_FROM`, `MICROSOFT_TENANT_ID`) — `.dev.vars.example` lists them.
+`npm run pages:dev` binds the local D1/R2 to the preview databases explicitly
+(the current wrangler `pages dev` has no `--env` flag), and `npm run
+db:migrate:local` migrates that same local D1.
 
 ### RSVP emails (Resend)
 

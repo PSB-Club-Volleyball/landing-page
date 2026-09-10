@@ -19,6 +19,7 @@ export const onRequestGet: PagesFunction<Env, string, AdminData> = async ({ env 
 interface SettingsInput {
   google_enabled: boolean
   microsoft_enabled: boolean
+  microsoft_other_enabled: boolean
   current_season?: string | null
   roster_visible?: boolean
 }
@@ -33,10 +34,15 @@ export const onRequestPut: PagesFunction<Env, string, AdminData> = async ({ requ
   if (denied) return denied
 
   const body = await request.json<Partial<SettingsInput>>().catch(() => null)
-  if (!body || typeof body.google_enabled !== 'boolean' || typeof body.microsoft_enabled !== 'boolean') {
-    return badRequest('google_enabled and microsoft_enabled are required booleans')
+  if (
+    !body ||
+    typeof body.google_enabled !== 'boolean' ||
+    typeof body.microsoft_enabled !== 'boolean' ||
+    typeof body.microsoft_other_enabled !== 'boolean'
+  ) {
+    return badRequest('google_enabled, microsoft_enabled and microsoft_other_enabled are required booleans')
   }
-  if (!body.google_enabled && !body.microsoft_enabled) {
+  if (!body.google_enabled && !body.microsoft_enabled && !body.microsoft_other_enabled) {
     return badRequest('At least one sign-in provider must stay enabled')
   }
 
@@ -44,9 +50,15 @@ export const onRequestPut: PagesFunction<Env, string, AdminData> = async ({ requ
   const rosterVisible = body.roster_visible ?? true
 
   await env.DB.prepare(
-    `UPDATE login_settings SET google_enabled = ?1, microsoft_enabled = ?2, current_season = ?3, roster_visible = ?4 WHERE id = 1`
+    `UPDATE login_settings SET google_enabled = ?1, microsoft_enabled = ?2, microsoft_other_enabled = ?3, current_season = ?4, roster_visible = ?5 WHERE id = 1`
   )
-    .bind(body.google_enabled ? 1 : 0, body.microsoft_enabled ? 1 : 0, season, rosterVisible ? 1 : 0)
+    .bind(
+      body.google_enabled ? 1 : 0,
+      body.microsoft_enabled ? 1 : 0,
+      body.microsoft_other_enabled ? 1 : 0,
+      season,
+      rosterVisible ? 1 : 0
+    )
     .run()
 
   await logAudit(env, data.user.id, 'update', 'login_settings', null, body)

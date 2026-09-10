@@ -23,3 +23,6 @@ bucket_name = "behrend-club-volleyball-staging"
 PUBLIC_URL = "https://staging.behrendclubvolleyball.org"
 ADMIN_BOOTSTRAP_EMAILS = "ethanluh@gmail.com"
 EVENTS_EMAIL_FROM = "events@behrendclubvolleyball.org"
+# Entra tenant for the PSU-owned "microsoft" sign-in app (GUID or verified
+# domain; not "common" — the app is single-tenant). See wrangler.toml.
+MICROSOFT_TENANT_ID = "psu.edu"

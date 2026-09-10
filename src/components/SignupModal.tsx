@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { WAIVER_URL } from '../constants'
 import { cancelSignup, getForm, getLoginProviders, getMe, submitSignup } from '../lib/api'
+import { signInOptions } from '../lib/signInOptions'
+import OAuthButton from './OAuthButton'
 import { buildPages, FieldInput } from '../lib/formFields'
 import { useModalFocus } from '../lib/useModalFocus'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
@@ -44,7 +46,7 @@ function SignupModal({
   // signup has no way to know, so it defaults to showing the download link.
   const [waiverOnFile, setWaiverOnFile] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
-  const [providers, setProviders] = useState({ google: false, microsoft: false })
+  const [providers, setProviders] = useState({ google: false, microsoft: false, microsoft_other: false })
 
   useEffect(() => {
     getLoginProviders()
@@ -253,7 +255,7 @@ function SignupModal({
               <form className="signup-form" onSubmit={onLastPage ? handleSubmit : (e) => e.preventDefault()}>
                 {pageIndex === 0 && (
                   <>
-                    {!loggedIn && (providers.google || providers.microsoft) && (
+                    {!loggedIn && signInOptions(providers).length > 0 && (
                       <div className="signup-google-prompt">
                         <p>
                           Have an account, or want one? Sign in to skip re-typing your info next time &mdash;
@@ -261,28 +263,13 @@ function SignupModal({
                           Behrend accounts work with Microsoft sign-in.
                         </p>
                         <div className="signup-oauth-options">
-                          {providers.google && (
-                            <a
-                              className="oauth-btn"
-                              href={`/api/auth/google/start?redirect=${encodeURIComponent(`/events/${event.id}?signup=${event.id}`)}`}
-                            >
-                              <span className="oauth-g">G</span> Continue with Google
-                            </a>
-                          )}
-                          {providers.microsoft && (
-                            <a
-                              className="oauth-btn"
-                              href={`/api/auth/microsoft/start?redirect=${encodeURIComponent(`/events/${event.id}?signup=${event.id}`)}`}
-                            >
-                              <span className="oauth-ms">
-                                <span />
-                                <span />
-                                <span />
-                                <span />
-                              </span>
-                              Continue with Microsoft
-                            </a>
-                          )}
+                          {signInOptions(providers).map((opt) => (
+                            <OAuthButton
+                              key={opt.id}
+                              option={opt}
+                              redirect={`/events/${event.id}?signup=${event.id}`}
+                            />
+                          ))}
                         </div>
                       </div>
                     )}

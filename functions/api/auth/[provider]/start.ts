@@ -31,7 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
     authorizeUrl.searchParams.set('access_type', 'online')
     authorizeUrl.searchParams.set('prompt', 'select_account')
   }
-  if (providerName === 'microsoft') {
+  if (providerName.startsWith('microsoft')) {
     authorizeUrl.searchParams.set('prompt', 'select_account')
   }
 

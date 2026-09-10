@@ -368,6 +368,7 @@ export interface AuthUser {
 export interface LoginSettings {
   google_enabled: boolean
   microsoft_enabled: boolean
+  microsoft_other_enabled: boolean
   current_season: string | null
   roster_visible: boolean
 }
