@@ -1565,14 +1565,20 @@
   background: none;
   cursor: pointer;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .signups-filter-chips .chip.on {
   background: var(--page-fg);
   color: var(--page-bg);
   border-color: var(--page-fg);
 }
-.signups-toolbar-spacer {
-  flex: 1 1 auto;
+.signups-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
 }
 
 .signups-export {
@@ -1878,5 +1884,19 @@
   }
   .teams-dnd {
     grid-template-columns: 1fr;
+  }
+  .signups-search {
+    flex-basis: 100%;
+  }
+  .signups-filter-chips {
+    flex-basis: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  .signups-actions {
+    flex-basis: 100%;
+    margin-left: 0;
   }
 }

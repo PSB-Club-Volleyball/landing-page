@@ -306,55 +306,56 @@ export default function SignupsPanel({
             })}
           </div>
         )}
-        <span className="signups-toolbar-spacer" />
-        <button
-          type="button"
-          className={checkinMode ? 'btn btn-ace btn-sm' : 'btn btn-outline btn-sm'}
-          onClick={() => {
-            setCheckinMode((v) => !v)
-            setSelected(new Set())
-          }}
-        >
-          {checkinMode ? 'Exit check-in mode' : 'Check-in mode'}
-        </button>
-        {!checkinMode && (
-          <>
-            <div className="signups-export" ref={exportRef}>
-              <button
-                type="button"
-                className="btn btn-outline btn-sm signups-export-btn"
-                disabled={signups.length === 0}
-                onClick={() => setExportOpen((v) => !v)}
-              >
-                Export
+        <div className="signups-actions">
+          <button
+            type="button"
+            className={checkinMode ? 'btn btn-ace btn-sm' : 'btn btn-outline btn-sm'}
+            onClick={() => {
+              setCheckinMode((v) => !v)
+              setSelected(new Set())
+            }}
+          >
+            {checkinMode ? 'Exit check-in mode' : 'Check-in mode'}
+          </button>
+          {!checkinMode && (
+            <>
+              <div className="signups-export" ref={exportRef}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm signups-export-btn"
+                  disabled={signups.length === 0}
+                  onClick={() => setExportOpen((v) => !v)}
+                >
+                  Export
+                </button>
+                {exportOpen && (
+                  <div className="signups-export-menu">
+                    <button type="button" onClick={() => { exportFullCsv(eventTitle, signups); setExportOpen(false) }}>
+                      Full CSV<small>Name, email, answers, status, check-in</small>
+                    </button>
+                    <button type="button" onClick={() => { downloadEmailList(`${eventSlug(eventTitle)}-emails.csv`, signups.map((s) => s.email)); setExportOpen(false) }}>
+                      Emails only<small>Comma-separated, for a mail merge</small>
+                    </button>
+                    <button type="button" onClick={() => { exportCheckinList(eventTitle, signups); setExportOpen(false) }}>
+                      Check-in list<small>Approved only, name-sorted, tick column</small>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button className="btn btn-outline btn-sm" type="button" disabled={counts.pending === 0 || releasing} onClick={handleRelease}>
+                {releasing ? 'Releasing…' : `Release ${counts.pending} pending`}
               </button>
-              {exportOpen && (
-                <div className="signups-export-menu">
-                  <button type="button" onClick={() => { exportFullCsv(eventTitle, signups); setExportOpen(false) }}>
-                    Full CSV<small>Name, email, answers, status, check-in</small>
-                  </button>
-                  <button type="button" onClick={() => { downloadEmailList(`${eventSlug(eventTitle)}-emails.csv`, signups.map((s) => s.email)); setExportOpen(false) }}>
-                    Emails only<small>Comma-separated, for a mail merge</small>
-                  </button>
-                  <button type="button" onClick={() => { exportCheckinList(eventTitle, signups); setExportOpen(false) }}>
-                    Check-in list<small>Approved only, name-sorted, tick column</small>
-                  </button>
-                </div>
-              )}
-            </div>
-            <button className="btn btn-outline btn-sm" type="button" disabled={counts.pending === 0 || releasing} onClick={handleRelease}>
-              {releasing ? 'Releasing…' : `Release ${counts.pending} pending`}
-            </button>
-            <button
-              className="btn btn-outline btn-sm"
-              type="button"
-              disabled={signups.length === 0}
-              onClick={() => setAnnounceOpen((v) => !v)}
-            >
-              Email attendees
-            </button>
-          </>
-        )}
+              <button
+                className="btn btn-outline btn-sm"
+                type="button"
+                disabled={signups.length === 0}
+                onClick={() => setAnnounceOpen((v) => !v)}
+              >
+                Email attendees
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {error && <p className="admin-error">{error}</p>}
