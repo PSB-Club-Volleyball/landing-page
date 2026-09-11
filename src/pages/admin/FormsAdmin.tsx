@@ -133,7 +133,7 @@ function FieldRowSummary({
       }}
     >
       <span
-        className="field-drag-handle"
+        className="drag-handle"
         role="presentation"
         aria-hidden="true"
         draggable

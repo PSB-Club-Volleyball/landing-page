@@ -419,15 +419,24 @@
   flex-direction: column;
   gap: 0.2rem;
 }
-.team-card li {
+.team-member-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.4rem;
+  gap: 0.3rem;
   min-width: 0;
   font-size: 0.85rem;
+  border-radius: var(--radius-xs);
+  padding: 0.15rem 0.2rem;
+  transition: background-color 0.12s ease;
+}
+.team-member-row:hover {
+  background: color-mix(in srgb, var(--page-fg) 6%, transparent);
+}
+.team-member-row.dragging {
+  opacity: 0.4;
 }
 .team-member-name {
+  flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -960,17 +969,6 @@
 .field-row.drop-target {
   border-color: var(--ace);
   box-shadow: 0 -2px 0 0 var(--ace);
-}
-.field-drag-handle {
-  cursor: grab;
-  color: var(--muted);
-  font-size: 1rem;
-  line-height: 1;
-  flex-shrink: 0;
-  padding: 0.1rem 0.15rem;
-}
-.field-drag-handle:active {
-  cursor: grabbing;
 }
 .field-row-reorder-btns {
   display: flex;
@@ -1766,26 +1764,28 @@
 .player-chip {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   background: var(--page-bg);
   border: 1px solid color-mix(in srgb, var(--page-fg) 18%, transparent);
   border-radius: var(--radius-xs);
   padding: 0.3rem 0.4rem;
   font-size: 0.76rem;
   margin-bottom: 0.3rem;
-  cursor: grab;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
 }
 .player-chip:last-child {
   margin-bottom: 0;
 }
+.player-chip:hover {
+  border-color: color-mix(in srgb, var(--ace) 45%, transparent);
+  background: color-mix(in srgb, var(--ace) 6%, var(--page-bg));
+}
 .player-chip.dragging {
   opacity: 0.4;
 }
-.player-chip::before {
-  content: "⠿";
-  color: var(--muted);
-  letter-spacing: -2px;
-  font-size: 0.85rem;
+.player-chip-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .player-chip .walk-in-tag {
   margin-left: auto;
@@ -1793,6 +1793,36 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: var(--muted);
+}
+
+/* Shared "six dots" drag handle — always the leftmost element of a
+   draggable row, with its own hit target so grabbing a row never fights
+   with clicking/selecting the label text next to it. */
+.drag-handle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.35rem;
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  letter-spacing: -2px;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: grab;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.drag-handle:hover {
+  color: var(--ace-fg);
+  background: color-mix(in srgb, var(--ace) 14%, transparent);
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+.drag-handle:focus-visible {
+  outline: 2px solid var(--ace-fg);
+  outline-offset: 1px;
 }
 
 .team-card.drop-target {
@@ -1840,16 +1870,6 @@
   border-radius: 999px;
   padding: 0.05rem 0.36rem;
   font-variant-numeric: tabular-nums;
-}
-.team-member-name[draggable="true"],
-.player-chip[draggable="true"] {
-  cursor: grab;
-}
-.team-member-name[draggable="true"]:focus-visible,
-.player-chip[draggable="true"]:focus-visible {
-  outline: 2px solid var(--ace-fg);
-  outline-offset: 2px;
-  border-radius: var(--radius-xs);
 }
 
 .teams-save-bar {

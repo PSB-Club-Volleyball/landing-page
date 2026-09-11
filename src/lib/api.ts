@@ -27,8 +27,8 @@ export function getBoard(season?: string): Promise<{ board: BoardMember[] }> {
   return getJson(season ? `/api/board?season=${encodeURIComponent(season)}` : '/api/board')
 }
 
-export function getEvents(): Promise<{ events: PublicClubEvent[] }> {
-  return getJson('/api/events')
+export function getEvents(opts?: { past?: boolean }): Promise<{ events: PublicClubEvent[] }> {
+  return getJson(opts?.past ? '/api/events?past=1' : '/api/events')
 }
 
 export function getEvent(id: number): Promise<{ event: PublicClubEvent }> {

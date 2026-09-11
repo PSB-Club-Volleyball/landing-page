@@ -20,6 +20,13 @@ import { eventCutoff } from './_lib/time'
 // event itself, so it's computed from the session before the query runs.
 // If the visitor is signed in, each event also carries their own signup (if
 // any) so the card can offer "cancel" instead of "RSVP" without a second request.
+//
+// ?past=1 flips the first filter: instead of hiding events that already
+// ended, it returns *only* events that already ended (most recent first),
+// with the series release-window filter dropped since it only makes sense
+// for withholding future occurrences. Only signed-in visitors get past
+// events at all — an anonymous request with ?past=1 silently falls back to
+// the normal upcoming list so past events never leak to the public.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const sessionUser = await getSessionUser(request, env)
   const role = sessionUser?.role ?? 'outsider'
@@ -29,20 +36,35 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       ? ['public', 'club']
       : ['public']
   const visibilityPlaceholders = allowedVisibilities.map((_, i) => `?${i + 1}`).join(', ')
+  const wantsPast = new URL(request.url).searchParams.get('past') === '1' && sessionUser !== null
 
-  const events = await env.DB.prepare(
-    `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
-            e.location_name, e.location_address, e.status, e.visibility,
-            e.signup_enabled, e.rsvp_gated, e.form_id, e.capacity, e.tags, e.signup_deadline,
-            (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id AND s.status = 'approved') AS signup_count
-     FROM events e
-     WHERE e.status IN ('published', 'cancelled')
-       AND e.visibility IN (${visibilityPlaceholders})
-       AND COALESCE(e.end_time, e.start_time) >= ?${allowedVisibilities.length + 1}
-       AND (e.series_id IS NULL OR e.released_early = 1 OR date(e.start_time) <= date(?${allowedVisibilities.length + 2}, '+7 days'))
-     ORDER BY e.start_time ASC`
-  )
-    .bind(...allowedVisibilities, eventCutoff(2), eventCutoff(0))
+  const query = wantsPast
+    ? `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
+              e.location_name, e.location_address, e.status, e.visibility,
+              e.signup_enabled, e.rsvp_gated, e.form_id, e.capacity, e.tags, e.signup_deadline,
+              (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id AND s.status = 'approved') AS signup_count
+       FROM events e
+       WHERE e.status IN ('published', 'cancelled')
+         AND e.visibility IN (${visibilityPlaceholders})
+         AND COALESCE(e.end_time, e.start_time) < ?${allowedVisibilities.length + 1}
+       ORDER BY e.start_time DESC`
+    : `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
+              e.location_name, e.location_address, e.status, e.visibility,
+              e.signup_enabled, e.rsvp_gated, e.form_id, e.capacity, e.tags, e.signup_deadline,
+              (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id AND s.status = 'approved') AS signup_count
+       FROM events e
+       WHERE e.status IN ('published', 'cancelled')
+         AND e.visibility IN (${visibilityPlaceholders})
+         AND COALESCE(e.end_time, e.start_time) >= ?${allowedVisibilities.length + 1}
+         AND (e.series_id IS NULL OR e.released_early = 1 OR date(e.start_time) <= date(?${allowedVisibilities.length + 2}, '+7 days'))
+       ORDER BY e.start_time ASC`
+
+  const binds = wantsPast
+    ? [...allowedVisibilities, eventCutoff(2)]
+    : [...allowedVisibilities, eventCutoff(2), eventCutoff(0)]
+
+  const events = await env.DB.prepare(query)
+    .bind(...binds)
     .all<Record<string, unknown> & { signup_enabled: number; rsvp_gated: number; id: number }>()
 
   const mySignupsByEvent = new Map<number, { id: number; status: string }>()

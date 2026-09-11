@@ -561,6 +561,22 @@ main {
   font-size: 0.92rem;
 }
 
+.events-past-toggle {
+  margin: 0.4rem 0 1.6rem;
+  padding-top: 1.6rem;
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+}
+
+.events-past-section {
+  margin-top: 0.6rem;
+}
+
+.events-past-heading {
+  font-size: 1.1rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
+}
+
 .day-group {
   margin: 0 0 2rem;
   padding-top: 1.6rem;

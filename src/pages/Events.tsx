@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import SignupModal from '../components/SignupModal'
-import { getEvents } from '../lib/api'
+import { getEvents, getMe } from '../lib/api'
 import {
   directionsUrl,
   EVENT_TYPE_LABELS,
@@ -11,7 +11,7 @@ import {
   getSignupState,
 } from '../lib/eventFormat'
 import { plainTextPreview } from '../lib/markdown'
-import type { PublicClubEvent, SignupStatus } from '../types'
+import type { AuthUser, PublicClubEvent, SignupStatus } from '../types'
 
 const DESCRIPTION_PREVIEW_LEN = 140
 
@@ -154,6 +154,15 @@ function Events() {
     status: SignupStatus | null
   } | null>(null)
 
+  // Signed-in-only "Show past events": past events are excluded from the
+  // main upcoming list entirely (server-side), so revealing them is a
+  // separate fetch, made lazily the first time someone asks for it.
+  const [user, setUser] = useState<AuthUser | null | undefined>(undefined)
+  const [pastEvents, setPastEvents] = useState<PublicClubEvent[] | null>(null)
+  const [pastError, setPastError] = useState(false)
+  const [pastLoading, setPastLoading] = useState(false)
+  const [showPast, setShowPast] = useState(false)
+
   function refresh() {
     getEvents()
       .then((res) => setEvents(res.events))
@@ -161,12 +170,39 @@ function Events() {
   }
 
   useEffect(refresh, [])
+  useEffect(() => {
+    getMe()
+      .then((res) => setUser(res.user))
+      .catch(() => setUser(null))
+  }, [])
+
+  function togglePast() {
+    if (showPast) {
+      setShowPast(false)
+      return
+    }
+    setShowPast(true)
+    if (pastEvents !== null || pastLoading) return
+    setPastLoading(true)
+    setPastError(false)
+    getEvents({ past: true })
+      .then((res) => setPastEvents(res.events))
+      .catch(() => setPastError(true))
+      .finally(() => setPastLoading(false))
+  }
 
   const groups = new Map<string, PublicClubEvent[]>()
   for (const event of events ?? []) {
     const dayKey = event.start_time.slice(0, 10)
     if (!groups.has(dayKey)) groups.set(dayKey, [])
     groups.get(dayKey)!.push(event)
+  }
+
+  const pastGroups = new Map<string, PublicClubEvent[]>()
+  for (const event of pastEvents ?? []) {
+    const dayKey = event.start_time.slice(0, 10)
+    if (!pastGroups.has(dayKey)) pastGroups.set(dayKey, [])
+    pastGroups.get(dayKey)!.push(event)
   }
 
   return (
@@ -210,6 +246,47 @@ function Events() {
               </div>
             ))}
           </>
+        )}
+
+        {user && (
+          <div className="events-past-toggle">
+            <button type="button" className="btn btn-outline btn-sm" onClick={togglePast}>
+              {showPast ? 'Hide past events' : 'Show past events'}
+            </button>
+          </div>
+        )}
+
+        {user && showPast && (
+          <div className="events-past-section">
+            <h2 className="events-past-heading">Past events</h2>
+            {pastLoading && <p className="placeholder-note">Loading past events&hellip;</p>}
+            {pastError && <p className="placeholder-note">Couldn&rsquo;t load past events right now.</p>}
+            {!pastLoading && !pastError && pastEvents !== null && pastEvents.length === 0 && (
+              <p className="placeholder-note">No past events yet.</p>
+            )}
+            {!pastLoading &&
+              !pastError &&
+              [...pastGroups.entries()].map(([dayKey, dayEvents]) => (
+                <div className="day-group" key={dayKey}>
+                  <div className="day-label">
+                    {formatEventDate(`${dayKey}T00:00`)}{' '}
+                    <span className="day-label-count">
+                      {dayEvents.length} event{dayEvents.length === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className="card-grid">
+                    {dayEvents.map((event) => (
+                      <EventCard
+                        key={event.id}
+                        event={event}
+                        onOpenSignup={setSignupEvent}
+                        onManageSignup={(e, signupId, status) => setManage({ event: e, signupId, status })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+          </div>
         )}
 
         {signupEvent && (
