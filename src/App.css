@@ -1887,6 +1887,10 @@ footer {
     padding-top: 0.9rem;
     border-top: 1px solid var(--hairline);
   }
+  .nav-panel .nav-signin-options {
+    left: 0;
+    right: auto;
+  }
   .footer-main {
     flex-direction: column;
     align-items: center;
