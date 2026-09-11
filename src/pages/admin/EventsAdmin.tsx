@@ -329,6 +329,9 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   // case (title, type, when/where, description, signup) reads as a short
   // form, Google-Forms-style, instead of every field up front.
   const [showMoreOptions, setShowMoreOptions] = useState(false)
+  // Past events clutter the table once a club has run a season of them, so
+  // they're hidden by default — same philosophy as the public events page.
+  const [showPast, setShowPast] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -421,20 +424,30 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
     if (ev.series_id) seriesCounts.set(ev.series_id, (seriesCounts.get(ev.series_id) ?? 0) + 1)
   }
 
+  const pastCount = events.filter((e) => e.is_past).length
+  const visibleEvents = showPast ? events : events.filter((e) => !e.is_past)
+
   return (
     <>
       <div className="admin-main-head">
         <h2>Events</h2>
-        <button
-          className="add-btn"
-          type="button"
-          onClick={() => {
-            setShowMoreOptions(false)
-            setCreating(true)
-          }}
-        >
-          + Add event
-        </button>
+        <div className="admin-head-actions">
+          {pastCount > 0 && (
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowPast((v) => !v)}>
+              {showPast ? 'Hide past events' : `Show past events (${pastCount})`}
+            </button>
+          )}
+          <button
+            className="add-btn"
+            type="button"
+            onClick={() => {
+              setShowMoreOptions(false)
+              setCreating(true)
+            }}
+          >
+            + Add event
+          </button>
+        </div>
       </div>
       {error && <p className="admin-error">{error}</p>}
       {creating && (
@@ -494,8 +507,8 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               <th className="select-col">
                 <input
                   type="checkbox"
-                  checked={events.length > 0 && events.every((e) => selection.isSelected(e.id))}
-                  onChange={() => selection.toggleAll(events.map((e) => e.id))}
+                  checked={visibleEvents.length > 0 && visibleEvents.every((e) => selection.isSelected(e.id))}
+                  onChange={() => selection.toggleAll(visibleEvents.map((e) => e.id))}
                 />
               </th>
               <th>Title</th>
@@ -519,7 +532,12 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
                 <td colSpan={9}>No events yet.</td>
               </tr>
             )}
-            {events.map((ev) => (
+            {!loading && events.length > 0 && visibleEvents.length === 0 && (
+              <tr>
+                <td colSpan={9}>All events are in the past. &ldquo;Show past events&rdquo; above to see them.</td>
+              </tr>
+            )}
+            {visibleEvents.map((ev) => (
               <tr key={ev.id}>
                 <td className="select-col">
                   <input type="checkbox" checked={selection.isSelected(ev.id)} onChange={() => selection.toggle(ev.id)} />

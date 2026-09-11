@@ -71,6 +71,7 @@ export default function TeamsAdmin({
 
   const drag = useRef<{ from: Loc; key: string } | null>(null)
   const [dropTarget, setDropTarget] = useState<Loc | null>(null)
+  const [draggingKey, setDraggingKey] = useState<string | null>(null)
 
   function hydrate(data: TeamsResponse) {
     setResp(data)
@@ -287,13 +288,19 @@ export default function TeamsAdmin({
     role: 'button' as const,
     onDragStart: (e: React.DragEvent) => {
       drag.current = { from, key }
+      setDraggingKey(key)
       // Firefox won't start a drag unless dataTransfer carries something.
       e.dataTransfer.setData('text/plain', key)
       e.dataTransfer.effectAllowed = 'move'
+      // Drag the whole chip/row, not just the handle glyph, so the browser's
+      // drag ghost shows the player's name instead of a lone dot.
+      const row = (e.currentTarget as HTMLElement).closest('.player-chip, .team-member-row') as HTMLElement | null
+      if (row) e.dataTransfer.setDragImage(row, 12, 12)
     },
     onDragEnd: () => {
       drag.current = null
       setDropTarget(null)
+      setDraggingKey(null)
     },
     onKeyDown: (e: React.KeyboardEvent) => {
       if (e.key === '0') {
@@ -478,14 +485,16 @@ export default function TeamsAdmin({
               <p className="team-bench-empty">Everyone&rsquo;s placed.</p>
             ) : (
               bench.map((m) => (
-                <div
-                  key={m.key}
-                  className="player-chip"
-                  title="Drag onto a team (or focus and press 1-9)"
-                  aria-label={`${m.name} — drag onto a team, or press a team number 1-9`}
-                  {...moveHandleProps('bench', m.key)}
-                >
-                  {m.name}
+                <div key={m.key} className={`player-chip${draggingKey === m.key ? ' dragging' : ''}`}>
+                  <span
+                    className="drag-handle"
+                    title="Drag onto a team (or focus and press 1-9)"
+                    aria-label={`${m.name} — drag onto a team, or press a team number 1-9`}
+                    {...moveHandleProps('bench', m.key)}
+                  >
+                    ⠿
+                  </span>
+                  <span className="player-chip-name">{m.name}</span>
                   {m.signup_id === null && <span className="walk-in-tag">walk-in</span>}
                   <button
                     type="button"
@@ -529,13 +538,16 @@ export default function TeamsAdmin({
                 )}
                 <ul>
                   {team.members.map((m) => (
-                    <li key={m.key} className="team-member-row">
+                    <li key={m.key} className={`team-member-row${draggingKey === m.key ? ' dragging' : ''}`}>
                       <span
-                        className={m.is_captain ? 'team-member-name captain' : 'team-member-name'}
+                        className="drag-handle"
                         title="Drag to another team or the bench (or focus and press 1-9 / 0)"
                         aria-label={`${m.name} — drag to move, or press a team number 1-9, or 0 for the bench`}
                         {...moveHandleProps(ti, m.key)}
                       >
+                        ⠿
+                      </span>
+                      <span className={m.is_captain ? 'team-member-name captain' : 'team-member-name'}>
                         {m.name}
                       </span>
                       <span className="team-member-actions">
