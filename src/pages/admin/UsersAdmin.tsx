@@ -4,20 +4,21 @@ import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { downloadCsv, downloadEmailList, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
-import type { AdminUser, AuthUser, Team, UserRole } from '../../types'
+import type { AdminUser, AuthUser, SkillLevel, Team, UserRole } from '../../types'
 
 // No CSV import here: accounts are created by signing in (OAuth), not by an
 // admin typing rows into a spreadsheet, so there's no legitimate "create a
 // user from a CSV" action to offer.
 function exportUsersCsv(users: AdminUser[]) {
   const csv = toCsv(
-    ['Name', 'Email', 'Role', 'Position', 'Team', 'Waiver signed year', 'Dues paid year', 'RSVP restricted'],
+    ['Name', 'Email', 'Role', 'Position', 'Team', 'Skill level', 'Waiver signed year', 'Dues paid year', 'RSVP restricted'],
     users.map((u) => [
       u.name,
       u.email,
       u.role,
       u.position,
       u.team,
+      u.skill_level,
       u.waiver_signed_year,
       u.dues_paid_year,
       u.rsvp_restricted ? 'yes' : 'no',
@@ -31,6 +32,13 @@ const ROLE_LABELS: Record<UserRole, string> = {
   club_member: 'Club member',
   admin: 'Admin',
   owner: 'Owner',
+}
+
+const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+  competitive: 'Competitive',
 }
 
 function UserRow({
@@ -54,6 +62,7 @@ function UserRow({
   const [name, setName] = useState(user.name ?? '')
   const [position, setPosition] = useState(user.position ?? '')
   const [team, setTeam] = useState<Team | ''>(user.team ?? '')
+  const [skillLevel, setSkillLevel] = useState<SkillLevel | ''>(user.skill_level ?? '')
   const [saving, setSaving] = useState(false)
   const [waiverSaving, setWaiverSaving] = useState(false)
   const [duesSaving, setDuesSaving] = useState(false)
@@ -116,7 +125,8 @@ function UserRow({
     role !== user.role ||
     name.trim() !== (user.name ?? '') ||
     position !== (user.position ?? '') ||
-    team !== (user.team ?? '')
+    team !== (user.team ?? '') ||
+    skillLevel !== (user.skill_level ?? '')
 
   async function save() {
     setSaving(true)
@@ -127,6 +137,7 @@ function UserRow({
         ...(trimmedName !== (user.name ?? '') ? { name: trimmedName } : {}),
         position: position || null,
         team: team || null,
+        skill_level: skillLevel || null,
       })
       onSaved()
     } catch (e) {
@@ -189,6 +200,24 @@ function UserRow({
             <option value="">&mdash;</option>
             <option value="A">A</option>
             <option value="B">B</option>
+          </select>
+        ) : (
+          '—'
+        )}
+      </td>
+      <td>
+        {role === 'club_member' || role === 'admin' ? (
+          <select
+            className="role-select"
+            value={skillLevel}
+            onChange={(e) => setSkillLevel(e.target.value as SkillLevel | '')}
+          >
+            <option value="">&mdash;</option>
+            {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
+              <option key={level} value={level}>
+                {SKILL_LEVEL_LABELS[level]}
+              </option>
+            ))}
           </select>
         ) : (
           '—'
@@ -378,6 +407,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
                 <th>Role</th>
                 <th>Position</th>
                 <th>Team</th>
+                <th>Skill</th>
                 <th>Waiver</th>
                 <th>Dues</th>
                 <th>RSVP</th>
@@ -393,7 +423,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
                   <td>
                     <span className="role-chip role-owner">Owner</span>
                   </td>
-                  <td colSpan={5}>
+                  <td colSpan={6}>
                     <span className="admin-note">Transfer ownership to change</span>
                   </td>
                   <td />
@@ -402,7 +432,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
               {roleGroups.map((g) => (
                 <Fragment key={g.role}>
                   <tr className="role-group-header">
-                    <td colSpan={10}>{ROLE_LABELS[g.role]}</td>
+                    <td colSpan={11}>{ROLE_LABELS[g.role]}</td>
                   </tr>
                   {g.members.map((u) => (
                     <UserRow

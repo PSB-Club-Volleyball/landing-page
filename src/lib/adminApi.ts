@@ -16,6 +16,7 @@ import type {
   ScheduleConfig,
   ScheduleInput,
   SignupStatus,
+  SkillLevel,
   Team,
   TeamsInput,
   TeamsResponse,
@@ -139,6 +140,7 @@ export const adminApi = {
         name?: string
         position?: string | null
         team?: Team | null
+        skill_level?: SkillLevel | null
         waiver_signed?: boolean
         dues_paid?: boolean
         rsvp_restricted?: boolean

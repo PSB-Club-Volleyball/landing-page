@@ -1,4 +1,13 @@
-import type { AuthUser, BoardMember, FormWithFields, MediaItem, Player, PublicClubEvent, SignupStatus } from '../types'
+import type {
+  AuthUser,
+  BoardMember,
+  FormWithFields,
+  MediaItem,
+  MyProfile,
+  Player,
+  PublicClubEvent,
+  SignupStatus,
+} from '../types'
 import type { LoginProviders } from './signInOptions'
 
 // Carries the HTTP status so callers can branch on it (e.g. 404 vs. a real
@@ -83,6 +92,10 @@ export function mediaUrl(r2Key: string): string {
 
 export function getMe(): Promise<{ user: AuthUser | null }> {
   return getJson('/api/auth/me')
+}
+
+export function getProfile(): Promise<{ profile: MyProfile }> {
+  return getJson('/api/profile')
 }
 
 export function getLoginProviders(): Promise<LoginProviders> {

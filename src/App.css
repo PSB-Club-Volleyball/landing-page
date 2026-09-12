@@ -443,6 +443,19 @@ main {
   font-size: 0.85rem;
   margin-top: -0.4rem;
 }
+.profile-rsvp-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.profile-rsvp-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
+}
 .roster-grid {
   list-style: none;
   margin: 0 0 3rem;
