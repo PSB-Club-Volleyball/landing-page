@@ -9,7 +9,7 @@
 # docs/backend-setup.md. Do NOT bulk-push this file; it mixes in the vars.
 
 PUBLIC_URL=http://localhost:8788
-ADMIN_BOOTSTRAP_EMAILS=you@example.com
+ADMIN_BOOTSTRAP_EMAILS=your@email.com
 EVENTS_EMAIL_FROM=events@behrendclubvolleyball.org
 
 GOOGLE_CLIENT_ID=
