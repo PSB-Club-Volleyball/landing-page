@@ -27,9 +27,10 @@ import {
   formatTimeRange,
   getSignupState,
   playFormatLabel,
+  SKILL_LEVEL_LABELS,
 } from '../lib/eventFormat'
 import { renderMarkdown } from '../lib/markdown'
-import type { PublicClubEvent, SignupStatus } from '../types'
+import type { PublicClubEvent, SignupStatus, SkillLevel } from '../types'
 
 // Public page for one event at /events/:eventId — replaces the old
 // EventDetailModal. The Events list links here instead of opening a dialog,
@@ -230,6 +231,16 @@ function EventDetail() {
               </span>
             ))}
           </div>
+        )}
+
+        {e.allowed_skill_levels && (
+          <p className="event-skill-note">
+            Open to:{' '}
+            {e.allowed_skill_levels
+              .split(',')
+              .map((l) => SKILL_LEVEL_LABELS[l as SkillLevel] ?? l)
+              .join(', ')}
+          </p>
         )}
 
         <dl className="event-glance">

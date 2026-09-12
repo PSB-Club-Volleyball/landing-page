@@ -12,7 +12,8 @@ import Privacy from './pages/Privacy'
 import Terms from './pages/Terms'
 import CancelRsvp from './pages/CancelRsvp'
 import Profile from './pages/Profile'
-import Members from './pages/Members'
+import People from './pages/People'
+import Leaderboard from './pages/Leaderboard'
 import MemberProfile from './pages/MemberProfile'
 import AdminGate from './pages/admin/AdminGate'
 
@@ -35,7 +36,8 @@ function App() {
         <Route path="/events/:eventId/cancel/:signupId" element={<CancelRsvp />} />
         <Route path="/events/:eventId" element={<EventDetail />} />
         <Route path="/profile" element={<Profile />} />
-        <Route path="/members" element={<Members />} />
+        <Route path="/people" element={<People />} />
+        <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/members/:id" element={<MemberProfile />} />
         <Route path="/photos" element={<Photos />} />
         <Route path="/privacy" element={<Privacy />} />

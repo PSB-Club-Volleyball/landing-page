@@ -12,7 +12,7 @@ const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
   competitive: 'Competitive',
 }
 
-type Tab = 'info' | 'rsvps' | 'results'
+type Tab = 'info' | 'rsvps' | 'results' | 'admin'
 
 function Profile() {
   const [profile, setProfile] = useState<MyProfile | null>(null)
@@ -98,6 +98,7 @@ function Profile() {
 
   const { account, status, club, upcomingRsvps, results } = profile
   const skillDirty = skillDraft !== (status.skillLevel ?? '')
+  const isAdmin = account.role === 'admin' || account.role === 'owner'
 
   return (
     <main id="main-content" tabIndex={-1}>
@@ -147,6 +148,17 @@ function Profile() {
           >
             Results
           </button>
+          {isAdmin && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'admin'}
+              className={tab === 'admin' ? 'profile-tab active admin' : 'profile-tab admin'}
+              onClick={() => setTab('admin')}
+            >
+              Admin
+            </button>
+          )}
         </div>
 
         {tab === 'info' && (
@@ -319,8 +331,20 @@ function Profile() {
               </div>
             )}
             <p className="directory-link-row">
-              See how everyone&rsquo;s doing &rarr; <Link to="/members">Members directory</Link>
+              See how everyone&rsquo;s doing &rarr; <Link to="/leaderboard">Leaderboard</Link>
             </p>
+          </div>
+        )}
+
+        {tab === 'admin' && isAdmin && (
+          <div role="tabpanel" className="admin-panel">
+            <h2>Admin dashboard</h2>
+            <p className="placeholder-note">
+              Manage events, the roster, forms, and users from the admin dashboard.
+            </p>
+            <Link to="/admin" className="admin-cta">
+              Open admin dashboard &rarr;
+            </Link>
           </div>
         )}
       </div>

@@ -1,8 +1,10 @@
 import { useAutosizeTextarea } from '../../lib/autosize'
-import type { EventStatus, EventVisibility, FormTemplate } from '../../types'
+import { SKILL_LEVEL_LABELS } from '../../lib/eventFormat'
+import type { EventStatus, EventVisibility, FormTemplate, SkillLevel } from '../../types'
 import {
   combineDateTime,
   splitDateTime,
+  toggleSkillLevel,
   toggleWeekday,
   VISIBILITY_LABELS,
   WEEKDAY_LABELS,
@@ -168,6 +170,27 @@ function SignupFields({
               onChange={(e) => onChange({ ...draft, signup_deadline: e.target.value })}
             />
           </label>
+        </div>
+      )}
+
+      {draft.signup_enabled && (
+        <div className="skill-level-fields">
+          <span>
+            Skill levels allowed{' '}
+            <span className="field-hint">(none checked = everyone, including accounts with no skill level set)</span>
+          </span>
+          {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
+            <label key={level}>
+              <input
+                type="checkbox"
+                checked={draft.allowed_skill_levels.split(',').includes(level)}
+                onChange={() =>
+                  onChange({ ...draft, allowed_skill_levels: toggleSkillLevel(draft.allowed_skill_levels, level) })
+                }
+              />
+              {SKILL_LEVEL_LABELS[level]}
+            </label>
+          ))}
         </div>
       )}
     </fieldset>

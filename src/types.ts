@@ -50,6 +50,9 @@ export interface ClubEvent {
   // started yet — same "YYYY-MM-DDTHH:MM" wall-clock format as start_time.
   // NULL means signup stays open until the event starts.
   signup_deadline: string | null
+  // Comma-separated SkillLevel values this event's RSVP is restricted to.
+  // NULL/empty means every skill level (including unset) may sign up.
+  allowed_skill_levels: string | null
 }
 
 // Public-facing event with the signup summary the Events page needs to
@@ -455,11 +458,23 @@ export interface MemberSummary {
   currentStreak: number
 }
 
-// GET /api/members/:id — one account's public results view.
+// GET /api/members/:id — one account's public profile.
 export interface PublicMemberProfile {
   id: number
   name: string | null
   avatarUrl: string | null
+  position: string | null
+  team: string | null
+  classYear: string | null
+  jerseyNumber: number | null
+  summary: {
+    wins: number
+    losses: number
+    setsWon: number
+    setsLost: number
+    winPct: number
+    currentStreak: number
+  }
   results: PlayerResult[]
 }
 
