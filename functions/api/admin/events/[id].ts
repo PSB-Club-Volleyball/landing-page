@@ -56,6 +56,7 @@ const FIELDS = [
   'tags',
   'signup_deadline',
   'released_early',
+  'allowed_skill_levels',
 ] as const
 
 // PUT /api/admin/events/:id -> partial update, any subset of FIELDS

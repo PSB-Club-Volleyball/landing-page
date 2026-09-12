@@ -9,7 +9,12 @@ import type { AuthUser } from '../types'
 const PAGES = [
   { to: '/', label: 'Home' },
   { to: '/roster', label: 'Roster' },
+]
+
+const COMMUNITY_PAGES = [
   { to: '/events', label: 'Events' },
+  { to: '/people', label: 'People' },
+  { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/photos', label: 'Photos' },
 ]
 
@@ -30,9 +35,11 @@ function Navbar() {
   const location = useLocation()
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDetailsElement>(null)
 
   useEffect(() => {
     setOpen(false)
+    if (dropdownRef.current) dropdownRef.current.open = false
   }, [location.pathname])
 
   useEffect(() => {
@@ -146,6 +153,26 @@ function Navbar() {
               {page.label}
             </NavLink>
           ))}
+          <details className="nav-dropdown" ref={dropdownRef}>
+            <summary className={COMMUNITY_PAGES.some((p) => location.pathname.startsWith(p.to)) ? 'active' : undefined}>
+              Community
+            </summary>
+            <div className="nav-dropdown-menu">
+              {COMMUNITY_PAGES.map((page) => (
+                <NavLink
+                  key={page.to}
+                  to={page.to}
+                  className={({ isActive }) => (isActive ? 'active' : undefined)}
+                  onClick={() => {
+                    setOpen(false)
+                    if (dropdownRef.current) dropdownRef.current.open = false
+                  }}
+                >
+                  {page.label}
+                </NavLink>
+              ))}
+            </div>
+          </details>
         </nav>
         <div className="nav-account">
           {user === undefined && null}
@@ -176,14 +203,6 @@ function Navbar() {
                 <span className="nav-avatar">{initials(user)}</span>
                 My account
               </Link>
-              <Link to="/members" className="nav-members-link" onClick={() => setOpen(false)}>
-                Members
-              </Link>
-              {(user.role === 'admin' || user.role === 'owner') && (
-                <Link to="/admin" className="nav-admin-link" onClick={() => setOpen(false)}>
-                  Admin
-                </Link>
-              )}
             </span>
           )}
         </div>

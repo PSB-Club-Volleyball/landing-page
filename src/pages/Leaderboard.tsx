@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, getMembers } from '../lib/api'
 import type { MemberSummary } from '../types'
 
-function Members() {
+function Leaderboard() {
   const [members, setMembers] = useState<MemberSummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -11,27 +11,33 @@ function Members() {
     getMembers()
       .then((res) => setMembers(res.members))
       .catch((e: Error) => {
-        setError(e instanceof ApiError && e.status === 401 ? 'Sign in to view the members directory.' : e.message)
+        setError(e instanceof ApiError && e.status === 401 ? 'Sign in to view the leaderboard.' : e.message)
       })
   }, [])
+
+  const ranked = useMemo(() => members?.filter((m) => m.wins + m.losses > 0) ?? null, [members])
 
   return (
     <main id="main-content" tabIndex={-1}>
       <div className="board legal-page">
-        <h1>Members</h1>
-        <p className="admin-note">
-          Match records across every event this season, ranked by win rate. Skill level stays private to each
-          account.
-        </p>
+        <div className="directory-head">
+          <div>
+            <h1>Leaderboard</h1>
+            <div className="directory-toggle">
+              <Link to="/people">People</Link>
+              <span className="active">Leaderboard</span>
+            </div>
+          </div>
+        </div>
 
         {error && <p className="placeholder-note">{error}</p>}
-        {!error && !members && <p>Loading&hellip;</p>}
-        {!error && members && members.length === 0 && (
+        {!error && !ranked && <p>Loading&hellip;</p>}
+        {!error && ranked && ranked.length === 0 && (
           <p className="placeholder-note">No results yet — check back once matches have been played.</p>
         )}
-        {!error && members && members.length > 0 && (
+        {!error && ranked && ranked.length > 0 && (
           <ul className="leaderboard">
-            {members.map((m, i) => (
+            {ranked.map((m, i) => (
               <li key={m.id} className={i === 0 ? 'leaderboard-row top' : 'leaderboard-row'}>
                 <Link to={`/members/${m.id}`}>
                   <span className="leaderboard-rank">{i + 1}</span>
@@ -53,4 +59,4 @@ function Members() {
   )
 }
 
-export default Members
+export default Leaderboard

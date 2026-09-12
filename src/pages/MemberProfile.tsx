@@ -3,6 +3,16 @@ import { Link, useParams } from 'react-router-dom'
 import { ApiError, getMemberProfile } from '../lib/api'
 import type { PublicMemberProfile } from '../types'
 
+function initials(name: string | null) {
+  const source = name || '?'
+  return source
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
 function MemberProfile() {
   const { id } = useParams<{ id: string }>()
   const [member, setMember] = useState<PublicMemberProfile | null>(null)
@@ -26,15 +36,56 @@ function MemberProfile() {
   return (
     <main id="main-content" tabIndex={-1}>
       <div className="board legal-page">
-        <Link to="/members" className="member-back">
-          &larr; Back to Members
+        <Link to="/people" className="member-back">
+          &larr; Back to People
         </Link>
 
         {error && <p className="placeholder-note">{error}</p>}
         {!error && !member && <p>Loading&hellip;</p>}
         {!error && member && (
           <>
-            <h1>{member.name || 'Member'}</h1>
+            <div className="mp-hero">
+              <span className="mp-avatar">{initials(member.name)}</span>
+              <div>
+                <h1 className="mp-name">{member.name || 'Member'}</h1>
+                {(member.position || member.classYear || member.team) && (
+                  <div className="mp-tags">
+                    {member.position && <span className="mp-tag gold">{member.position}</span>}
+                    {member.classYear && <span className="mp-tag">{member.classYear}</span>}
+                    {member.team && <span className="mp-tag">{member.team}</span>}
+                    {member.jerseyNumber !== null && <span className="mp-tag">#{member.jerseyNumber}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {member.summary.wins + member.summary.losses > 0 && (
+              <div className="mp-stats-row">
+                <div className="mp-stat">
+                  <b>
+                    {member.summary.wins}&ndash;{member.summary.losses}
+                  </b>
+                  <span>Record</span>
+                </div>
+                <div className="mp-stat">
+                  <b>{member.summary.winPct.toFixed(3).replace(/^0/, '')}</b>
+                  <span>Win %</span>
+                </div>
+                <div className="mp-stat">
+                  <b>
+                    {member.summary.setsWon}&ndash;{member.summary.setsLost}
+                  </b>
+                  <span>Sets</span>
+                </div>
+                {member.summary.currentStreak >= 2 && (
+                  <div className="mp-stat">
+                    <b>{member.summary.currentStreak}W</b>
+                    <span>Streak</span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <h2>Results</h2>
             {member.results.length === 0 ? (
               <p className="placeholder-note">No results yet.</p>

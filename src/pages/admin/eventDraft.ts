@@ -1,4 +1,4 @@
-import type { AdminEventRow, EventStatus, EventVisibility } from '../../types'
+import type { AdminEventRow, EventStatus, EventVisibility, SkillLevel } from '../../types'
 
 // Pure (non-component) helpers for the event form — kept out of eventForm.tsx
 // so that file can be components-only.
@@ -42,6 +42,7 @@ export const emptyDraft = {
   capacity: '' as string,
   tags: '' as string, // comma-separated
   signup_deadline: '' as string, // '' = no deadline, signup stays open until the event starts
+  allowed_skill_levels: '' as string, // comma-separated SkillLevel; empty = every skill level allowed
 }
 export type Draft = typeof emptyDraft
 
@@ -70,6 +71,7 @@ export function toInput(draft: Draft) {
           .filter(Boolean)
           .join(', ') || null
       : null,
+    allowed_skill_levels: draft.allowed_skill_levels || null,
   }
 }
 
@@ -93,6 +95,7 @@ export function eventToDraft(e: AdminEventRow): Draft {
     capacity: e.capacity !== null ? String(e.capacity) : '',
     tags: e.tags ?? '',
     signup_deadline: e.signup_deadline ?? '',
+    allowed_skill_levels: e.allowed_skill_levels ?? '',
   }
 }
 
@@ -112,5 +115,11 @@ export function combineDateTime(date: string, time: string): string {
 export function toggleWeekday(recurrence_days: string, day: number): string {
   const days = recurrence_days ? recurrence_days.split(',').map(Number) : []
   const next = days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort()
+  return next.join(',')
+}
+
+export function toggleSkillLevel(allowed_skill_levels: string, level: SkillLevel): string {
+  const levels = allowed_skill_levels ? allowed_skill_levels.split(',') : []
+  const next = levels.includes(level) ? levels.filter((l) => l !== level) : [...levels, level]
   return next.join(',')
 }

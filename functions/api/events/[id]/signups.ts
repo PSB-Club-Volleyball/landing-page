@@ -13,6 +13,13 @@ import { isAtLeast } from '../../_lib/roles'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+const SKILL_LEVEL_LABELS: Record<string, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+  competitive: 'Competitive',
+}
+
 interface SignupInput {
   name: string
   email: string
@@ -34,7 +41,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
 
   const event = await env.DB.prepare(
     `SELECT id, title, start_time, location_name, status, visibility, signup_enabled, rsvp_gated, form_id, capacity,
-            signup_deadline, datetime(signup_deadline) < datetime('now') AS deadline_passed
+            signup_deadline, allowed_skill_levels, datetime(signup_deadline) < datetime('now') AS deadline_passed
      FROM events WHERE id = ?1`
   )
     .bind(eventId)
@@ -50,6 +57,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       form_id: number | null
       capacity: number | null
       signup_deadline: string | null
+      allowed_skill_levels: string | null
       deadline_passed: number | null
     }>()
   if (!event || event.status !== 'published') return notFound('Event not found')
@@ -79,6 +87,24 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
 
   const name = body.name.trim()
   const email = body.email.trim().toLowerCase()
+
+  // Skill-level restricted event: only an account with a skill level set
+  // that isn't in the allowed list gets blocked — no matching account, or
+  // one with no skill level set yet, always goes through.
+  if (event.allowed_skill_levels) {
+    const allowed = event.allowed_skill_levels
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    if (allowed.length > 0) {
+      const account = await env.DB.prepare(`SELECT skill_level FROM users WHERE LOWER(email) = ?1`)
+        .bind(email)
+        .first<{ skill_level: string | null }>()
+      if (account?.skill_level && !allowed.includes(account.skill_level)) {
+        return badRequest(`This event is restricted to: ${allowed.map((l) => SKILL_LEVEL_LABELS[l] ?? l).join(', ')}`)
+      }
+    }
+  }
 
   // A form is optional — signup can be just name/email with no extra fields.
   const fields = event.form_id ? await fetchFormFields(env, event.form_id) : []

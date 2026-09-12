@@ -3,10 +3,12 @@ import { json, unauthorized } from './_lib/http'
 import { getSessionUser } from './_lib/session'
 import { getPlayerResults, getPlayerSummary } from './_lib/playerResults'
 
-// GET /api/members -> results-only leaderboard, visible to any signed-in
-// account (club member or outsider) — everyone who has played a match,
-// ranked by win rate. Never includes skill level, club status, or RSVPs;
-// see functions/api/members/[id].ts for one account's public results.
+// GET /api/members -> every signed-in account (club member or outsider),
+// with results if they've played a match, ranked by win rate. Backs both
+// the People directory (everyone, searchable) and the Leaderboard (filtered
+// client-side to players with a match played). Never includes skill level,
+// club status, or RSVPs; see functions/api/members/[id].ts for one
+// account's public results.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const sessionUser = await getSessionUser(request, env)
   if (!sessionUser) return unauthorized()
@@ -22,8 +24,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   for (const u of userRows.results ?? []) {
     const results = await getPlayerResults(env, u.email)
     const summary = getPlayerSummary(results)
-    const played = summary.wins + summary.losses
-    if (played === 0) continue
     members.push({
       id: u.id,
       name: u.name,

@@ -1,4 +1,4 @@
-import type { PlayFormat, PublicClubEvent } from '../types'
+import type { PlayFormat, PublicClubEvent, SkillLevel } from '../types'
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {
   practice: 'Practice',
@@ -6,6 +6,13 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   open_gym: 'Open gym',
   game: 'Game',
   social: 'Social',
+}
+
+export const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
+  beginner: 'Beginner',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+  competitive: 'Competitive',
 }
 
 // Public-facing wording for a play format — plainer than the admin labels.
