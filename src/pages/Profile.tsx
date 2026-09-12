@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, cancelSignup, getProfile } from '../lib/api'
+import { logout } from '../lib/adminApi'
 import { formatEventDate } from '../lib/eventFormat'
 import type { MyProfile, SkillLevel } from '../types'
 
@@ -14,13 +15,16 @@ const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
 function Profile() {
   const [profile, setProfile] = useState<MyProfile | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [signedOut, setSignedOut] = useState(false)
   const [cancellingId, setCancellingId] = useState<number | null>(null)
 
   function refresh() {
     getProfile()
       .then((res) => setProfile(res.profile))
       .catch((e: Error) => {
-        setError(e instanceof ApiError && e.status === 401 ? 'Sign in to view your profile.' : e.message)
+        const unauthorized = e instanceof ApiError && e.status === 401
+        setSignedOut(unauthorized)
+        setError(unauthorized ? 'Sign in to view your profile.' : e.message)
       })
   }
 
@@ -44,6 +48,17 @@ function Profile() {
       <main id="main-content" tabIndex={-1}>
         <div className="board legal-page">
           <p className="placeholder-note">{error}</p>
+          {!signedOut && (
+            <button
+              type="button"
+              className="nav-signout"
+              onClick={() => {
+                logout().then(() => window.location.reload())
+              }}
+            >
+              Sign out
+            </button>
+          )}
         </div>
       </main>
     )
@@ -64,8 +79,21 @@ function Profile() {
   return (
     <main id="main-content" tabIndex={-1}>
       <div className="board legal-page">
-        <h1>{account.name || account.email}</h1>
-        <p className="admin-note">{account.email}</p>
+        <div className="profile-header">
+          <div>
+            <h1>{account.name || account.email}</h1>
+            <p className="admin-note">{account.email}</p>
+          </div>
+          <button
+            type="button"
+            className="nav-signout"
+            onClick={() => {
+              logout().then(() => window.location.reload())
+            }}
+          >
+            Sign out
+          </button>
+        </div>
 
         <h2>Club details</h2>
         {club ? (

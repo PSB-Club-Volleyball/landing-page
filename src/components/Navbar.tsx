@@ -3,7 +3,6 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
 import MenuIcon from './MenuIcon'
 import { getMe, getLoginProviders } from '../lib/api'
-import { logout } from '../lib/adminApi'
 import { signInOptions, DEFAULT_PROVIDERS } from '../lib/signInOptions'
 import type { AuthUser } from '../types'
 
@@ -173,23 +172,15 @@ function Navbar() {
           )}
           {user && (
             <span className="nav-account-chip">
+              <Link to="/profile" className="nav-profile-link" onClick={() => setOpen(false)}>
+                <span className="nav-avatar">{initials(user)}</span>
+                My account
+              </Link>
               {(user.role === 'admin' || user.role === 'owner') && (
                 <Link to="/admin" className="nav-admin-link" onClick={() => setOpen(false)}>
                   Admin
                 </Link>
               )}
-              <Link to="/profile" className="nav-avatar" onClick={() => setOpen(false)}>
-                {initials(user)}
-              </Link>
-              <button
-                type="button"
-                className="nav-signout"
-                onClick={() => {
-                  logout().then(() => window.location.reload())
-                }}
-              >
-                Sign out
-              </button>
             </span>
           )}
         </div>

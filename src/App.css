@@ -131,7 +131,19 @@
 .nav-account-chip {
   display: flex;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.7rem;
+}
+.nav-profile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--chalk);
+  text-decoration: none;
+}
+.nav-profile-link:hover {
+  color: var(--ace);
 }
 .nav-admin-link {
   font-size: 0.78rem;
@@ -425,6 +437,12 @@ main {
 .legal-page {
   max-width: 760px;
   line-height: 1.65;
+}
+.profile-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
 }
 .legal-page h2 {
   margin: 1.9rem 0 0.4rem;
