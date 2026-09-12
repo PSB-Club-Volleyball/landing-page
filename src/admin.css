@@ -1285,6 +1285,22 @@
   background: color-mix(in srgb, var(--page-fg) 12%, transparent);
   color: var(--muted);
 }
+.lock-chip {
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: var(--radius-xs);
+  color: var(--muted);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
+  white-space: nowrap;
+}
+.lock-chip.locked {
+  color: var(--ace);
+  border-color: var(--ace);
+  background: rgba(255, 90, 54, 0.12);
+}
 .role-select {
   padding: 0.3rem 0.45rem;
   border-radius: var(--radius-xs);

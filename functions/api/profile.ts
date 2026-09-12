@@ -1,32 +1,48 @@
 import type { Env } from './_lib/env'
-import { json, unauthorized } from './_lib/http'
+import { badRequest, forbidden, json, unauthorized } from './_lib/http'
 import { getSessionUser } from './_lib/session'
 import { eventCutoff } from './_lib/time'
-import { readScheduleConfig } from './_lib/schedule'
-import { computeStandings, type MatchLike } from './_lib/standings'
+import { getPlayerResults } from './_lib/playerResults'
 
-// GET /api/profile -> the signed-in user's own account page: club standing
-// (position/team/skill level/dues/roster — meaningless for an outsider, so
-// omitted entirely rather than sent as nulls) plus their RSVPs and personal
-// match record, which any signed-in visitor can have regardless of role.
+const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced', 'competitive'] as const
+type SkillLevel = (typeof SKILL_LEVELS)[number]
+
+// GET /api/profile -> the signed-in user's own account page. `status`
+// (skill level, waiver, RSVP restriction) applies to every signed-in
+// account regardless of role; `club` (position/team/dues/roster — genuinely
+// meaningless for an outsider) is only populated for approved club
+// members. Also includes their RSVPs and personal match record.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const sessionUser = await getSessionUser(request, env)
   if (!sessionUser) return unauthorized()
 
+  const statusRow = await env.DB.prepare(
+    `SELECT skill_level, skill_level_locked, waiver_signed_year, rsvp_restricted FROM users WHERE id = ?1`
+  )
+    .bind(sessionUser.id)
+    .first<{
+      skill_level: string | null
+      skill_level_locked: number
+      waiver_signed_year: number | null
+      rsvp_restricted: number
+    }>()
+
+  const status = {
+    skillLevel: statusRow?.skill_level ?? null,
+    skillLevelLocked: Boolean(statusRow?.skill_level_locked),
+    waiverSignedYear: statusRow?.waiver_signed_year ?? null,
+    rsvpRestricted: Boolean(statusRow?.rsvp_restricted),
+  }
+
   let club: unknown = null
   if (sessionUser.role !== 'outsider') {
-    const row = await env.DB.prepare(
-      `SELECT position, team, skill_level, dues_paid_year, dues_paid_at, waiver_signed_year
-       FROM users WHERE id = ?1`
-    )
+    const row = await env.DB.prepare(`SELECT position, team, dues_paid_year, dues_paid_at FROM users WHERE id = ?1`)
       .bind(sessionUser.id)
       .first<{
         position: string | null
         team: string | null
-        skill_level: string | null
         dues_paid_year: number | null
         dues_paid_at: string | null
-        waiver_signed_year: number | null
       }>()
 
     const rosterRow = await env.DB.prepare(
@@ -38,10 +54,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     club = {
       position: row?.position ?? null,
       team: row?.team ?? null,
-      skillLevel: row?.skill_level ?? null,
       duesPaidYear: row?.dues_paid_year ?? null,
       duesPaidAt: row?.dues_paid_at ?? null,
-      waiverSignedYear: row?.waiver_signed_year ?? null,
       roster: rosterRow
         ? { season: rosterRow.season, jerseyNumber: rosterRow.jersey_number, classYear: rosterRow.class_year }
         : null,
@@ -74,69 +88,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     status: r.status,
   }))
 
-  // Events this account played in: linked through event_team_members ->
-  // event_signups by email, same identity key self-cancel uses (accounts
-  // aren't linked to signups directly).
-  const playedEventRows = await env.DB.prepare(
-    `SELECT DISTINCT e.id AS event_id, e.title, e.start_time, e.format_config, et.id AS team_id
-     FROM event_team_members etm
-     JOIN event_signups es ON es.id = etm.signup_id
-     JOIN event_teams et ON et.id = etm.team_id
-     JOIN events e ON e.id = et.event_id
-     WHERE LOWER(es.email) = ?1 AND et.published = 1`
-  )
-    .bind(sessionUser.email.toLowerCase())
-    .all<{ event_id: number; title: string; start_time: string; format_config: string | null; team_id: number }>()
-
-  const results: {
-    eventId: number
-    title: string
-    startTime: string
-    teamName: string
-    wins: number
-    losses: number
-    setsWon: number
-    setsLost: number
-  }[] = []
-
-  for (const ev of playedEventRows.results ?? []) {
-    const teamRows = await env.DB.prepare(
-      `SELECT id, name FROM event_teams WHERE event_id = ?1 AND published = 1`
-    )
-      .bind(ev.event_id)
-      .all<{ id: number; name: string }>()
-    const teams = teamRows.results ?? []
-    const myTeam = teams.find((t) => t.id === ev.team_id)
-    if (!myTeam) continue
-
-    const matchRows = await env.DB.prepare(
-      `SELECT team_a_id, team_b_id, scores, forfeit_team_id FROM event_matches WHERE event_id = ?1`
-    )
-      .bind(ev.event_id)
-      .all<{ team_a_id: number | null; team_b_id: number | null; scores: string | null; forfeit_team_id: number | null }>()
-    const matches: MatchLike[] = (matchRows.results ?? []).map((m) => ({
-      ...m,
-      scores: m.scores ? (JSON.parse(m.scores) as [number, number][]) : null,
-    }))
-    if (matches.length === 0) continue
-
-    const setsPerMatch = readScheduleConfig(ev.format_config).sets_per_match
-    const standings = computeStandings(teams, matches, setsPerMatch)
-    const myRow = standings.find((r) => r.team_id === myTeam.id)
-    if (!myRow || myRow.played === 0) continue
-
-    results.push({
-      eventId: ev.event_id,
-      title: ev.title,
-      startTime: ev.start_time,
-      teamName: myTeam.name,
-      wins: myRow.wins,
-      losses: myRow.losses,
-      setsWon: myRow.sets_won,
-      setsLost: myRow.sets_lost,
-    })
-  }
-  results.sort((a, b) => b.startTime.localeCompare(a.startTime))
+  const results = await getPlayerResults(env, sessionUser.email)
 
   return json({
     profile: {
@@ -147,9 +99,36 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         provider: sessionUser.provider,
         role: sessionUser.role,
       },
+      status,
       club,
       upcomingRsvps,
       results,
     },
   })
+}
+
+// PATCH /api/profile  Body: { skill_level: SkillLevel | null }
+// Self-service skill level. 403s if an admin has locked this account's
+// skill level (see functions/api/admin/users/[id].ts) — the admin's value
+// then only changes from the admin Users panel.
+export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
+  const sessionUser = await getSessionUser(request, env)
+  if (!sessionUser) return unauthorized()
+
+  const body = await request.json<{ skill_level?: SkillLevel | null }>().catch(() => null)
+  if (!body || body.skill_level === undefined) return badRequest('skill_level is required')
+  if (body.skill_level !== null && !SKILL_LEVELS.includes(body.skill_level)) {
+    return badRequest(`skill_level must be one of ${SKILL_LEVELS.join(', ')}, or null`)
+  }
+
+  const row = await env.DB.prepare(`SELECT skill_level_locked FROM users WHERE id = ?1`)
+    .bind(sessionUser.id)
+    .first<{ skill_level_locked: number }>()
+  if (row?.skill_level_locked) {
+    return forbidden('An admin has locked your skill level')
+  }
+
+  await env.DB.prepare(`UPDATE users SET skill_level = ?1 WHERE id = ?2`).bind(body.skill_level, sessionUser.id).run()
+
+  return json({ ok: true })
 }

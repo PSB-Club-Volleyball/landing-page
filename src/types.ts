@@ -384,6 +384,7 @@ export interface AdminUser {
   position: string | null
   team: Team | null
   skill_level: SkillLevel | null
+  skill_level_locked: boolean
   waiver_signed_year: number | null
   waiver_signed_at: string | null
   dues_paid_year: number | null
@@ -394,8 +395,20 @@ export interface AdminUser {
   created_at: string
 }
 
-// GET /api/profile — the signed-in user's own account page. `club` is null
-// for outsiders (nothing to show until they're an approved club member).
+export interface PlayerResult {
+  eventId: number
+  title: string
+  startTime: string
+  teamName: string
+  wins: number
+  losses: number
+  setsWon: number
+  setsLost: number
+}
+
+// GET /api/profile — the signed-in user's own account page. `status`
+// applies to every account regardless of role; `club` is null for outsiders
+// (nothing to show until they're an approved club member).
 export interface MyProfile {
   account: {
     name: string | null
@@ -404,13 +417,17 @@ export interface MyProfile {
     provider: string
     role: UserRole
   }
+  status: {
+    skillLevel: SkillLevel | null
+    skillLevelLocked: boolean
+    waiverSignedYear: number | null
+    rsvpRestricted: boolean
+  }
   club: {
     position: string | null
     team: Team | null
-    skillLevel: SkillLevel | null
     duesPaidYear: number | null
     duesPaidAt: string | null
-    waiverSignedYear: number | null
     roster: { season: string; jerseyNumber: number | null; classYear: string | null } | null
   } | null
   upcomingRsvps: {
@@ -421,16 +438,29 @@ export interface MyProfile {
     locationName: string | null
     status: SignupStatus
   }[]
-  results: {
-    eventId: number
-    title: string
-    startTime: string
-    teamName: string
-    wins: number
-    losses: number
-    setsWon: number
-    setsLost: number
-  }[]
+  results: PlayerResult[]
+}
+
+// GET /api/members — public results-only leaderboard entry. Never carries
+// skill level or club status.
+export interface MemberSummary {
+  id: number
+  name: string | null
+  avatarUrl: string | null
+  wins: number
+  losses: number
+  setsWon: number
+  setsLost: number
+  winPct: number
+  currentStreak: number
+}
+
+// GET /api/members/:id — one account's public results view.
+export interface PublicMemberProfile {
+  id: number
+  name: string | null
+  avatarUrl: string | null
+  results: PlayerResult[]
 }
 
 export interface AuditEntry {

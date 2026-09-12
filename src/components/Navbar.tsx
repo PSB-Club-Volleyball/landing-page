@@ -176,6 +176,9 @@ function Navbar() {
                 <span className="nav-avatar">{initials(user)}</span>
                 My account
               </Link>
+              <Link to="/members" className="nav-members-link" onClick={() => setOpen(false)}>
+                Members
+              </Link>
               {(user.role === 'admin' || user.role === 'owner') && (
                 <Link to="/admin" className="nav-admin-link" onClick={() => setOpen(false)}>
                   Admin
