@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, cancelSignup, getProfile } from '../lib/api'
 import { formatEventDate } from '../lib/eventFormat'
-import type { MyProfile } from '../types'
+import type { MyProfile, SkillLevel } from '../types'
 
-const SKILL_LEVEL_LABELS: Record<string, string> = {
+const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
