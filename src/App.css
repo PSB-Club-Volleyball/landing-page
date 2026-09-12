@@ -743,6 +743,12 @@ main {
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
+/* .placeholder-note carries a negative top margin to hug a heading it
+   normally follows directly — cancel that here since it instead follows
+   the toggle/search row, which would otherwise crowd it. */
+.directory-head + .placeholder-note {
+  margin-top: 1rem;
+}
 .directory-toggle {
   display: flex;
   gap: 0.5rem;
