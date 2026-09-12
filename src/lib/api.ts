@@ -3,10 +3,13 @@ import type {
   BoardMember,
   FormWithFields,
   MediaItem,
+  MemberSummary,
   MyProfile,
   Player,
   PublicClubEvent,
+  PublicMemberProfile,
   SignupStatus,
+  SkillLevel,
 } from '../types'
 import type { LoginProviders } from './signInOptions'
 
@@ -96,6 +99,27 @@ export function getMe(): Promise<{ user: AuthUser | null }> {
 
 export function getProfile(): Promise<{ profile: MyProfile }> {
   return getJson('/api/profile')
+}
+
+export async function updateSkillLevel(skillLevel: SkillLevel | null): Promise<void> {
+  const res = await fetch('/api/profile', {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ skill_level: skillLevel }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string })
+    throw new Error(body.error || `Update failed (${res.status})`)
+  }
+}
+
+export function getMembers(): Promise<{ members: MemberSummary[] }> {
+  return getJson('/api/members')
+}
+
+export function getMemberProfile(id: number): Promise<{ member: PublicMemberProfile }> {
+  return getJson(`/api/members/${id}`)
 }
 
 export function getLoginProviders(): Promise<LoginProviders> {

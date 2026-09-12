@@ -67,6 +67,7 @@ function UserRow({
   const [waiverSaving, setWaiverSaving] = useState(false)
   const [duesSaving, setDuesSaving] = useState(false)
   const [restrictSaving, setRestrictSaving] = useState(false)
+  const [lockSaving, setLockSaving] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const waiverCurrent = user.waiver_signed_year === currentYear
@@ -109,6 +110,18 @@ function UserRow({
       onError((e as Error).message)
     } finally {
       setRestrictSaving(false)
+    }
+  }
+
+  async function toggleSkillLock() {
+    setLockSaving(true)
+    try {
+      await adminApi.users.update(user.id, { skill_level_locked: !user.skill_level_locked })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setLockSaving(false)
     }
   }
 
@@ -206,7 +219,10 @@ function UserRow({
         )}
       </td>
       <td>
-        {role === 'club_member' || role === 'admin' ? (
+        {/* Self-editable by the member via their own profile — lock a row to
+            take that away and set it here instead; not gated by role since
+            outsiders can self-report a skill level too. */}
+        <span className="row-actions">
           <select
             className="role-select"
             value={skillLevel}
@@ -219,9 +235,13 @@ function UserRow({
               </option>
             ))}
           </select>
-        ) : (
-          '—'
-        )}
+          <span className={user.skill_level_locked ? 'lock-chip locked' : 'lock-chip'}>
+            {user.skill_level_locked ? 'Locked' : 'Self-editable'}
+          </span>
+          <button type="button" disabled={lockSaving} onClick={toggleSkillLock}>
+            {lockSaving ? '…' : user.skill_level_locked ? 'Unlock' : 'Lock'}
+          </button>
+        </span>
       </td>
       <td>
         {/* Waivers are required of everyone who sets foot on the court,
@@ -293,6 +313,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [transferTo, setTransferTo] = useState('')
+  const [search, setSearch] = useState('')
   const selection = useSelection()
   const [bulkRole, setBulkRole] = useState<Exclude<UserRole, 'owner'>>('club_member')
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -345,12 +366,15 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
   }
 
   const owner = users.find((u) => u.role === 'owner')
-  const others = users.filter((u) => u.role !== 'owner')
+  const query = search.trim().toLowerCase()
+  const others = users
+    .filter((u) => u.role !== 'owner')
+    .filter((u) => !query || (u.name ?? '').toLowerCase().includes(query) || u.email.toLowerCase().includes(query))
   const roleGroups = ROLE_GROUP_ORDER.map((role) => ({
     role,
     members: others.filter((u) => u.role === role),
   })).filter((g) => g.members.length > 0)
-  const transferCandidates = others
+  const transferCandidates = users.filter((u) => u.role !== 'owner')
 
   return (
     <>
@@ -373,11 +397,23 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
       {error && <p className="admin-error">{error}</p>}
       <p className="admin-note">
         Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
-        someone to club member or admin below.
+        someone to club member or admin below. Skill level is self-editable by each member; lock a
+        row to take that away and set it yourself instead.
         {!isOwner &&
           " Only the owner can grant admin or change another admin's role — anyone's name, position, team, waiver, and dues can still be edited by an admin."}
       </p>
       {loading && <p>Loading&hellip;</p>}
+
+      {!loading && (
+        <input
+          type="text"
+          className="mini-input"
+          style={{ maxWidth: '280px', marginBottom: '1rem' }}
+          placeholder="Search by name or email…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      )}
 
       <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
         <select value={bulkRole} onChange={(e) => setBulkRole(e.target.value as Exclude<UserRole, 'owner'>)}>
