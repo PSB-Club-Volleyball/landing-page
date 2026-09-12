@@ -355,6 +355,7 @@ export interface MediaItem {
 // of the ones below it — outsider < club_member < admin < owner.
 export type UserRole = 'outsider' | 'club_member' | 'admin' | 'owner'
 export type Team = 'A' | 'B'
+export type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'competitive'
 
 export interface AuthUser {
   email: string
@@ -382,6 +383,7 @@ export interface AdminUser {
   role: UserRole
   position: string | null
   team: Team | null
+  skill_level: SkillLevel | null
   waiver_signed_year: number | null
   waiver_signed_at: string | null
   dues_paid_year: number | null
@@ -390,6 +392,45 @@ export interface AdminUser {
   // person's signups never auto-confirm — see events/[id]/signups.ts.
   rsvp_restricted: boolean
   created_at: string
+}
+
+// GET /api/profile — the signed-in user's own account page. `club` is null
+// for outsiders (nothing to show until they're an approved club member).
+export interface MyProfile {
+  account: {
+    name: string | null
+    email: string
+    avatarUrl: string | null
+    provider: string
+    role: UserRole
+  }
+  club: {
+    position: string | null
+    team: Team | null
+    skillLevel: SkillLevel | null
+    duesPaidYear: number | null
+    duesPaidAt: string | null
+    waiverSignedYear: number | null
+    roster: { season: string; jerseyNumber: number | null; classYear: string | null } | null
+  } | null
+  upcomingRsvps: {
+    signupId: number
+    eventId: number
+    title: string
+    startTime: string
+    locationName: string | null
+    status: SignupStatus
+  }[]
+  results: {
+    eventId: number
+    title: string
+    startTime: string
+    teamName: string
+    wins: number
+    losses: number
+    setsWon: number
+    setsLost: number
+  }[]
 }
 
 export interface AuditEntry {

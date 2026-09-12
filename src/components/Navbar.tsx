@@ -178,7 +178,9 @@ function Navbar() {
                   Admin
                 </Link>
               )}
-              <span className="nav-avatar">{initials(user)}</span>
+              <Link to="/profile" className="nav-avatar" onClick={() => setOpen(false)}>
+                {initials(user)}
+              </Link>
               <button
                 type="button"
                 className="nav-signout"

@@ -7,31 +7,37 @@ import { ensureRosterEntry } from '../_lib/roster'
 const SETTABLE_ROLES = ['outsider', 'club_member', 'admin'] as const
 type SettableRole = (typeof SETTABLE_ROLES)[number]
 
+const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced', 'competitive'] as const
+type SkillLevel = (typeof SKILL_LEVELS)[number]
+
 interface UsersPatchInput {
   role?: SettableRole
   name?: string
   position?: string | null
   team?: 'A' | 'B' | null
+  skill_level?: SkillLevel | null
   waiver_signed?: boolean
   dues_paid?: boolean
   rsvp_restricted?: boolean
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { role, name, position, team, waiver_signed, dues_paid, rsvp_restricted }
+// PUT /api/admin/users/:id  Body: any subset of { role, name, position, team, skill_level, waiver_signed, dues_paid, rsvp_restricted }
 // Any admin can promote/demote between outsider and club_member, edit a
 // member's display name/position/team, and mark/unmark a waiver or dues as
 // on file for the current year — the latter is an annual, admin-verified
 // thing (e.g. a signed paper form or cash/check received), never something
-// the member self-attests to. rsvp_restricted flags someone (e.g. repeated
+// the member self-attests to. skill_level is the same kind of admin call
+// (team-balancing input, not a self-rating) — the member's own /api/profile
+// only ever reads it. rsvp_restricted flags someone (e.g. repeated
 // no-shows/late cancellations) so their future signups never auto-confirm —
 // see functions/api/events/[id]/signups.ts. Granting 'admin', or re-roling a
 // row that's currently admin, is owner-only — an admin can't create or
 // remove other admins. Waiver/dues verification, rsvp_restricted, and basic
-// profile fields (name/position/team) on an admin row are NOT guarded — any
-// admin can mark another admin's waiver/dues/restriction and edit their
-// basic info, including their own. Nobody can set role to 'owner' here or
-// touch the owner's own row; see functions/api/admin/owner/transfer.ts for
-// the only way to move ownership.
+// profile fields (name/position/team/skill_level) on an admin row are NOT
+// guarded — any admin can mark another admin's waiver/dues/restriction and
+// edit their basic info, including their own. Nobody can set role to
+// 'owner' here or touch the owner's own row; see
+// functions/api/admin/owner/transfer.ts for the only way to move ownership.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
@@ -88,6 +94,15 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     values.push(body.team)
     setClauses.push(`team = ?${values.length}`)
     auditDetails.team = body.team
+  }
+
+  if (body.skill_level !== undefined) {
+    if (body.skill_level !== null && !SKILL_LEVELS.includes(body.skill_level)) {
+      return badRequest(`skill_level must be one of ${SKILL_LEVELS.join(', ')}, or null`)
+    }
+    values.push(body.skill_level)
+    setClauses.push(`skill_level = ?${values.length}`)
+    auditDetails.skill_level = body.skill_level
   }
 
   if (body.waiver_signed !== undefined) {
