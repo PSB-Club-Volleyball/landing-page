@@ -553,7 +553,7 @@ main {
   letter-spacing: 0.03em;
   text-decoration: none;
 }
-.field-row {
+.skill-field-row {
   display: flex;
   align-items: center;
   gap: 0.6rem;

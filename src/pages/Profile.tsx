@@ -230,7 +230,7 @@ function Profile() {
 
             <h2>Skill level</h2>
             {status.skillLevelLocked ? (
-              <div className="field-row">
+              <div className="skill-field-row">
                 <select className="skill-select" disabled value={status.skillLevel ?? ''}>
                   <option value="">Not set</option>
                   {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
@@ -242,7 +242,7 @@ function Profile() {
                 <span className="locked-note">An admin has locked your skill level — contact the club to change it.</span>
               </div>
             ) : (
-              <div className="field-row">
+              <div className="skill-field-row">
                 <select
                   className="skill-select"
                   value={skillDraft}
