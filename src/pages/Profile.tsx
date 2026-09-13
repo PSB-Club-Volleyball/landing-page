@@ -9,7 +9,6 @@ const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
-  competitive: 'Competitive',
 }
 
 type Tab = 'info' | 'rsvps' | 'results' | 'admin'
@@ -165,7 +164,7 @@ function Profile() {
           <div role="tabpanel">
             <h2>Club details</h2>
             {club ? (
-              <div className="data-table">
+              <div className="data-table data-table-fixed">
                 <table>
                   <tbody>
                     <tr>
@@ -204,7 +203,7 @@ function Profile() {
             )}
 
             <h2>Account status</h2>
-            <div className="data-table">
+            <div className="data-table data-table-fixed">
               <table>
                 <tbody>
                   <tr>

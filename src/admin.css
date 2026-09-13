@@ -1171,6 +1171,15 @@
   border-radius: var(--radius-sm);
   overflow-x: auto;
 }
+/* Narrow key-value tables (e.g. profile club details/account status) don't
+   need the wide-table min-width below, which otherwise forces an unwanted
+   horizontal scrollbar on mobile. */
+.data-table-fixed {
+  overflow-x: hidden;
+}
+.data-table-fixed table {
+  min-width: 0;
+}
 .data-table table {
   border-collapse: collapse;
   width: 100%;

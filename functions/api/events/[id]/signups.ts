@@ -17,7 +17,6 @@ const SKILL_LEVEL_LABELS: Record<string, string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
-  competitive: 'Competitive',
 }
 
 interface SignupInput {

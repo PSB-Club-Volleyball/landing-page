@@ -38,7 +38,6 @@ const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
-  competitive: 'Competitive',
 }
 
 function UserRow({

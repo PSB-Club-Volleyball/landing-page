@@ -4,7 +4,7 @@ import { getSessionUser } from './_lib/session'
 import { eventCutoff } from './_lib/time'
 import { getPlayerResults } from './_lib/playerResults'
 
-const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced', 'competitive'] as const
+const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced'] as const
 type SkillLevel = (typeof SKILL_LEVELS)[number]
 
 // GET /api/profile -> the signed-in user's own account page. `status`

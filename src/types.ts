@@ -358,7 +358,7 @@ export interface MediaItem {
 // of the ones below it — outsider < club_member < admin < owner.
 export type UserRole = 'outsider' | 'club_member' | 'admin' | 'owner'
 export type Team = 'A' | 'B'
-export type SkillLevel = 'beginner' | 'intermediate' | 'advanced' | 'competitive'
+export type SkillLevel = 'beginner' | 'intermediate' | 'advanced'
 
 export interface AuthUser {
   email: string
