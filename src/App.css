@@ -490,6 +490,9 @@ main {
   border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   margin: 1.6rem 0 0.4rem;
   overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  overscroll-behavior-y: contain;
 }
 .profile-tab {
   font: inherit;
@@ -569,6 +572,9 @@ main {
 .skill-select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+.skill-select option {
+  padding: 0.5rem 0.7rem;
 }
 .save-hint {
   font-size: 0.78rem;

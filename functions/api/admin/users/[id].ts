@@ -7,7 +7,7 @@ import { ensureRosterEntry } from '../_lib/roster'
 const SETTABLE_ROLES = ['outsider', 'club_member', 'admin'] as const
 type SettableRole = (typeof SETTABLE_ROLES)[number]
 
-const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced', 'competitive'] as const
+const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced'] as const
 type SkillLevel = (typeof SKILL_LEVELS)[number]
 
 interface UsersPatchInput {

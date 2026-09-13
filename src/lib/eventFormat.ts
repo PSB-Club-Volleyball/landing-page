@@ -12,7 +12,6 @@ export const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
-  competitive: 'Competitive',
 }
 
 // Public-facing wording for a play format — plainer than the admin labels.
