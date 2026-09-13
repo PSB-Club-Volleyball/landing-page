@@ -114,8 +114,21 @@ export async function updateSkillLevel(skillLevel: SkillLevel | null): Promise<v
   }
 }
 
+// People and Leaderboard both load the full member list on mount, so
+// switching between them (or revisiting either) would otherwise refetch
+// the same data every time. Cache it in memory for a short window and
+// share the in-flight request so concurrent callers don't double-fetch.
+const MEMBERS_CACHE_TTL_MS = 60_000
+let membersCache: { promise: Promise<{ members: MemberSummary[] }>; expiresAt: number } | null = null
+
 export function getMembers(): Promise<{ members: MemberSummary[] }> {
-  return getJson('/api/members')
+  if (membersCache && membersCache.expiresAt > Date.now()) return membersCache.promise
+  const promise = getJson<{ members: MemberSummary[] }>('/api/members')
+  promise.catch(() => {
+    if (membersCache?.promise === promise) membersCache = null
+  })
+  membersCache = { promise, expiresAt: Date.now() + MEMBERS_CACHE_TTL_MS }
+  return promise
 }
 
 export function getMemberProfile(id: number): Promise<{ member: PublicMemberProfile }> {
