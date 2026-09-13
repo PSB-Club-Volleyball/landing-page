@@ -9,10 +9,10 @@ import type { AuthUser } from '../types'
 const PAGES = [
   { to: '/', label: 'Home' },
   { to: '/roster', label: 'Roster' },
+  { to: '/events', label: 'Events' },
 ]
 
 const COMMUNITY_PAGES = [
-  { to: '/events', label: 'Events' },
   { to: '/people', label: 'People' },
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/photos', label: 'Photos' },

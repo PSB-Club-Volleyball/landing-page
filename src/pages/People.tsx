@@ -37,12 +37,27 @@ function People() {
     return sorted.filter((m) => (m.name || 'member').toLowerCase().includes(q))
   }, [sorted, query])
 
+  const withRecord = useMemo(
+    () =>
+      filtered
+        ?.filter((m) => m.wins + m.losses > 0)
+        .sort((a, b) => b.winPct - a.winPct) ?? null,
+    [filtered],
+  )
+  const withoutRecord = useMemo(() => filtered?.filter((m) => m.wins + m.losses === 0) ?? null, [filtered])
+
   return (
     <main id="main-content" tabIndex={-1}>
       <div className="board legal-page">
         <div className="directory-head">
           <div>
             <h1>People</h1>
+            {members && (
+              <p className="directory-count">
+                {members.length} members &middot; {members.filter((m) => m.wins + m.losses > 0).length} with a match
+                on record
+              </p>
+            )}
             <div className="directory-toggle">
               <span className="active">People</span>
               <Link to="/leaderboard">Leaderboard</Link>
@@ -63,27 +78,47 @@ function People() {
         {!error && filtered && filtered.length === 0 && (
           <p className="placeholder-note">No one matches that search.</p>
         )}
-        {!error && filtered && filtered.length > 0 && (
-          <ul className="directory-list">
-            {filtered.map((m) => {
-              const played = m.wins + m.losses
-              return (
-                <li key={m.id} className={played > 0 ? 'directory-row has-stats' : 'directory-row'}>
-                  <Link to={`/members/${m.id}`}>
-                    <span className="directory-avatar">{initials(m.name)}</span>
-                    <span className="directory-name">{m.name || 'Member'}</span>
-                    {played > 0 ? (
-                      <span className="directory-stat">
-                        {m.winPct.toFixed(3).replace(/^0/, '')} &middot; {m.wins}&ndash;{m.losses}
+
+        {!error && withRecord && withRecord.length > 0 && (
+          <>
+            <div className="section-label">
+              On the record <span className="count">{withRecord.length}</span>
+            </div>
+            <ul className="stat-grid">
+              {withRecord.map((m) => (
+                <li key={m.id}>
+                  <Link to={`/members/${m.id}`} className="stat-card">
+                    <span className="stat-avatar">{initials(m.name)}</span>
+                    <span className="stat-who">
+                      <span className="stat-name">{m.name || 'Member'}</span>
+                      <span className="stat-rec">
+                        {m.wins}&ndash;{m.losses}
                       </span>
-                    ) : (
-                      <span className="directory-stat muted">No matches yet</span>
-                    )}
+                    </span>
+                    <span className="stat-pct">{m.winPct.toFixed(3).replace(/^0/, '')}</span>
                   </Link>
                 </li>
-              )
-            })}
-          </ul>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {!error && withoutRecord && withoutRecord.length > 0 && (
+          <>
+            <div className="section-label">
+              No matches yet <span className="count">{withoutRecord.length}</span>
+            </div>
+            <ul className="chip-flow">
+              {withoutRecord.map((m) => (
+                <li key={m.id}>
+                  <Link to={`/members/${m.id}`} className="chip">
+                    <span className="chip-avatar">{initials(m.name)}</span>
+                    {m.name || 'Member'}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </div>
     </main>
