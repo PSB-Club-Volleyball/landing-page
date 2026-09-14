@@ -30,10 +30,12 @@ interface SignupInput {
 // Returns a cancel_token the client shows once — a logged-in account whose
 // email matches can also cancel without it. When the event is gated
 // (rsvp_gated), the signup starts out 'pending' until an admin approves it
-// instead of being confirmed immediately. When it's ungated and full, the
-// signup instead lands on the waitlist ('waitlist') and is promoted
-// automatically once a spot frees up (see _lib/waitlist.ts). Either way a
-// confirmation/request/waitlist email goes out right away.
+// instead of being confirmed immediately — capacity doesn't block a
+// request, only how many an admin can approve (see admin/events/[id]/release.ts).
+// When it's ungated and full, the signup instead lands on the waitlist
+// ('waitlist') and is promoted automatically once a spot frees up (see
+// _lib/waitlist.ts). Either way a confirmation/request/waitlist email goes
+// out right away.
 export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
@@ -130,19 +132,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     }
   }
 
-  // Gated events keep the original "can't even request past capacity"
-  // behavior — a waitlist doesn't make sense when every signup still needs
-  // a manual decision. Ungated events waitlist instead of rejecting.
+  // Gated events always take the request as 'pending', regardless of
+  // capacity — every signup needs a manual decision anyway, and the admin
+  // tooling (release/decide) already fills 'approved' up to capacity and
+  // waitlists the rest from the pending pool. Rejecting requests once the
+  // pending count reaches capacity would block people from ever getting in
+  // that queue in the first place. Ungated events waitlist instead of
+  // rejecting once approved seats run out.
   let status: 'pending' | 'approved' | 'waitlist' = 'approved'
   if (event.rsvp_gated) {
-    if (event.capacity !== null) {
-      const count = await env.DB.prepare(
-        `SELECT COUNT(*) AS n FROM event_signups WHERE event_id = ?1 AND status != 'denied'`
-      )
-        .bind(eventId)
-        .first<{ n: number }>()
-      if ((count?.n ?? 0) >= event.capacity) return badRequest('This event is full')
-    }
     status = 'pending'
   } else if (event.capacity !== null) {
     const approvedCount = await env.DB.prepare(
