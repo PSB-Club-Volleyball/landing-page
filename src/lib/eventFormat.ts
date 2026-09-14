@@ -45,20 +45,25 @@ export function directionsUrl(address: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
 }
 
-// A full, gated event still can't be requested past capacity (see
-// functions/api/events/[id]/signups.ts) — but a full, ungated event opens
+// A gated event can always be requested even past capacity — every signup
+// there needs a manual admin decision anyway (see
+// functions/api/events/[id]/signups.ts) — while a full, ungated event opens
 // the waitlist instead of turning people away.
 export function getSignupState(event: PublicClubEvent) {
   const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
   const isFull = spotsLeft !== null && spotsLeft <= 0
   const joinsWaitlist = isFull && !event.rsvp_gated
+  // A gated event never blocks the request itself, even when full — only
+  // an ungated event with no waitlist option (i.e. one that's neither
+  // capacity-limited nor gated) has nothing left to do once full.
+  const blocksSignup = isFull && !joinsWaitlist && !event.rsvp_gated
   const deadlinePassed = event.signup_deadline !== null && new Date(event.signup_deadline) < new Date()
   const verb = event.rsvp_gated
     ? 'Request'
     : event.event_type === 'game' || event.event_type === 'tournament'
       ? 'RSVP'
       : 'Sign up'
-  return { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb }
+  return { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb }
 }
 
 export function formatSignupDeadline(deadline: string) {

@@ -128,7 +128,7 @@ function EventDetail() {
   }
 
   const e = event as PublicClubEvent
-  const { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb } = getSignupState(e)
+  const { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb } = getSignupState(e)
   const tags = e.tags ? e.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
   const isCancelled = e.status === 'cancelled'
   const teams = e.teams ?? []
@@ -167,7 +167,9 @@ function EventDetail() {
       ? isFull
         ? joinsWaitlist
           ? `${e.signup_count} signed up · waitlist open`
-          : 'Full'
+          : blocksSignup
+            ? 'Full'
+            : `${e.signup_count} signed up · at capacity, requests still open`
         : `${e.signup_count} of ${e.capacity} spots filled${spotsLeft !== null ? ` · ${spotsLeft} left` : ''}`
       : `${e.signup_count} ${verb === 'RSVP' ? 'going' : 'signed up'}`
   const meterPct =
@@ -417,8 +419,9 @@ function EventDetail() {
                     <b>{e.signup_count}</b> {verb === 'RSVP' ? 'going' : 'signed up'}
                   </span>
                   {spotsLeft !== null && !isFull && <span className="cap-chip">{spotsLeft} left</span>}
-                  {isFull && !joinsWaitlist && <span className="full-chip">full</span>}
+                  {blocksSignup && <span className="full-chip">full</span>}
                   {joinsWaitlist && <span className="cap-chip">waitlist open</span>}
+                  {isFull && !joinsWaitlist && !blocksSignup && <span className="cap-chip">at capacity</span>}
                 </div>
                 {meterPct !== null && (
                   <div className="event-meter" aria-hidden="true">
@@ -426,16 +429,16 @@ function EventDetail() {
                   </div>
                 )}
                 <button
-                  className={`btn ${isFull && !joinsWaitlist ? 'btn-outline' : 'btn-ace'} event-signup-btn`}
+                  className={`btn ${blocksSignup ? 'btn-outline' : 'btn-ace'} event-signup-btn`}
                   type="button"
-                  disabled={deadlinePassed || (isFull && !joinsWaitlist)}
+                  disabled={deadlinePassed || blocksSignup}
                   onClick={() => setSignupOpen(true)}
                 >
                   {deadlinePassed
                     ? 'Registration closed'
                     : joinsWaitlist
                       ? 'Join waitlist'
-                      : isFull
+                      : blocksSignup
                         ? 'Full'
                         : verb}
                 </button>
@@ -468,15 +471,15 @@ function EventDetail() {
       {!isCancelled && e.signup_enabled && !e.my_signup_id && tab === 'details' && (
         <div className="event-signup-bar">
           <span className="event-signup-bar-status">
-            {isFull && !joinsWaitlist ? 'Event full' : spotsCopy}
+            {blocksSignup ? 'Event full' : spotsCopy}
           </span>
           <button
-            className={`btn ${isFull && !joinsWaitlist ? 'btn-outline' : 'btn-ace'}`}
+            className={`btn ${blocksSignup ? 'btn-outline' : 'btn-ace'}`}
             type="button"
-            disabled={deadlinePassed || (isFull && !joinsWaitlist)}
+            disabled={deadlinePassed || blocksSignup}
             onClick={() => setSignupOpen(true)}
           >
-            {deadlinePassed ? 'Closed' : joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
+            {deadlinePassed ? 'Closed' : joinsWaitlist ? 'Join waitlist' : blocksSignup ? 'Full' : verb}
           </button>
         </div>
       )}

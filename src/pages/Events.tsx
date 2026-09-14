@@ -26,7 +26,7 @@ function EventCard({
 }) {
   const navigate = useNavigate()
   const detailHref = `/events/${event.id}`
-  const { spotsLeft, isFull, joinsWaitlist, deadlinePassed, verb } = getSignupState(event)
+  const { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb } = getSignupState(event)
   const tags = event.tags
     ? event.tags.split(',').map((t) => t.trim()).filter(Boolean)
     : []
@@ -102,8 +102,9 @@ function EventCard({
           <span className="event-card-signup-status">
             <b>{event.signup_count}</b> {verb === 'RSVP' ? 'going' : 'signed up'}
             {spotsLeft !== null && !isFull && <span className="cap-chip">{spotsLeft} left</span>}
-            {isFull && !joinsWaitlist && <span className="full-chip">full</span>}
+            {blocksSignup && <span className="full-chip">full</span>}
             {joinsWaitlist && <span className="cap-chip">waitlist open</span>}
+            {isFull && !joinsWaitlist && !blocksSignup && <span className="cap-chip">at capacity</span>}
           </span>
           {mySignupId ? (
             <button
@@ -124,15 +125,15 @@ function EventCard({
             </button>
           ) : (
             <button
-              className={isFull && !joinsWaitlist ? 'btn btn-outline' : 'btn btn-ace'}
+              className={blocksSignup ? 'btn btn-outline' : 'btn btn-ace'}
               type="button"
-              disabled={deadlinePassed || (isFull && !joinsWaitlist)}
+              disabled={deadlinePassed || blocksSignup}
               onClick={(e) => {
                 e.stopPropagation()
                 onOpenSignup(event)
               }}
             >
-              {deadlinePassed ? 'Deadline for registration passed' : joinsWaitlist ? 'Join waitlist' : isFull ? 'Full' : verb}
+              {deadlinePassed ? 'Deadline for registration passed' : joinsWaitlist ? 'Join waitlist' : blocksSignup ? 'Full' : verb}
             </button>
           )}
         </div>
