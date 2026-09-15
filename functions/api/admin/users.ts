@@ -2,8 +2,8 @@ import type { Env } from '../_lib/env'
 import { json } from '../_lib/http'
 
 const COLUMNS = `id, email, name, avatar_url, provider, role, position, team, skill_level,
-                 skill_level_locked, waiver_signed_year, waiver_signed_at, dues_paid_year, dues_paid_at,
-                 rsvp_restricted, created_at`
+                 skill_level_locked, skill_level_change_requested, waiver_signed_year, waiver_signed_at,
+                 dues_paid_year, dues_paid_at, rsvp_restricted, created_at`
 
 // GET /api/admin/users -> everyone who has ever signed in, newest first
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {

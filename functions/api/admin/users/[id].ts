@@ -17,19 +17,26 @@ interface UsersPatchInput {
   team?: 'A' | 'B' | null
   skill_level?: SkillLevel | null
   skill_level_locked?: boolean
+  skill_level_change_requested?: null
   waiver_signed?: boolean
   dues_paid?: boolean
   rsvp_restricted?: boolean
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { role, name, position, team, skill_level, skill_level_locked, waiver_signed, dues_paid, rsvp_restricted }
+// PUT /api/admin/users/:id  Body: any subset of { role, name, position, team, skill_level, skill_level_locked, skill_level_change_requested, waiver_signed, dues_paid, rsvp_restricted }
 // Any admin can promote/demote between outsider and club_member, edit a
 // member's display name/position/team, and mark/unmark a waiver or dues as
 // on file for the current year — the latter is an annual, admin-verified
 // thing (e.g. a signed paper form or cash/check received), never something
-// the member self-attests to. skill_level is now self-editable by the
-// member via /api/profile; an admin can still set it directly here, and
-// skill_level_locked takes that self-edit away from a specific user so the
+// the member self-attests to. skill_level is self-editable by the member
+// via /api/profile only for its first (from-null) value — after that, a
+// self-service change lands as skill_level_change_requested instead of
+// being applied, and needs an admin to either approve it (set skill_level
+// here to the requested value, or to anything else) or dismiss it (pass
+// skill_level_change_requested: null with no skill_level, clearing the
+// request without changing the current value); setting skill_level here
+// always clears any pending request. skill_level_locked takes self-edits
+// (both the first set and later requests) away from a specific user so the
 // admin's value sticks. rsvp_restricted flags someone (e.g. repeated
 // no-shows/late cancellations) so their future signups never auto-confirm —
 // see functions/api/events/[id]/signups.ts. Granting 'admin', or re-roling a
@@ -105,6 +112,14 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     values.push(body.skill_level)
     setClauses.push(`skill_level = ?${values.length}`)
     auditDetails.skill_level = body.skill_level
+    // Approving (or overriding) always resolves any pending self-service request.
+    setClauses.push(`skill_level_change_requested = NULL`, `skill_level_change_requested_at = NULL`)
+  } else if (body.skill_level_change_requested !== undefined) {
+    if (body.skill_level_change_requested !== null) {
+      return badRequest('skill_level_change_requested can only be set to null (to dismiss a pending request)')
+    }
+    setClauses.push(`skill_level_change_requested = NULL`, `skill_level_change_requested_at = NULL`)
+    auditDetails.skill_level_change_requested = null
   }
 
   if (body.skill_level_locked !== undefined) {

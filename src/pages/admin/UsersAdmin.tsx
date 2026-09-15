@@ -67,6 +67,7 @@ function UserRow({
   const [duesSaving, setDuesSaving] = useState(false)
   const [restrictSaving, setRestrictSaving] = useState(false)
   const [lockSaving, setLockSaving] = useState(false)
+  const [dismissSaving, setDismissSaving] = useState(false)
 
   const currentYear = new Date().getFullYear()
   const waiverCurrent = user.waiver_signed_year === currentYear
@@ -121,6 +122,18 @@ function UserRow({
       onError((e as Error).message)
     } finally {
       setLockSaving(false)
+    }
+  }
+
+  async function dismissSkillLevelRequest() {
+    setDismissSaving(true)
+    try {
+      await adminApi.users.update(user.id, { skill_level_change_requested: null })
+      onSaved()
+    } catch (e) {
+      onError((e as Error).message)
+    } finally {
+      setDismissSaving(false)
     }
   }
 
@@ -218,9 +231,13 @@ function UserRow({
         )}
       </td>
       <td>
-        {/* Self-editable by the member via their own profile — lock a row to
-            take that away and set it here instead; not gated by role since
-            outsiders can self-report a skill level too. */}
+        {/* Self-editable once (from unset) via the member's own profile; a
+            later change lands here as a pending request instead of applying
+            directly — pick the requested value (or anything else) and Save
+            to approve, or Dismiss to reject without changing the current
+            value. Lock a row to take self-editing away entirely and set it
+            here instead; not gated by role since outsiders can self-report a
+            skill level too. */}
         <span className="row-actions">
           <select
             className="role-select"
@@ -241,6 +258,14 @@ function UserRow({
             {lockSaving ? '…' : user.skill_level_locked ? 'Unlock' : 'Lock'}
           </button>
         </span>
+        {user.skill_level_change_requested && (
+          <span className="row-actions">
+            <span className="lock-chip">Requested: {SKILL_LEVEL_LABELS[user.skill_level_change_requested]}</span>
+            <button type="button" disabled={dismissSaving} onClick={dismissSkillLevelRequest}>
+              {dismissSaving ? '…' : 'Dismiss'}
+            </button>
+          </span>
+        )}
       </td>
       <td>
         {/* Waivers are required of everyone who sets foot on the court,

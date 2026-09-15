@@ -142,6 +142,7 @@ export const adminApi = {
         team?: Team | null
         skill_level?: SkillLevel | null
         skill_level_locked?: boolean
+        skill_level_change_requested?: null
         waiver_signed?: boolean
         dues_paid?: boolean
         rsvp_restricted?: boolean
