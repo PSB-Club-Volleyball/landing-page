@@ -234,8 +234,8 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
       setError('Build at least two teams on the Teams & format tab first.')
       return
     }
-    if (mode === 'pool' && poolGroups.length < 2) {
-      setError('Assign teams to at least two pools on the Teams & format tab first.')
+    if (mode === 'pool' && poolGroups.length < 1) {
+      setError('Assign teams to a pool on the Teams & format tab first.')
       return
     }
     if (data && data.matches.length > 0 && !confirm(`Replace the current ${noun}? Any entered scores are cleared.`)) return
