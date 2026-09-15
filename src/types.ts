@@ -388,6 +388,7 @@ export interface AdminUser {
   team: Team | null
   skill_level: SkillLevel | null
   skill_level_locked: boolean
+  skill_level_change_requested: SkillLevel | null
   waiver_signed_year: number | null
   waiver_signed_at: string | null
   dues_paid_year: number | null
@@ -423,6 +424,7 @@ export interface MyProfile {
   status: {
     skillLevel: SkillLevel | null
     skillLevelLocked: boolean
+    skillLevelChangeRequested: SkillLevel | null
     waiverSignedYear: number | null
     rsvpRestricted: boolean
   }

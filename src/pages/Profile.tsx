@@ -64,6 +64,20 @@ function Profile() {
     }
   }
 
+  async function cancelSkillLevelRequest() {
+    if (!profile) return
+    setSkillSaving(true)
+    setSkillError(null)
+    try {
+      await updateSkillLevel(profile.status.skillLevel)
+      refresh()
+    } catch (e) {
+      setSkillError((e as Error).message)
+    } finally {
+      setSkillSaving(false)
+    }
+  }
+
   if (error) {
     return (
       <main id="main-content" tabIndex={-1}>
@@ -241,6 +255,23 @@ function Profile() {
                 </select>
                 <span className="locked-note">An admin has locked your skill level — contact the club to change it.</span>
               </div>
+            ) : status.skillLevelChangeRequested ? (
+              <div className="skill-field-row">
+                <select className="skill-select" disabled value={status.skillLevel ?? ''}>
+                  <option value="">Not set</option>
+                  {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
+                    <option key={level} value={level}>
+                      {SKILL_LEVEL_LABELS[level]}
+                    </option>
+                  ))}
+                </select>
+                <span className="locked-note">
+                  Change requested: {SKILL_LEVEL_LABELS[status.skillLevelChangeRequested]} — pending admin approval.
+                </span>
+                <button type="button" disabled={skillSaving} onClick={cancelSkillLevelRequest}>
+                  {skillSaving ? '…' : 'Cancel request'}
+                </button>
+              </div>
             ) : (
               <div className="skill-field-row">
                 <select
@@ -256,9 +287,19 @@ function Profile() {
                   ))}
                 </select>
                 <button type="button" disabled={!skillDirty || skillSaving} onClick={saveSkillLevel}>
-                  {skillSaving ? 'Saving…' : 'Save'}
+                  {skillSaving
+                    ? status.skillLevel === null
+                      ? 'Saving…'
+                      : 'Requesting…'
+                    : status.skillLevel === null
+                      ? 'Save'
+                      : 'Request change'}
                 </button>
-                <span className="save-hint">Only you and club admins can see this.</span>
+                <span className="save-hint">
+                  {status.skillLevel === null
+                    ? 'Only you and club admins can see this. You can set this once for free — changing it later needs admin approval.'
+                    : 'Only you and club admins can see this. Changing it now requires admin approval.'}
+                </span>
               </div>
             )}
             {skillError && <p className="admin-error">{skillError}</p>}

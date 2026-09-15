@@ -17,12 +17,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   if (!sessionUser) return unauthorized()
 
   const statusRow = await env.DB.prepare(
-    `SELECT skill_level, skill_level_locked, waiver_signed_year, rsvp_restricted FROM users WHERE id = ?1`
+    `SELECT skill_level, skill_level_locked, skill_level_change_requested, waiver_signed_year, rsvp_restricted
+     FROM users WHERE id = ?1`
   )
     .bind(sessionUser.id)
     .first<{
       skill_level: string | null
       skill_level_locked: number
+      skill_level_change_requested: string | null
       waiver_signed_year: number | null
       rsvp_restricted: number
     }>()
@@ -30,6 +32,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const status = {
     skillLevel: statusRow?.skill_level ?? null,
     skillLevelLocked: Boolean(statusRow?.skill_level_locked),
+    skillLevelChangeRequested: statusRow?.skill_level_change_requested ?? null,
     waiverSignedYear: statusRow?.waiver_signed_year ?? null,
     rsvpRestricted: Boolean(statusRow?.rsvp_restricted),
   }
@@ -108,9 +111,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 }
 
 // PATCH /api/profile  Body: { skill_level: SkillLevel | null }
-// Self-service skill level. 403s if an admin has locked this account's
-// skill level (see functions/api/admin/users/[id].ts) — the admin's value
-// then only changes from the admin Users panel.
+// Self-service skill level, but only for the *first* value: once
+// skill_level is non-null, further changes are recorded as a pending
+// request (skill_level_change_requested) instead of applied directly — an
+// admin has to approve it (by setting skill_level from the admin Users
+// panel, which also clears the pending request) or dismiss it. Re-submitting
+// the account's current skill_level cancels a pending request. 403s if an
+// admin has locked this account's skill level (see
+// functions/api/admin/users/[id].ts) — the admin's value then only changes
+// from the admin Users panel.
 export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
   const sessionUser = await getSessionUser(request, env)
   if (!sessionUser) return unauthorized()
@@ -121,14 +130,39 @@ export const onRequestPatch: PagesFunction<Env> = async ({ request, env }) => {
     return badRequest(`skill_level must be one of ${SKILL_LEVELS.join(', ')}, or null`)
   }
 
-  const row = await env.DB.prepare(`SELECT skill_level_locked FROM users WHERE id = ?1`)
+  const row = await env.DB.prepare(`SELECT skill_level, skill_level_locked FROM users WHERE id = ?1`)
     .bind(sessionUser.id)
-    .first<{ skill_level_locked: number }>()
+    .first<{ skill_level: string | null; skill_level_locked: number }>()
   if (row?.skill_level_locked) {
     return forbidden('An admin has locked your skill level')
   }
 
-  await env.DB.prepare(`UPDATE users SET skill_level = ?1 WHERE id = ?2`).bind(body.skill_level, sessionUser.id).run()
+  if (row?.skill_level == null) {
+    await env.DB.prepare(
+      `UPDATE users SET skill_level = ?1, skill_level_change_requested = NULL, skill_level_change_requested_at = NULL
+       WHERE id = ?2`
+    )
+      .bind(body.skill_level, sessionUser.id)
+      .run()
+    return json({ ok: true })
+  }
 
-  return json({ ok: true })
+  if (body.skill_level === row.skill_level) {
+    // Re-submitting the current value cancels any pending request.
+    await env.DB.prepare(
+      `UPDATE users SET skill_level_change_requested = NULL, skill_level_change_requested_at = NULL WHERE id = ?1`
+    )
+      .bind(sessionUser.id)
+      .run()
+    return json({ ok: true })
+  }
+
+  await env.DB.prepare(
+    `UPDATE users SET skill_level_change_requested = ?1, skill_level_change_requested_at = CURRENT_TIMESTAMP
+     WHERE id = ?2`
+  )
+    .bind(body.skill_level, sessionUser.id)
+    .run()
+
+  return json({ ok: true, requested: true })
 }
