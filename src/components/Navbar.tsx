@@ -199,6 +199,11 @@ function Navbar() {
           )}
           {user && (
             <span className="nav-account-chip">
+              {(user.role === 'admin' || user.role === 'owner') && (
+                <Link to="/admin" className="nav-admin-link" onClick={() => setOpen(false)}>
+                  Admin
+                </Link>
+              )}
               <Link to="/profile" className="nav-profile-link" onClick={() => setOpen(false)}>
                 <span className="nav-avatar">{initials(user)}</span>
                 My account

@@ -188,6 +188,19 @@
   align-items: center;
   gap: 0.7rem;
 }
+.nav-admin-link {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--ace);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-admin-link:hover {
+  filter: brightness(1.08);
+}
 .nav-profile-link {
   display: flex;
   align-items: center;

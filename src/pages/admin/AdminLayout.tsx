@@ -3,6 +3,7 @@ import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../../types'
 import { logout } from '../../lib/adminApi'
 import MenuIcon from '../../components/MenuIcon'
+import DashboardAdmin from './DashboardAdmin'
 import RosterAdmin from './RosterAdmin'
 import BoardAdmin from './BoardAdmin'
 import EventsAdmin from './EventsAdmin'
@@ -13,9 +14,10 @@ import UsersAdmin from './UsersAdmin'
 import AuditLogAdmin from './AuditLogAdmin'
 import SettingsAdmin from './SettingsAdmin'
 
-type Tab = 'roster' | 'board' | 'events' | 'forms' | 'media' | 'users' | 'audit-log' | 'settings'
+type Tab = 'dashboard' | 'roster' | 'board' | 'events' | 'forms' | 'media' | 'users' | 'audit-log' | 'settings'
 
 const TABS: { key: Tab; label: string; ownerOnly?: boolean }[] = [
+  { key: 'dashboard', label: 'Dashboard' },
   { key: 'roster', label: 'Roster' },
   { key: 'board', label: 'Board' },
   { key: 'events', label: 'Events' },
@@ -40,12 +42,16 @@ function ConsoleTab({
   tab,
   user,
   isOwner,
+  onGoTo,
 }: {
   tab: Tab
   user: AuthUser
   isOwner: boolean
+  onGoTo: (tab: Tab) => void
 }) {
   switch (tab) {
+    case 'dashboard':
+      return <DashboardAdmin onGoTo={onGoTo} />
     case 'roster':
       return <RosterAdmin />
     case 'board':
@@ -69,7 +75,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
   const isOwner = user.role === 'owner'
   const location = useLocation()
   const navigate = useNavigate()
-  const [tab, setTab] = useState<Tab>('roster')
+  const [tab, setTab] = useState<Tab>('dashboard')
   const [navOpen, setNavOpen] = useState(false)
 
   // The console's own screens are on the /admin index; a routed sub-page
@@ -132,7 +138,7 @@ function AdminLayout({ user }: { user: AuthUser }) {
             <Route
               index
               element={
-                <ConsoleTab tab={tab} user={user} isOwner={isOwner} />
+                <ConsoleTab tab={tab} user={user} isOwner={isOwner} onGoTo={pickTab} />
               }
             />
             <Route path="events/:eventId" element={<AdminEventPage isOwner={isOwner} />} />
