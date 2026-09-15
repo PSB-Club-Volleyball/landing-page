@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMedia, mediaUrl } from '../lib/api'
+import { linkifyText } from '../lib/markdown'
 import type { MediaItem } from '../types'
 
 function Photos() {
@@ -50,7 +51,7 @@ function Photos() {
                     loading="lazy"
                   />
                 )}
-                {item.caption && <span className="media-caption">{item.caption}</span>}
+                {item.caption && <span className="media-caption">{linkifyText(item.caption)}</span>}
               </li>
             ))}
           </ul>

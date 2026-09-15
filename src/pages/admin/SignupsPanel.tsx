@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
 import { downloadCsv, downloadEmailList, toCsv } from '../../lib/csv'
+import { linkifyText } from '../../lib/markdown'
 import type { EventSignup, SignupStatus } from '../../types'
 
 function eventSlug(eventTitle: string) {
@@ -401,7 +402,7 @@ export default function SignupsPanel({
             <li key={s.id}>
               <span className="checkin-who">
                 <b>{s.name}</b>
-                {answersText(s, ', ') && <span>{answersText(s, ', ')}</span>}
+                {answersText(s, ', ') && <span>{linkifyText(answersText(s, ', '))}</span>}
               </span>
               <button
                 type="button"
@@ -444,7 +445,7 @@ export default function SignupsPanel({
                     {s.status === 'waitlist' && waitlistPos.has(s.id) && ` #${waitlistPos.get(s.id)}`}
                   </span>
                 </td>
-                <td>{answersText(s, ', ') || '—'}</td>
+                <td>{answersText(s, ', ') ? linkifyText(answersText(s, ', ')) : '—'}</td>
                 <td>
                   {s.status === 'approved' && (
                     <button

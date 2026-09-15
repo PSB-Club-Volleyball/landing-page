@@ -4,6 +4,7 @@ import { cancelSignup, getForm, getLoginProviders, getMe, submitSignup } from '.
 import { signInOptions } from '../lib/signInOptions'
 import OAuthButton from './OAuthButton'
 import { buildPages, FieldInput } from '../lib/formFields'
+import { linkifyText } from '../lib/markdown'
 import { useModalFocus } from '../lib/useModalFocus'
 import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
 
@@ -206,7 +207,10 @@ function SignupModal({
               <>
                 <h4>You&rsquo;re in!</h4>
                 <p>
-                  {form?.confirmation_message || `You're signed up for ${event.title}. See you at ${event.location_name || 'the event'}.`}
+                  {linkifyText(
+                    form?.confirmation_message ||
+                      `You're signed up for ${event.title}. See you at ${event.location_name || 'the event'}.`,
+                  )}
                 </p>
                 {submitError && <p className="admin-error" role="alert">{submitError}</p>}
                 <p className="cancel-note">
@@ -309,7 +313,7 @@ function SignupModal({
                 {pages[pageIndex]?.heading && (
                   <div className="signup-section-heading">
                     <h5>{pages[pageIndex].heading!.label}</h5>
-                    {pages[pageIndex].heading!.description && <p>{pages[pageIndex].heading!.description}</p>}
+                    {pages[pageIndex].heading!.description && <p>{linkifyText(pages[pageIndex].heading!.description!)}</p>}
                   </div>
                 )}
 
@@ -319,7 +323,7 @@ function SignupModal({
                       {field.required && <span className="req" aria-hidden="true">* </span>}
                       {field.label}
                     </span>
-                    {field.description && <span className="field-desc">{field.description}</span>}
+                    {field.description && <span className="field-desc">{linkifyText(field.description)}</span>}
                     <FieldInput
                       field={field}
                       value={answers[field.id] ?? ''}
