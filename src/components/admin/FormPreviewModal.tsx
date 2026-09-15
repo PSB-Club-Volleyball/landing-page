@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { buildPages, FieldInput } from '../../lib/formFields'
 import type { PreviewableField } from '../../lib/formFields'
+import { linkifyText } from '../../lib/markdown'
 
 // Renders a form builder draft exactly the way SignupModal renders a real
 // one — same field components, same section-per-page pagination — so an
@@ -41,7 +42,7 @@ function FormPreviewModal({
           <div className="signup-confirm">
             <div className="signup-confirm-tick">&#10003;</div>
             <h4>You&rsquo;re in!</h4>
-            <p>{confirmationMessage || "You're signed up."}</p>
+            <p>{linkifyText(confirmationMessage || "You're signed up.")}</p>
             <button className="btn btn-outline btn-sm" type="button" onClick={onClose}>
               Close preview
             </button>
@@ -72,7 +73,7 @@ function FormPreviewModal({
             {pages[pageIndex]?.heading && (
               <div className="signup-section-heading">
                 <h5>{pages[pageIndex].heading!.label}</h5>
-                {pages[pageIndex].heading!.description && <p>{pages[pageIndex].heading!.description}</p>}
+                {pages[pageIndex].heading!.description && <p>{linkifyText(pages[pageIndex].heading!.description!)}</p>}
               </div>
             )}
             {pages.length === 0 && <p className="admin-note">Add a field to see it here.</p>}
@@ -83,7 +84,7 @@ function FormPreviewModal({
                   {field.required && <span className="req">* </span>}
                   {field.label || '(untitled field)'}
                 </span>
-                {field.description && <span className="field-desc">{field.description}</span>}
+                {field.description && <span className="field-desc">{linkifyText(field.description)}</span>}
                 <FieldInput
                   field={field}
                   value={answers[field.id] ?? ''}

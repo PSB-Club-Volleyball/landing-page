@@ -2,12 +2,43 @@ import type { ReactNode } from 'react'
 
 // A small, deliberately limited Markdown-ish renderer for event
 // descriptions: paragraphs, line breaks, "-"/"*" lists, **bold**, *italic*,
-// and [text](url) links. Text is only ever placed into React as plain
-// strings (never dangerouslySetInnerHTML), so there's no HTML to sanitize.
+// [text](url) links, and bare URLs (auto-linked). Text is only ever placed
+// into React as plain strings (never dangerouslySetInnerHTML), so there's
+// no HTML to sanitize.
+
+// Trailing punctuation (. , ; : ! ? ) ' ") is almost never meant to be part
+// of the URL — it's sentence punctuation that happens to follow it — so it's
+// split off and rendered as plain text after the link. A trailing ")" is the
+// exception: URLs legitimately end in one (e.g. a Wikipedia
+// ".../Example_(disambiguation)" link), so it's only stripped when it isn't
+// balanced by an opening "(" earlier in the matched URL.
+function splitTrailingPunctuation(url: string): { url: string; trailing: string } {
+  let end = url.length
+  while (end > 0) {
+    const ch = url[end - 1]
+    if (ch === ')') {
+      const prefix = url.slice(0, end)
+      const opens = (prefix.match(/\(/g) ?? []).length
+      const closes = (prefix.match(/\)/g) ?? []).length
+      if (closes <= opens) break
+      end--
+    } else if (/[.,;:!?'"]/.test(ch)) {
+      end--
+    } else {
+      break
+    }
+  }
+  return { url: url.slice(0, end), trailing: url.slice(end) }
+}
+
+function bareUrlHref(url: string): string {
+  return url.startsWith('www.') ? `https://${url}` : url
+}
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = []
-  const pattern = /\[([^[\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*/g
+  const pattern =
+    /\[([^[\]]+)\]\((https?:\/\/[^\s)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|(https?:\/\/[^\s<]+|www\.[^\s<]+)/g
   let lastIndex = 0
   let match: RegExpExecArray | null
   let i = 0
@@ -23,7 +54,40 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       nodes.push(<strong key={`${keyPrefix}-${i++}`}>{match[3]}</strong>)
     } else if (match[4] !== undefined) {
       nodes.push(<em key={`${keyPrefix}-${i++}`}>{match[4]}</em>)
+    } else if (match[5] !== undefined) {
+      const { url, trailing } = splitTrailingPunctuation(match[5])
+      nodes.push(
+        <a key={`${keyPrefix}-${i++}`} href={bareUrlHref(url)} target="_blank" rel="noreferrer">
+          {url}
+        </a>
+      )
+      if (trailing) nodes.push(trailing)
     }
+    lastIndex = pattern.lastIndex
+  }
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
+  return nodes
+}
+
+// Auto-links bare URLs in plain (non-markdown) text — form field help text,
+// confirmation messages, captions, and other free-text fields that aren't
+// run through renderMarkdown. No markdown syntax is interpreted here, only
+// URL detection.
+export function linkifyText(text: string): ReactNode[] {
+  const nodes: ReactNode[] = []
+  const pattern = /(https?:\/\/[^\s<]+|www\.[^\s<]+)/g
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+  let i = 0
+  while ((match = pattern.exec(text))) {
+    if (match.index > lastIndex) nodes.push(text.slice(lastIndex, match.index))
+    const { url, trailing } = splitTrailingPunctuation(match[0])
+    nodes.push(
+      <a key={i++} href={bareUrlHref(url)} target="_blank" rel="noreferrer">
+        {url}
+      </a>
+    )
+    if (trailing) nodes.push(trailing)
     lastIndex = pattern.lastIndex
   }
   if (lastIndex < text.length) nodes.push(text.slice(lastIndex))
