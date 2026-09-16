@@ -31,7 +31,7 @@ function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void 
       setEvents(allEvents)
       setUsers(allUsers)
 
-      const gated = allEvents.filter((e) => e.rsvp_gated && e.status !== 'cancelled')
+      const gated = allEvents.filter((e) => e.rsvp_gated && e.status !== 'cancelled' && !e.is_past)
       const signupLists = await Promise.all(gated.map((e) => adminApi.events.signups(e.id)))
       const flat: PendingSignup[] = []
       gated.forEach((event, i) => {
