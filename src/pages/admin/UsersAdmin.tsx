@@ -431,8 +431,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
       {!loading && (
         <input
           type="text"
-          className="mini-input"
-          style={{ maxWidth: '280px', marginBottom: '1rem' }}
+          className="mini-input users-search"
           placeholder="Search by name or email…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -451,7 +450,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
       </BulkActionBar>
 
       {!loading && (
-        <div className="data-table" style={{ marginTop: '1.5rem' }}>
+        <div className="data-table">
           <table>
             <thead>
               <tr>
@@ -508,13 +507,18 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
                   ))}
                 </Fragment>
               ))}
+              {others.length === 0 && (
+                <tr>
+                  <td colSpan={11}>{query ? 'No users match this search.' : 'No users yet.'}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       )}
 
       {!loading && isOwner && (
-        <div className="admin-form" style={{ marginTop: '1.5rem' }}>
+        <div className="admin-form">
           <span>Transfer ownership to:</span>
           <select value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>
             <option value="">Select a user&hellip;</option>

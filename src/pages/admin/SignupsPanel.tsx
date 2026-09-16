@@ -415,73 +415,75 @@ export default function SignupsPanel({
           ))}
         </ul>
       ) : (
-        <table className="signups-table">
-          <thead>
-            <tr>
-              <th className="select-col">
-                <input type="checkbox" aria-label="Select all" checked={allVisibleSelected} onChange={toggleSelectAll} />
-              </th>
-              <th><button type="button" className="th-sort" onClick={() => toggleSort('name')}>Name{sortArrow('name')}</button></th>
-              <th><button type="button" className="th-sort" onClick={() => toggleSort('status')}>Status{sortArrow('status')}</button></th>
-              <th>Answers</th>
-              <th>Checked in</th>
-              <th><button type="button" className="th-sort" onClick={() => toggleSort('created')}>Submitted{sortArrow('created')}</button></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((s) => (
-              <tr key={s.id} className={selected.has(s.id) ? 'row-selected' : undefined}>
-                <td className="select-col">
-                  <input type="checkbox" aria-label={`Select ${s.name}`} checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
-                </td>
-                <td>
-                  <span className="signups-name">{s.name}</span>
-                  <span className="signups-email">{s.email}</span>
-                </td>
-                <td>
-                  <span className={`status-chip status-${s.status}`}>
-                    {s.status}
-                    {s.status === 'waitlist' && waitlistPos.has(s.id) && ` #${waitlistPos.get(s.id)}`}
-                  </span>
-                </td>
-                <td>{answersText(s, ', ') ? linkifyText(answersText(s, ', ')) : '—'}</td>
-                <td>
-                  {s.status === 'approved' && (
-                    <button
-                      type="button"
-                      className={s.checked_in_at ? 'signups-toggle checked-in' : 'signups-toggle'}
-                      onClick={() => handleToggleCheckedIn(s.id, !s.checked_in_at)}
-                    >
-                      {s.checked_in_at ? `✓ ${new Date(s.checked_in_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Check in'}
-                    </button>
-                  )}
-                </td>
-                <td>{new Date(s.created_at).toLocaleDateString()}</td>
-                <td>
-                  <span className="row-actions">
-                    {s.status === 'pending' && (
-                      <>
-                        <button type="button" onClick={() => handleDecide(s.id, 'approved')}>Approve</button>
-                        <button type="button" className="danger" onClick={() => handleDecide(s.id, 'denied')}>Deny</button>
-                      </>
-                    )}
-                    {s.status === 'waitlist' && (
-                      <button type="button" onClick={() => handleDecide(s.id, 'approved')}>Promote</button>
-                    )}
-                    {s.status === 'approved' && (
-                      <button type="button" onClick={() => handleDecide(s.id, 'waitlist')}>Move to waitlist</button>
-                    )}
-                    {s.status === 'denied' && (
-                      <button type="button" onClick={() => handleDecide(s.id, 'approved')}>Approve</button>
-                    )}
-                    <button type="button" className="danger" onClick={() => handleRemove(s.id)}>Remove</button>
-                  </span>
-                </td>
+        <div className="data-table">
+          <table className="signups-table">
+            <thead>
+              <tr>
+                <th className="select-col">
+                  <input type="checkbox" aria-label="Select all" checked={allVisibleSelected} onChange={toggleSelectAll} />
+                </th>
+                <th><button type="button" className="th-sort" onClick={() => toggleSort('name')}>Name{sortArrow('name')}</button></th>
+                <th><button type="button" className="th-sort" onClick={() => toggleSort('status')}>Status{sortArrow('status')}</button></th>
+                <th>Answers</th>
+                <th>Checked in</th>
+                <th><button type="button" className="th-sort" onClick={() => toggleSort('created')}>Submitted{sortArrow('created')}</button></th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visible.map((s) => (
+                <tr key={s.id} className={selected.has(s.id) ? 'row-selected' : undefined}>
+                  <td className="select-col">
+                    <input type="checkbox" aria-label={`Select ${s.name}`} checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
+                  </td>
+                  <td>
+                    <span className="signups-name">{s.name}</span>
+                    <span className="signups-email">{s.email}</span>
+                  </td>
+                  <td>
+                    <span className={`status-chip status-${s.status}`}>
+                      {s.status}
+                      {s.status === 'waitlist' && waitlistPos.has(s.id) && ` #${waitlistPos.get(s.id)}`}
+                    </span>
+                  </td>
+                  <td>{answersText(s, ', ') ? linkifyText(answersText(s, ', ')) : '—'}</td>
+                  <td>
+                    {s.status === 'approved' && (
+                      <button
+                        type="button"
+                        className={s.checked_in_at ? 'signups-toggle checked-in' : 'signups-toggle'}
+                        onClick={() => handleToggleCheckedIn(s.id, !s.checked_in_at)}
+                      >
+                        {s.checked_in_at ? `✓ ${new Date(s.checked_in_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Check in'}
+                      </button>
+                    )}
+                  </td>
+                  <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <span className="row-actions">
+                      {s.status === 'pending' && (
+                        <>
+                          <button type="button" onClick={() => handleDecide(s.id, 'approved')}>Approve</button>
+                          <button type="button" className="danger" onClick={() => handleDecide(s.id, 'denied')}>Deny</button>
+                        </>
+                      )}
+                      {s.status === 'waitlist' && (
+                        <button type="button" onClick={() => handleDecide(s.id, 'approved')}>Promote</button>
+                      )}
+                      {s.status === 'approved' && (
+                        <button type="button" onClick={() => handleDecide(s.id, 'waitlist')}>Move to waitlist</button>
+                      )}
+                      {s.status === 'denied' && (
+                        <button type="button" onClick={() => handleDecide(s.id, 'approved')}>Approve</button>
+                      )}
+                      <button type="button" className="danger" onClick={() => handleRemove(s.id)}>Remove</button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

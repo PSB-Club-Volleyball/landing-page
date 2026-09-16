@@ -1,17 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ApiError, getMemberProfile } from '../lib/api'
+import { initials } from '../lib/initials'
 import type { PublicMemberProfile } from '../types'
-
-function initials(name: string | null) {
-  const source = name || '?'
-  return source
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 
 function MemberProfile() {
   const { id } = useParams<{ id: string }>()
@@ -50,7 +41,7 @@ function MemberProfile() {
                 <h1 className="mp-name">{member.name || 'Member'}</h1>
                 {(member.position || member.classYear || member.team) && (
                   <div className="mp-tags">
-                    {member.position && <span className="mp-tag gold">{member.position}</span>}
+                    {member.position && <span className="mp-tag">{member.position}</span>}
                     {member.classYear && <span className="mp-tag">{member.classYear}</span>}
                     {member.team && <span className="mp-tag">{member.team}</span>}
                     {member.jerseyNumber !== null && <span className="mp-tag">#{member.jerseyNumber}</span>}

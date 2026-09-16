@@ -15,7 +15,8 @@ function focusableIn(node: HTMLElement): HTMLElement[] {
 /**
  * Wires up the accessibility contract for an open modal dialog:
  * moves focus into the dialog on open, traps Tab within it, closes on
- * Escape, and restores focus to the triggering element on close.
+ * Escape, locks background scroll for as long as it's open, and restores
+ * focus to the triggering element on close.
  *
  * Attach the returned ref to the dialog container (the element carrying
  * `role="dialog"` or its immediate panel).
@@ -31,6 +32,9 @@ export function useModalFocus<T extends HTMLElement>(onClose: () => void) {
   useEffect(() => {
     const node = ref.current
     if (!node) return
+
+    const { overflow } = document.body.style
+    document.body.style.overflow = 'hidden'
 
     const previouslyFocused = document.activeElement as HTMLElement | null
     const initial = focusableIn(node)[0] ?? node
@@ -64,6 +68,7 @@ export function useModalFocus<T extends HTMLElement>(onClose: () => void) {
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = overflow
       previouslyFocused?.focus?.()
     }
   }, [])

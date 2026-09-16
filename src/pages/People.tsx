@@ -1,17 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, getMembers } from '../lib/api'
+import { initials } from '../lib/initials'
 import type { MemberSummary } from '../types'
-
-function initials(name: string | null) {
-  const source = name || '?'
-  return source
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 
 function People() {
   const [members, setMembers] = useState<MemberSummary[] | null>(null)
@@ -58,10 +49,10 @@ function People() {
                 on record
               </p>
             )}
-            <div className="directory-toggle">
-              <span className="active">People</span>
+            <nav className="directory-toggle" aria-label="Community directory">
+              <span className="active" aria-current="page">People</span>
               <Link to="/leaderboard">Leaderboard</Link>
-            </div>
+            </nav>
           </div>
           <input
             type="search"
