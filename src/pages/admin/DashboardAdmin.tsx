@@ -170,7 +170,7 @@ function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void 
                 <span className={`status-chip status-${signup.status}`}>
                   {signup.status === 'waitlist' ? 'Waitlist' : 'Pending'}
                 </span>
-                <div className="dash-row-actions">
+                <div className="row-actions dash-row-actions">
                   <button type="button" className="primary" disabled={busy === `signup:${signup.id}`} onClick={() => decide(signup, 'approved')}>
                     Approve
                   </button>
@@ -188,7 +188,7 @@ function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void 
                     {new Set(pending.slice(PENDING_SHOWN).map((s) => s.event.id)).size} event(s)
                   </span>
                 </div>
-                <div className="dash-row-actions">
+                <div className="row-actions dash-row-actions">
                   <button type="button" className="link-btn" onClick={() => onGoTo('events')}>
                     View all →
                   </button>
@@ -216,7 +216,7 @@ function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void 
                     {SKILL_LEVEL_LABELS[user.skill_level_change_requested!]}
                   </span>
                 </div>
-                <div className="dash-row-actions">
+                <div className="row-actions dash-row-actions">
                   <button type="button" className="primary" disabled={busy === `user:${user.id}`} onClick={() => approveSkillRequest(user)}>
                     Approve
                   </button>
@@ -231,7 +231,7 @@ function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void 
                 <div className="dash-row-main">
                   <span className="dash-row-title">+{skillRequests.length - SKILL_SHOWN} more</span>
                 </div>
-                <div className="dash-row-actions">
+                <div className="row-actions dash-row-actions">
                   <button type="button" className="link-btn" onClick={() => onGoTo('users')}>
                     View in Users →
                   </button>
