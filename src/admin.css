@@ -1224,6 +1224,7 @@
 .row-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
   white-space: nowrap;
 }
 .row-actions button {
@@ -1238,6 +1239,22 @@
 .row-actions button.danger {
   color: #b23b2c;
   border-color: rgba(178, 59, 44, 0.35);
+}
+.row-actions button.primary {
+  background: var(--ace);
+  color: #fff;
+  border-color: var(--ace);
+}
+.row-actions button.link-btn {
+  background: none;
+  border: none;
+  padding: 0.25rem 0;
+  font-weight: 700;
+  color: var(--ace-fg);
+}
+.row-actions button.link-btn:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .status-chip {
@@ -1979,7 +1996,7 @@
 }
 .dash-stat.attn {
   border-color: color-mix(in srgb, var(--ace) 45%, transparent);
-  background: rgba(255, 90, 54, 0.06);
+  background: color-mix(in srgb, var(--ace) 6%, transparent);
 }
 .dash-stat-num {
   font-size: 1.7rem;
@@ -2078,42 +2095,7 @@
   color: var(--muted);
 }
 .dash-row-actions {
-  display: flex;
-  gap: 0.5rem;
   margin-left: auto;
-  flex-wrap: wrap;
-}
-.dash-row-actions button {
-  background: none;
-  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
-  border-radius: var(--radius-xs);
-  font-size: 0.75rem;
-  padding: 0.3rem 0.6rem;
-  cursor: pointer;
-  color: var(--page-fg);
-  font-weight: 600;
-}
-.dash-row-actions button.primary {
-  background: var(--ace);
-  color: #fff;
-  border-color: var(--ace);
-}
-.dash-row-actions button.danger {
-  color: #b23b2c;
-  border-color: rgba(178, 59, 44, 0.35);
-}
-.dash-row-actions button.link-btn {
-  background: none;
-  border: none;
-  padding: 0.3rem 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--ace-fg);
-  cursor: pointer;
-}
-.dash-row-actions button.link-btn:hover {
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .dash-event-row {
