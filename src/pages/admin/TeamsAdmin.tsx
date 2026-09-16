@@ -315,6 +315,36 @@ export default function TeamsAdmin({
       }
     },
   })
+  // Touch devices can't drag (HTML5 drag-and-drop doesn't fire on touch) and
+  // the keyboard 1-9/0 shortcut needs a focused handle a touchscreen has no
+  // way to reach, so this <select> is the one path that works everywhere —
+  // always reset to the placeholder since the move itself is the only state
+  // that matters, not the transient selection.
+  function moveToSelect(from: Loc, key: string) {
+    return (
+      <select
+        className="move-to-select"
+        aria-label="Move to"
+        value=""
+        onChange={(e) => {
+          const v = e.target.value
+          if (!v) return
+          moveMember(from, key, v === 'bench' ? 'bench' : Number(v))
+        }}
+      >
+        <option value="">Move to&hellip;</option>
+        {from !== 'bench' && <option value="bench">Bench</option>}
+        {teams.map(
+          (t, i) =>
+            i !== from && (
+              <option key={i} value={i}>
+                {t.name || `Team ${i + 1}`}
+              </option>
+            )
+        )}
+      </select>
+    )
+  }
   const dropZone = (to: Loc) => ({
     onDragOver: (e: React.DragEvent) => {
       e.preventDefault()
@@ -329,7 +359,7 @@ export default function TeamsAdmin({
     <div className="teams-admin">
       <section>
         <div className="teams-head">
-          <label className="field teams-format-field" style={{ margin: 0 }}>
+          <label className="field teams-format-field">
             <select value={format} onChange={(e) => setFormat(e.target.value as PlayFormat)}>
               {FORMAT_ORDER.map((f) => (
                 <option key={f} value={f}>
@@ -373,7 +403,7 @@ export default function TeamsAdmin({
         {format === 'pool_bracket' && (
           <>
             <p className="field-hint">Pools play a round robin, then the top finishers seed into a knockout bracket.</p>
-            <dl className="kv" style={{ marginTop: '0.6rem', maxWidth: '20rem' }}>
+            <dl className="kv pool-bracket-settings">
               <dt>Pools</dt>
               <dd>
                 <input
@@ -381,7 +411,6 @@ export default function TeamsAdmin({
                   min="1"
                   value={poolCount}
                   onChange={(e) => setPoolCount(e.target.value)}
-                  style={{ width: '4rem' }}
                 />
               </dd>
               <dt>Advance</dt>
@@ -392,7 +421,6 @@ export default function TeamsAdmin({
                   min="1"
                   value={advanceCount}
                   onChange={(e) => setAdvanceCount(e.target.value)}
-                  style={{ width: '4rem' }}
                 />{' '}
                 per pool
               </dd>
@@ -413,8 +441,8 @@ export default function TeamsAdmin({
           Roster <span className="admin-subtab-count">{totalPlaceable}</span>
         </h3>
         <p className="field-hint">
-          Everyone approved starts on the bench. Drag people between the bench and teams &mdash; or focus a name and
-          press a team number (1&ndash;9), or 0 for the bench. Mark a no-show with &times; to keep them out of the
+          Everyone approved starts on the bench. Drag people between the bench and teams, use the &ldquo;Move
+          to&hellip;&rdquo; dropdown, or focus a name and press a team number (1&ndash;9), or 0 for the bench. Mark a no-show with &times; to keep them out of the
           shuffle; add a walk-in below.
         </p>
 
@@ -451,7 +479,7 @@ export default function TeamsAdmin({
         </div>
 
         {excluded.length > 0 && (
-          <p className="field-hint" style={{ marginTop: '0.6rem' }}>
+          <p className="field-hint field-hint-spaced">
             {excluded.length} marked not attending &mdash;{' '}
             <button type="button" className="link-btn" onClick={() => setShowExcluded((v) => !v)}>
               {showExcluded ? 'hide' : 'show'}
@@ -473,7 +501,7 @@ export default function TeamsAdmin({
           </p>
         )}
 
-        <div className="teams-dnd" style={{ marginTop: '0.9rem' }}>
+        <div className="teams-dnd">
           <div
             className={`team-bench${sameLoc(dropTarget, 'bench') ? ' drop-target' : ''}`}
             {...dropZone('bench')}
@@ -496,6 +524,7 @@ export default function TeamsAdmin({
                   </span>
                   <span className="player-chip-name">{m.name}</span>
                   {m.signup_id === null && <span className="walk-in-tag">walk-in</span>}
+                  {moveToSelect('bench', m.key)}
                   <button
                     type="button"
                     className="link-btn"
@@ -550,6 +579,7 @@ export default function TeamsAdmin({
                       <span className={m.is_captain ? 'team-member-name captain' : 'team-member-name'}>
                         {m.name}
                       </span>
+                      {moveToSelect(ti, m.key)}
                       <span className="team-member-actions">
                         <button
                           type="button"

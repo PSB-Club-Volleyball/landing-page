@@ -32,20 +32,20 @@ function CancelRsvp() {
 
   return (
     <main id="main-content" tabIndex={-1}>
-      <div className="board" style={{ maxWidth: '440px', textAlign: 'center' }}>
+      <div className="board cancel-rsvp-card">
         {!validParams ? (
           <>
-            <h2>Invalid link</h2>
+            <h1>Invalid link</h1>
             <p className="placeholder-note">This cancellation link looks broken or incomplete.</p>
           </>
         ) : status === 'done' ? (
           <>
-            <h2>Cancelled</h2>
+            <h1>Cancelled</h1>
             <p className="placeholder-note">You&rsquo;re no longer signed up. A confirmation email is on its way.</p>
           </>
         ) : (
           <>
-            <h2>Cancel your RSVP?</h2>
+            <h1>Cancel your RSVP?</h1>
             <p className="placeholder-note">This will remove your spot for this event.</p>
             {error && <p className="admin-error">{error}</p>}
             <button className="btn btn-ace" type="button" disabled={status === 'cancelling'} onClick={handleCancel}>

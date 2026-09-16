@@ -99,14 +99,14 @@ function SettingsAdmin() {
         </fieldset>
       )}
       {settings && (
-        <fieldset className="signup-fieldset" style={{ marginTop: '1rem' }}>
+        <fieldset className="signup-fieldset">
           <legend>Roster</legend>
           <p className="admin-note">
             Setting the current season auto-adds every approved club member and admin to the roster for that season
             (using their account name and position) — both right away and whenever someone new is approved or
             promoted. It never removes anyone, and never overwrites a roster row added by hand.
           </p>
-          <label className="field" style={{ maxWidth: '16rem' }}>
+          <label className="field season-field">
             Current season
             <input
               placeholder="2025-2026"

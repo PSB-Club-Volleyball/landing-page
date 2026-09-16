@@ -1,18 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, getMembers } from '../lib/api'
+import { initials } from '../lib/initials'
 import { MIN_RANKED_GAMES, wilsonLowerBound } from '../lib/ranking'
 import type { MemberSummary } from '../types'
-
-function initials(name: string | null) {
-  const source = name || '?'
-  return source
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 
 function Leaderboard() {
   const [members, setMembers] = useState<MemberSummary[] | null>(null)
@@ -70,10 +61,10 @@ function Leaderboard() {
                 ranked
               </p>
             )}
-            <div className="directory-toggle">
+            <nav className="directory-toggle" aria-label="Community directory">
               <Link to="/people">People</Link>
-              <span className="active">Leaderboard</span>
-            </div>
+              <span className="active" aria-current="page">Leaderboard</span>
+            </nav>
           </div>
           <input
             type="search"

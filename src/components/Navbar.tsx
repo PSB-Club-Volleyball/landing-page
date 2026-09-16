@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import BallIcon from './BallIcon'
 import MenuIcon from './MenuIcon'
 import { getMe, getLoginProviders } from '../lib/api'
+import { initials } from '../lib/initials'
 import { signInOptions, DEFAULT_PROVIDERS } from '../lib/signInOptions'
 import type { AuthUser } from '../types'
 
@@ -17,16 +18,6 @@ const COMMUNITY_PAGES = [
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/photos', label: 'Photos' },
 ]
-
-function initials(user: AuthUser) {
-  const source = user.name || user.email
-  return source
-    .split(/\s+/)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 
 function Navbar() {
   const [open, setOpen] = useState(false)
@@ -205,7 +196,7 @@ function Navbar() {
                 </Link>
               )}
               <Link to="/profile" className="nav-profile-link" onClick={() => setOpen(false)}>
-                <span className="nav-avatar">{initials(user)}</span>
+                <span className="nav-avatar">{initials(user.name || user.email)}</span>
                 My account
               </Link>
             </span>

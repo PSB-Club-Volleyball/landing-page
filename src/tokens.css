@@ -25,6 +25,16 @@
   --gold-dim: #93690c; /* text-safe on --gold-tint in light mode only */
   --gold-tint: rgba(242, 182, 50, 0.14);
 
+  /* Status colors — approved/signed vs. denied/expired states (chips,
+     waiver/dues status, checked-in). Independent of the Ace/Gold brand
+     accents. --success is the bright tint base for fills/backgrounds;
+     --success-dim is the darker, text-safe shade for text sitting on a
+     --success tint. --danger doubles as both since one hue works for both
+     roles at the alphas used here. */
+  --success: #3fb96c;
+  --success-dim: #2c8a55;
+  --danger: #b23b2c;
+
   /* Radius scale — three steps, doubling each time. Kept tight and
      hard-edged to match the kit/scoreboard identity; nothing goes fully
      round. */

@@ -327,6 +327,16 @@
 .teams-format-field {
   max-width: 22rem;
 }
+.pool-bracket-settings {
+  margin-top: 0.6rem;
+  max-width: 20rem;
+}
+.pool-bracket-settings dd input {
+  width: 4rem;
+}
+.field-hint-spaced {
+  margin-top: 0.6rem;
+}
 .participant-list {
   list-style: none;
   margin: 0.6rem 0;
@@ -469,7 +479,7 @@
   font: inherit;
   border: none;
   background: none;
-  color: #b23b2c;
+  color: var(--danger);
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
@@ -615,7 +625,7 @@
   font-size: 0.78rem;
 }
 .admin-error {
-  color: #b23b2c;
+  color: var(--danger);
   font-size: 0.88rem;
   margin: 0;
 }
@@ -663,6 +673,7 @@
 .board-role-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.75rem;
   padding: 0.6rem 0.9rem;
   border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
@@ -672,6 +683,11 @@
   flex: 0 0 11rem;
   font-weight: 700;
   font-size: 0.85rem;
+}
+@media (max-width: 480px) {
+  .board-role-label {
+    flex-basis: 100%;
+  }
 }
 .board-role-assigned {
   display: flex;
@@ -690,7 +706,8 @@
 }
 .board-role-search {
   position: relative;
-  flex: 1 1 auto;
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 .board-role-search input {
   width: 100%;
@@ -783,7 +800,7 @@
   font-size: 0.75rem;
 }
 .field-hint-warn {
-  color: #b23b2c;
+  color: var(--danger);
 }
 .form-actions {
   display: flex;
@@ -800,6 +817,12 @@
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
+}
+.signup-fieldset + .signup-fieldset {
+  margin-top: 1rem;
+}
+.season-field {
+  max-width: 16rem;
 }
 
 /* ---- Bulk-edit form (reuses .event-form's fieldset chrome) ---- */
@@ -873,7 +896,7 @@
   padding: 0;
 }
 .signups-toggle.checked-in {
-  color: #2c8a55;
+  color: var(--success-dim);
   text-decoration: none;
   font-weight: 700;
 }
@@ -1093,8 +1116,8 @@
   flex-shrink: 0;
 }
 .rm-field:hover {
-  color: #b23b2c;
-  background: color-mix(in srgb, #b23b2c 10%, transparent);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
 }
 .add-field-btn {
   align-self: flex-start;
@@ -1237,8 +1260,8 @@
   color: var(--page-fg);
 }
 .row-actions button.danger {
-  color: #b23b2c;
-  border-color: rgba(178, 59, 44, 0.35);
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
 .row-actions button.primary {
   background: var(--ace);
@@ -1271,13 +1294,13 @@
 }
 .status-chip.status-published,
 .status-chip.status-approved {
-  background: rgba(63, 185, 108, 0.16);
-  color: #2c8a55;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success-dim);
 }
 .status-chip.status-cancelled,
 .status-chip.status-denied {
-  background: rgba(178, 59, 44, 0.14);
-  color: #b23b2c;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
 }
 .status-chip.status-pending {
   background: var(--gold-tint);
@@ -1296,8 +1319,8 @@
   color: var(--muted);
 }
 .status-chip.visibility-club {
-  background: rgba(63, 185, 108, 0.16);
-  color: #2c8a55;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success-dim);
 }
 .status-chip.visibility-eboard {
   background: rgba(255, 90, 54, 0.14);
@@ -1321,8 +1344,8 @@
   color: var(--ace);
 }
 .role-chip.role-club_member {
-  background: rgba(63, 185, 108, 0.16);
-  color: #2c8a55;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success-dim);
 }
 .role-chip.role-outsider {
   background: color-mix(in srgb, var(--page-fg) 12%, transparent);
@@ -1361,6 +1384,10 @@
   font-size: 0.82rem;
   width: 100px;
 }
+.users-search {
+  width: 100%;
+  max-width: 280px;
+}
 
 .waiver-chip {
   font-size: 0.66rem;
@@ -1369,12 +1396,12 @@
   border-radius: var(--radius-xs);
   padding: 0.15rem 0.5rem;
   font-weight: 700;
-  background: rgba(63, 185, 108, 0.16);
-  color: #2c8a55;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success-dim);
 }
 .waiver-chip.no {
-  background: rgba(178, 59, 44, 0.14);
-  color: #b23b2c;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
 }
 
 .role-group-header td {
@@ -1502,8 +1529,8 @@
   margin-left: 0.55rem;
 }
 .admin-status-pill.status-open {
-  background: rgba(63, 185, 108, 0.16);
-  color: #2c8a55;
+  background: color-mix(in srgb, var(--success) 16%, transparent);
+  color: var(--success-dim);
 }
 .admin-status-pill.status-draft {
   background: color-mix(in srgb, var(--page-fg) 12%, transparent);
@@ -1514,8 +1541,8 @@
   color: var(--muted);
 }
 .admin-status-pill.status-cancelled {
-  background: rgba(178, 59, 44, 0.14);
-  color: #b23b2c;
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
 }
 
 .signups-stats {
@@ -1560,7 +1587,7 @@
   background: var(--ace);
 }
 .admin-meter.good > i {
-  background: #2c8a55;
+  background: var(--success-dim);
 }
 .signups-capacity-row {
   display: flex;
@@ -1746,8 +1773,8 @@
   flex: 0 0 auto;
 }
 .btn.checkin-done {
-  color: #2c8a55;
-  border-color: rgba(63, 185, 108, 0.4);
+  color: var(--success-dim);
+  border-color: color-mix(in srgb, var(--success) 40%, transparent);
 }
 
 /* ---- Teams tab: bench + drag-and-drop ---- */
@@ -1777,7 +1804,7 @@
   cursor: pointer;
 }
 .teams-publish-toggle button.on {
-  background: #2c8a55;
+  background: var(--success-dim);
   color: #fff;
 }
 .teams-publish-toggle button.on.draft-on {
@@ -1789,6 +1816,7 @@
   grid-template-columns: 170px minmax(0, 1fr);
   gap: 0.7rem;
   align-items: start;
+  margin-top: 0.9rem;
 }
 .team-bench {
   background: color-mix(in srgb, var(--page-fg) 4%, transparent);
@@ -1854,6 +1882,17 @@
   color: var(--muted);
 }
 
+.move-to-select {
+  flex: 0 0 auto;
+  max-width: 6.5rem;
+  padding: 0.15rem 0.3rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
+  background: var(--page-bg);
+  color: var(--page-fg);
+  font-size: 0.72rem;
+}
+
 /* Shared "six dots" drag handle — always the leftmost element of a
    draggable row, with its own hit target so grabbing a row never fights
    with clicking/selecting the label text next to it. */
@@ -1915,7 +1954,7 @@
   flex: 0 0 auto;
 }
 .team-balance-dot.ok {
-  background: #2c8a55;
+  background: var(--success-dim);
 }
 .team-balance-dot.off {
   background: var(--gold-fg);
