@@ -33,9 +33,8 @@ export function downloadCsv(filename: string, csv: string) {
 }
 
 // Triggers a browser download of an email list as a one-column CSV — one
-// address per line, comma-separated so it pastes straight into a To/BCC
-// field. Trimmed, blanks dropped, de-duplicated case-insensitively (first
-// spelling kept).
+// address per line, newline-separated (no trailing comma). Trimmed, blanks
+// dropped, de-duplicated case-insensitively (first spelling kept).
 export function downloadEmailList(filename: string, emails: (string | null | undefined)[]) {
   const seen = new Set<string>()
   const list: string[] = []
@@ -47,7 +46,7 @@ export function downloadEmailList(filename: string, emails: (string | null | und
     seen.add(key)
     list.push(email)
   }
-  triggerDownload(filename, new Blob([list.join(',\r\n')], { type: 'text/csv;charset=utf-8;' }))
+  triggerDownload(filename, new Blob([list.join('\r\n')], { type: 'text/csv;charset=utf-8;' }))
 }
 
 // Parses CSV text into rows of string cells. Handles quoted fields (commas,

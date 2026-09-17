@@ -334,8 +334,17 @@ export default function SignupsPanel({
                     <button type="button" onClick={() => { exportFullCsv(eventTitle, signups); setExportOpen(false) }}>
                       Full CSV<small>Name, email, answers, status, check-in</small>
                     </button>
-                    <button type="button" onClick={() => { downloadEmailList(`${eventSlug(eventTitle)}-emails.csv`, signups.map((s) => s.email)); setExportOpen(false) }}>
-                      Emails only<small>Comma-separated, for a mail merge</small>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        downloadEmailList(
+                          `${eventSlug(eventTitle)}-checked-in-emails.csv`,
+                          signups.filter((s) => s.checked_in_at).map((s) => s.email)
+                        )
+                        setExportOpen(false)
+                      }}
+                    >
+                      Emails only<small>Checked-in only, one per line</small>
                     </button>
                     <button type="button" onClick={() => { exportCheckinList(eventTitle, signups); setExportOpen(false) }}>
                       Check-in list<small>Approved only, name-sorted, tick column</small>
