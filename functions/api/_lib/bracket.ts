@@ -42,12 +42,18 @@ export function validateBracketMatches(matches: unknown, teamIds: Set<number>): 
   if (!Array.isArray(matches)) return 'matches must be an array'
   const list = matches as Record<string, unknown>[]
 
-  // Pass 1: every match is well-formed and its (bracket, round, slot) is unique.
+  // Pass 1: every match is well-formed and each elimination match's (bracket,
+  // round, slot) is unique. Pool / round-robin matches are exempt: their slot is
+  // a time slot shared by every court (and every pool), and they carry no wiring.
   const keys = new Set<string>()
   for (const m of list) {
     if (typeof m.bracket !== 'string' || !BRACKETS.has(m.bracket)) return 'a match has an unknown bracket'
     if (!Number.isInteger(m.round) || (m.round as number) < 1) return 'each match needs a round of 1 or more'
     if (!Number.isInteger(m.slot) || (m.slot as number) < 0) return 'each match needs a slot of 0 or more'
+    if (m.bracket === 'pool') {
+      if (m.winner_to != null || m.loser_to != null) return 'a pool match cannot be wired'
+      continue
+    }
     const k = `${m.bracket}/${m.round}/${m.slot}`
     if (keys.has(k)) return 'two matches share the same bracket slot'
     keys.add(k)
