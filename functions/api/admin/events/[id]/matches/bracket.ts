@@ -50,17 +50,35 @@ export const onRequestPost: PagesFunction<Env, 'id', AdminData> = async ({ reque
 
   // This endpoint only appends the knockout stage — it must not touch the pool
   // matches, and only the winners-bracket round 1 carries teams on generate.
+  // The one exception is a round-1 bye: it's emitted unwired with its winner
+  // pre-set (validateBracketMatches only allows that for a winners round-1
+  // bye), and that winner is pre-advanced into the round-2 side the bye feeds.
+  const byeTarget = new Map<number, string>() // team -> "bracket/round/slot/side" it must land on
+  const fedSides = new Set<string>()
+  for (const m of matches) {
+    if (m.winner_id != null) byeTarget.set(m.winner_id, `winners/2/${m.slot >> 1}/${m.slot % 2}`)
+    for (const t of [m.winner_to, m.loser_to]) if (t) fedSides.add(`${t.bracket}/${t.round}/${t.slot}/${t.side}`)
+  }
+
   const r1Teams = new Set<number>()
   for (const m of matches) {
     if (m.bracket === 'pool') return badRequest('the bracket payload can’t include pool matches')
     const seeded = m.bracket === 'winners' && m.round === 1
-    for (const t of [m.team_a_id, m.team_b_id]) {
+    for (const [side, t] of [m.team_a_id, m.team_b_id].entries()) {
       if (t == null) continue
-      if (!seeded) return badRequest('only the first round of the bracket can be pre-filled')
+      if (!seeded) {
+        const at = `${m.bracket}/${m.round}/${m.slot}/${side}`
+        if (byeTarget.get(t) !== at || fedSides.has(at)) {
+          return badRequest('only the first round of the bracket can be pre-filled, apart from a bye winner moving into round 2')
+        }
+        byeTarget.delete(t)
+        continue
+      }
       if (!qualified.has(t)) return badRequest('a bracket match includes a team that didn’t qualify')
       r1Teams.add(t)
     }
   }
+  if (byeTarget.size > 0) return badRequest('every bye winner must move into round 2')
   if (r1Teams.size !== qualified.size) return badRequest('the bracket must include every team that qualified, and only those')
 
   const statements = matches.map((m) => insertMatchStatement(env, eventId, { ...m, pool: null }))
