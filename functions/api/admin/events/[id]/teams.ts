@@ -2,6 +2,7 @@ import type { Env } from '../../../_lib/env'
 import { badRequest, json, notFound } from '../../../_lib/http'
 import type { AdminData } from '../../_lib/types'
 import { logAudit } from '../../_lib/audit'
+import { autoLinkStatements } from '../../../_lib/teamLinks'
 
 const FORMATS = ['none', 'round_robin', 'pool_bracket', 'single_elim', 'double_elim'] as const
 type PlayFormat = (typeof FORMATS)[number]
@@ -20,11 +21,12 @@ interface MemberRow {
   display_name: string | null
   signup_name: string | null
   is_captain: number
+  user_id: number | null
 }
 
 // GET /api/admin/events/:id/teams -> the event's chosen format, its teams
-// (with members), and the pool of people who can be placed on a team (the
-// approved signups).
+// (with members), the pool of people who can be placed on a team (the
+// approved signups), and every account a member can be linked to.
 export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, params }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
@@ -57,7 +59,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
   if (teamIds.length > 0) {
     const placeholders = teamIds.map((_, i) => `?${i + 1}`).join(', ')
     const res = await env.DB.prepare(
-      `SELECT m.id, m.team_id, m.signup_id, m.display_name, m.is_captain, s.name AS signup_name
+      `SELECT m.id, m.team_id, m.signup_id, m.display_name, m.is_captain, m.user_id, s.name AS signup_name
        FROM event_team_members m
        LEFT JOIN event_signups s ON s.id = m.signup_id
        WHERE m.team_id IN (${placeholders})
@@ -67,6 +69,10 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
       .all<MemberRow>()
     memberRows = res.results ?? []
   }
+
+  const accountRows = await env.DB.prepare(
+    `SELECT id, name, email FROM users ORDER BY name COLLATE NOCASE, email`
+  ).all<{ id: number; name: string | null; email: string }>()
 
   const teams = (teamRows.results ?? []).map((t) => ({
     id: t.id,
@@ -82,6 +88,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
         display_name: m.display_name,
         name: m.display_name || m.signup_name || 'Unknown',
         is_captain: Boolean(m.is_captain),
+        user_id: m.user_id,
       })),
   }))
 
@@ -97,6 +104,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
       email: p.email,
       checked_in: p.checked_in_at !== null,
     })),
+    accounts: accountRows.results ?? [],
   })
 }
 
@@ -108,7 +116,9 @@ interface TeamsInput {
     name: string
     seed: number
     pool: string | null
-    members: { signup_id: number | null; display_name: string | null; is_captain: boolean }[]
+    // user_id: the account this member played as. Omitted/null = let the
+    // server auto-link (signup email, then unique name match).
+    members: { signup_id: number | null; display_name: string | null; is_captain: boolean; user_id?: number | null }[]
   }[]
 }
 
@@ -126,6 +136,7 @@ function validateShape(body: unknown): TeamsInput | string {
       const hasSignup = typeof m.signup_id === 'number'
       const hasName = typeof m.display_name === 'string' && m.display_name.trim().length > 0
       if (hasSignup === hasName) return 'Each member needs exactly one of signup_id or display_name'
+      if (m.user_id != null && !Number.isInteger(m.user_id)) return 'user_id must be an account id or null'
     }
   }
   return body as TeamsInput
@@ -171,6 +182,17 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     }
   }
 
+  // Explicit account links must point at real accounts, one member each.
+  const linkedIds = parsed.teams.flatMap((t) => t.members.map((m) => m.user_id)).filter((v): v is number => v != null)
+  if (new Set(linkedIds).size !== linkedIds.length) return badRequest('An account is linked to more than one member')
+  if (linkedIds.length > 0) {
+    const placeholders = linkedIds.map((_, i) => `?${i + 1}`).join(', ')
+    const found = await env.DB.prepare(`SELECT COUNT(*) AS n FROM users WHERE id IN (${placeholders})`)
+      .bind(...linkedIds)
+      .first<{ n: number }>()
+    if ((found?.n ?? 0) !== linkedIds.length) return badRequest('A linked account no longer exists')
+  }
+
   const publishedFlag = parsed.published ? 1 : 0
   const statements = [
     env.DB.prepare(
@@ -197,18 +219,20 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     for (const m of t.members) {
       statements.push(
         env.DB.prepare(
-          `INSERT INTO event_team_members (team_id, signup_id, display_name, is_captain)
-           SELECT id, ?1, ?2, ?3 FROM event_teams WHERE event_id = ?4 AND seed = ?5`
+          `INSERT INTO event_team_members (team_id, signup_id, display_name, is_captain, user_id)
+           SELECT id, ?1, ?2, ?3, ?6 FROM event_teams WHERE event_id = ?4 AND seed = ?5`
         ).bind(
           typeof m.signup_id === 'number' ? m.signup_id : null,
           typeof m.display_name === 'string' && m.display_name.trim() ? m.display_name.trim() : null,
           m.is_captain ? 1 : 0,
           eventId,
-          seed
+          seed,
+          m.user_id ?? null
         )
       )
     }
   })
+  statements.push(...autoLinkStatements(env, eventId))
 
   await env.DB.batch(statements)
 

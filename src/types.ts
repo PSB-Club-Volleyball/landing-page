@@ -97,13 +97,15 @@ export interface PublicEventTeam {
 
 // Admin view of one team member: either a linked signup (signup_id set) or a
 // walk-in (signup_id null, display_name set). `name` is always resolved for
-// display.
+// display. user_id is the account the member played as (results count
+// toward it), or null if unlinked.
 export interface EventTeamMember {
   id: number
   signup_id: number | null
   display_name: string | null
   name: string
   is_captain: boolean
+  user_id: number | null
 }
 export interface EventTeam {
   id: number
@@ -132,8 +134,15 @@ export interface TeamsInput {
     name: string
     seed: number
     pool: string | null
-    members: { signup_id: number | null; display_name: string | null; is_captain: boolean }[]
+    members: { signup_id: number | null; display_name: string | null; is_captain: boolean; user_id: number | null }[]
   }[]
+}
+
+// An account a team member can be linked to.
+export interface TeamAccount {
+  id: number
+  name: string | null
+  email: string
 }
 
 export interface TeamsResponse {
@@ -144,6 +153,7 @@ export interface TeamsResponse {
   has_schedule: boolean
   teams: EventTeam[]
   participants: TeamParticipant[]
+  accounts: TeamAccount[]
 }
 
 // Schedule knobs for a scored format, stored inside events.format_config

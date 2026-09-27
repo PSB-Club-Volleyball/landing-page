@@ -33,7 +33,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     .bind(id)
     .first<{ jersey_number: number | null; class_year: string | null }>()
 
-  const results = await getPlayerResults(env, user.email)
+  const results = await getPlayerResults(env, user)
   const summary = getPlayerSummary(results)
 
   return json({

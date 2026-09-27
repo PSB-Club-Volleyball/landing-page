@@ -24,19 +24,32 @@ export interface PlayerSummary {
   currentStreak: number
 }
 
-// Cross-event W/L/sets for one account, linked through email the same way
-// self-cancel and /api/profile already do (accounts aren't linked to
-// signups directly). Newest event first.
-export async function getPlayerResults(env: Env, email: string): Promise<PlayerResult[]> {
+// Cross-event W/L/sets for one account. A team member counts as this
+// account when it's linked to it (event_team_members.user_id, see migration
+// 0031), or — if unlinked — when its signup email is the account's email
+// and the account isn't linked elsewhere in that event, so someone who makes
+// an account after playing still gets credit. Newest event first.
+export async function getPlayerResults(env: Env, user: { id: number; email: string }): Promise<PlayerResult[]> {
   const playedEventRows = await env.DB.prepare(
     `SELECT DISTINCT e.id AS event_id, e.title, e.start_time, e.format_config, et.id AS team_id
      FROM event_team_members etm
-     JOIN event_signups es ON es.id = etm.signup_id
+     LEFT JOIN event_signups es ON es.id = etm.signup_id
      JOIN event_teams et ON et.id = etm.team_id
      JOIN events e ON e.id = et.event_id
-     WHERE LOWER(es.email) = ?1 AND et.published = 1`
+     WHERE et.published = 1
+       AND (
+         etm.user_id = ?1
+         OR (
+           etm.user_id IS NULL AND LOWER(es.email) = ?2
+           AND NOT EXISTS (
+             SELECT 1 FROM event_team_members o
+             JOIN event_teams ot ON ot.id = o.team_id
+             WHERE ot.event_id = et.event_id AND o.user_id = ?1
+           )
+         )
+       )`
   )
-    .bind(email.toLowerCase())
+    .bind(user.id, user.email.toLowerCase())
     .all<{ event_id: number; title: string; start_time: string; format_config: string | null; team_id: number }>()
 
   const results: PlayerResult[] = []
