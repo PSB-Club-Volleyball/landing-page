@@ -194,8 +194,8 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 // history); *_by references elsewhere (waiver/dues verifier, media uploader,
 // audit_log actor, event_signups.decided_by) are nulled so the delete
 // doesn't fail an FK and doesn't erase unrelated history. A signup's own
-// identity keys off email, not user id, so event_signups rows and
-// event_team_members are otherwise untouched.
+// identity keys off email, not user id, so event_signups rows are untouched;
+// team members linked to the account are unlinked but kept.
 export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
@@ -223,6 +223,7 @@ export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env
     env.DB.prepare(`UPDATE users SET dues_paid_by = NULL WHERE dues_paid_by = ?1`).bind(id),
     env.DB.prepare(`UPDATE media SET uploaded_by = NULL WHERE uploaded_by = ?1`).bind(id),
     env.DB.prepare(`UPDATE event_signups SET decided_by = NULL WHERE decided_by = ?1`).bind(id),
+    env.DB.prepare(`UPDATE event_team_members SET user_id = NULL WHERE user_id = ?1`).bind(id),
     env.DB.prepare(`UPDATE audit_log SET user_id = NULL WHERE user_id = ?1`).bind(id),
     env.DB.prepare(`DELETE FROM users WHERE id = ?1`).bind(id),
   ])

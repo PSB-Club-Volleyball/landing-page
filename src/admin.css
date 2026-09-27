@@ -2217,3 +2217,53 @@
     flex-wrap: wrap;
   }
 }
+
+/* Teams tab: per-player account links. */
+.team-accounts-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+}
+.team-accounts-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.team-accounts-list li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.6rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius-xs);
+  font-size: 0.85rem;
+}
+.team-accounts-list li.unlinked {
+  background: color-mix(in srgb, var(--page-fg) 5%, transparent);
+}
+.team-accounts-player {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.team-accounts-team {
+  margin-left: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.team-accounts-list select {
+  flex: 1 1 14rem;
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.2rem 0.3rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
+  background: var(--page-bg);
+  color: var(--page-fg);
+  font-size: 0.8rem;
+}

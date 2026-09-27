@@ -15,12 +15,14 @@ const FORMAT_ORDER: PlayFormat[] = ['none', 'round_robin', 'pool_bracket', 'sing
 
 // A local, editable team member. `key` is a stable id for React lists and for
 // moving members between teams / the bench; it has no server meaning.
+// user_id (the linked account) is round-tripped so a teams save keeps links.
 interface DraftMember {
   key: string
   signup_id: number | null
   display_name: string | null
   name: string
   is_captain: boolean
+  user_id: number | null
 }
 interface DraftTeam {
   name: string
@@ -33,10 +35,10 @@ let keySeq = 0
 const nextKey = () => `m${keySeq++}`
 
 function participantToMember(p: TeamParticipant): DraftMember {
-  return { key: nextKey(), signup_id: p.signup_id, display_name: null, name: p.name, is_captain: false }
+  return { key: nextKey(), signup_id: p.signup_id, display_name: null, name: p.name, is_captain: false, user_id: null }
 }
 function walkInToMember(name: string): DraftMember {
-  return { key: nextKey(), signup_id: null, display_name: name, name, is_captain: false }
+  return { key: nextKey(), signup_id: null, display_name: name, name, is_captain: false, user_id: null }
 }
 
 export default function TeamsAdmin({
@@ -63,6 +65,9 @@ export default function TeamsAdmin({
   const [advanceCount, setAdvanceCount] = useState('2')
   const [bracketStage, setBracketStage] = useState<'single' | 'double'>('single')
   const [showExcluded, setShowExcluded] = useState(false)
+  const [linkingId, setLinkingId] = useState<number | null>(null)
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const [linkNote, setLinkNote] = useState<string | null>(null)
 
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -84,6 +89,7 @@ export default function TeamsAdmin({
         display_name: m.display_name,
         name: m.name,
         is_captain: m.is_captain,
+        user_id: m.user_id,
       })),
     }))
     const placedSignupIds = new Set(
@@ -261,6 +267,7 @@ export default function TeamsAdmin({
             signup_id: m.signup_id,
             display_name: m.signup_id === null ? m.display_name : null,
             is_captain: m.is_captain,
+            user_id: m.user_id,
           })),
         })),
       })
@@ -275,10 +282,56 @@ export default function TeamsAdmin({
     }
   }
 
+  // Account links save immediately, per member, against the saved teams —
+  // never through "Save teams", which would wipe the schedule and scores.
+  // The draft is patched too so the next teams save carries the link.
+  async function linkMember(memberId: number, userId: number | null) {
+    if (!resp) return
+    const saved = resp.teams.flatMap((t) => t.members)
+    const idx = saved.findIndex((m) => m.id === memberId)
+    setLinkingId(memberId)
+    setLinkError(null)
+    setLinkNote(null)
+    try {
+      await adminApi.events.linkTeamMember(eventId, memberId, userId)
+      setResp({
+        ...resp,
+        teams: resp.teams.map((t) => ({
+          ...t,
+          members: t.members.map((m) => (m.id === memberId ? { ...m, user_id: userId } : m)),
+        })),
+      })
+      // Not dirty, so draft members line up 1:1 with the saved ones.
+      let i = 0
+      setTeams((prev) =>
+        prev.map((t) => ({ ...t, members: t.members.map((m) => (i++ === idx ? { ...m, user_id: userId } : m)) }))
+      )
+    } catch (e) {
+      setLinkError((e as Error).message)
+    } finally {
+      setLinkingId(null)
+    }
+  }
+
+  async function autoLink() {
+    setLinkError(null)
+    setLinkNote(null)
+    try {
+      const { linked } = await adminApi.events.autoLinkTeamMembers(eventId)
+      load()
+      setLinkNote(linked === 0 ? 'No new matches found.' : `Linked ${linked} player${linked === 1 ? '' : 's'}.`)
+    } catch (e) {
+      setLinkError((e as Error).message)
+    }
+  }
+
   if (loadError) return <p className="admin-error">{loadError}</p>
   if (!resp) return <p className="admin-note">Loading&hellip;</p>
 
   const avgSize = teams.length > 0 ? assignedCount / teams.length : 0
+  const savedMembers = resp.teams.flatMap((t) => t.members.map((m) => ({ ...m, teamName: t.name })))
+  const linkedCount = savedMembers.filter((m) => m.user_id !== null).length
+  const linkedUserIds = new Set(savedMembers.map((m) => m.user_id).filter((v): v is number => v !== null))
   // Drag handle + keyboard fallback for one member. With the handle focused,
   // 1-9 moves to that team and 0 sends to the bench — the a11y path now that
   // the per-row "move to" select is gone.
@@ -631,6 +684,58 @@ export default function TeamsAdmin({
           </button>
         </div>
       </section>
+
+      {savedMembers.length > 0 && (
+        <section className="team-accounts">
+          <h3>
+            Player accounts{' '}
+            <span className="admin-subtab-count">
+              {linkedCount}/{savedMembers.length}
+            </span>
+          </h3>
+          <p className="field-hint">
+            Link each player to their account so this event&rsquo;s results show on their profile and the leaderboard.
+            Players are matched automatically by signup email, then by exact name; fix or fill in the rest here.
+            Changes save right away and don&rsquo;t touch the schedule or scores.
+          </p>
+          {dirty ? (
+            <p className="admin-note">Save or discard your team changes to edit account links.</p>
+          ) : (
+            <>
+              <div className="team-accounts-actions">
+                <button type="button" className="btn btn-outline btn-sm" onClick={autoLink}>
+                  Auto-link unlinked players
+                </button>
+                {linkNote && <span className="field-hint">{linkNote}</span>}
+              </div>
+              {linkError && <p className="admin-error">{linkError}</p>}
+              <ul className="team-accounts-list">
+                {savedMembers.map((m) => (
+                  <li key={m.id} className={m.user_id === null ? 'unlinked' : undefined}>
+                    <span className="team-accounts-player">
+                      {m.name}
+                      <span className="team-accounts-team">{m.teamName}</span>
+                    </span>
+                    <select
+                      aria-label={`Account for ${m.name}`}
+                      value={m.user_id ?? ''}
+                      disabled={linkingId === m.id}
+                      onChange={(e) => linkMember(m.id, e.target.value ? Number(e.target.value) : null)}
+                    >
+                      <option value="">&mdash; Not linked &mdash;</option>
+                      {resp.accounts.map((a) => (
+                        <option key={a.id} value={a.id} disabled={a.id !== m.user_id && linkedUserIds.has(a.id)}>
+                          {a.name ? `${a.name} (${a.email})` : a.email}
+                        </option>
+                      ))}
+                    </select>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
     </div>
   )
 }

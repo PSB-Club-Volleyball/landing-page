@@ -87,6 +87,13 @@ export const adminApi = {
     teams: (eventId: number) => request<TeamsResponse>(`/api/admin/events/${eventId}/teams`),
     saveTeams: (eventId: number, input: TeamsInput) =>
       request<{ ok: true }>(`/api/admin/events/${eventId}/teams`, { method: 'PUT', body: JSON.stringify(input) }),
+    linkTeamMember: (eventId: number, memberId: number, userId: number | null) =>
+      request<{ ok: true }>(`/api/admin/events/${eventId}/teams/members/${memberId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ user_id: userId }),
+      }),
+    autoLinkTeamMembers: (eventId: number) =>
+      request<{ linked: number }>(`/api/admin/events/${eventId}/teams/link`, { method: 'POST' }),
     matches: (eventId: number) => request<MatchesResponse>(`/api/admin/events/${eventId}/matches`),
     saveSchedule: (eventId: number, input: ScheduleInput) =>
       request<MatchesResponse>(`/api/admin/events/${eventId}/matches`, { method: 'PUT', body: JSON.stringify(input) }),

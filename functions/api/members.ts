@@ -22,7 +22,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const members = []
   for (const u of userRows.results ?? []) {
-    const results = await getPlayerResults(env, u.email)
+    const results = await getPlayerResults(env, u)
     const summary = getPlayerSummary(results)
     members.push({
       id: u.id,
