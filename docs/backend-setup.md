@@ -86,10 +86,13 @@ now deploys to this project.
    - `http://localhost:8788/api/auth/google/callback` (local dev)
 4. Copy the Client ID and Client Secret.
 
-(PR preview deploys get a per-branch `*.pages.dev` URL that can't be
-pre-registered as a fixed redirect URI, so Google/Microsoft sign-in won't
-complete on preview deploys — everything else works against the isolated
-preview backend.)
+(PR preview deploys get a per-deploy `*.pages.dev` URL that can't be
+pre-registered as a fixed redirect URI, so Google/Microsoft sign-in can't
+complete there. `functions/api/_lib/preview.ts` detects the `*.pages.dev`
+host and the auth endpoints refuse the flow outright — `/api/auth/providers`
+reports every provider unavailable and `/api/auth/:provider/start` returns
+404 — so the sign-in buttons just don't render. Everything else works
+against the isolated preview backend.)
 
 ## 6. Register the Microsoft (Entra ID) apps
 
