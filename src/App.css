@@ -944,128 +944,329 @@ main {
   letter-spacing: 0.05em;
   color: var(--muted);
 }
-.leaderboard {
+.muted-sub {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+/* People directory: who someone is. Filter chips, then A-Z person cards
+   with position/class year, top stripes, and a "played together" note. */
+.people-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0 0.25rem;
+}
+.people-filter {
+  min-height: 36px;
+  padding: 0 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.people-filter.active {
+  background: var(--page-fg);
+  border-color: var(--page-fg);
+  color: var(--page-bg);
+}
+.person-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.9rem;
+}
+.person-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+.person-card:hover {
+  border-color: var(--ace-fg);
+}
+.person-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.person-avatar {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ace);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+.person-who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.person-name {
+  font-weight: 800;
+}
+.person-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.person-stripes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.person-stripe {
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--ace) 16%, transparent);
+  color: var(--ace-fg);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.person-shared {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--success-dim);
+}
+
+/* Leaderboard: a dark scoreboard regardless of theme, so it never reads as
+   the People page. Redefining the tokens here lets every component inside
+   (chips, section labels, search) follow along. (Not ".scoreboard" — that's
+   the Home hero's stat strip.) */
+.lb-page {
+  --page-bg: var(--ink);
+  --page-fg: var(--chalk);
+  --muted: var(--line);
+  --ace-fg: var(--ace);
+  background: var(--page-bg);
+  color: var(--page-fg);
+}
+.lb-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+.lb-view {
+  display: flex;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+.lb-view button {
+  min-height: 44px;
+  padding: 0 1rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.lb-view button[aria-pressed='true'] {
+  background: var(--page-fg);
+  color: var(--page-bg);
+}
+.lb-podium {
   list-style: none;
   margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+/* 2nd - 1st - 3rd, stepped. */
+.lb-podium-1 {
+  order: 2;
+}
+.lb-podium-2 {
+  order: 1;
+}
+.lb-podium-3 {
+  order: 3;
+}
+.lb-podium a {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  box-sizing: border-box;
+  padding: 1.1rem;
+  border: 1px solid var(--ace);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+.lb-podium-1 a {
+  min-height: 11rem;
+  background: var(--ace);
+  color: var(--ink);
+}
+.lb-podium-2 a {
+  min-height: 9rem;
+}
+.lb-podium-3 a {
+  min-height: 8rem;
+}
+.lb-podium-rank {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ace);
+}
+.lb-podium-1 .lb-podium-rank {
+  color: inherit;
+}
+.lb-podium-name {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.lb-podium-pct {
+  font-size: 1.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lb-podium-wl {
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.lb-table-wrap {
+  margin-top: 1.25rem;
+  overflow-x: auto;
+}
+.lb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+}
+.lb-table th {
+  padding: 0.6rem 0.75rem;
+  text-align: right;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.lb-table td {
+  padding: 0.8rem 0.75rem;
+  text-align: right;
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+  white-space: nowrap;
+}
+.lb-table th:nth-child(-n + 2),
+.lb-table td:nth-child(-n + 2) {
+  text-align: left;
+}
+.lb-table td a {
+  color: inherit;
+  font-weight: 700;
+}
+.lb-rank {
+  width: 3.5rem;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+.lb-pct {
+  font-weight: 800;
+}
+.lb-streak {
+  color: var(--ace);
+  font-weight: 700;
+}
+.lb-note {
+  margin: 0.75rem 0 0;
+}
+.lb-stripe-grid {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 1rem;
+}
+.lb-stripe-grid > li {
+  padding: 1.1rem;
+  border-radius: var(--radius-sm);
+  background: var(--court);
+  box-shadow: inset 0 3px 0 var(--ace);
+}
+.lb-stripe-grid > li.is-trait {
+  box-shadow: inset 0 3px 0 var(--line);
+}
+.lb-stripe-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.75rem;
+}
+.lb-stripe-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.lb-stripe-grid ol {
+  list-style: none;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-.leaderboard-row a {
-  display: grid;
-  grid-template-columns: 2.2rem 1fr auto auto;
-  align-items: center;
-  gap: 0.9rem;
-  padding: 0.75rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
+.lb-stripe-grid ol li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+.lb-stripe-grid ol a {
   color: inherit;
-}
-.leaderboard-row a:hover {
-  border-color: var(--ace-fg);
-}
-.leaderboard-rank {
-  font-weight: 800;
-  font-size: 0.95rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.leaderboard-name {
-  font-weight: 700;
-  font-size: 0.94rem;
-}
-.leaderboard-streak {
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--ace-fg);
-  background: color-mix(in srgb, var(--ace) 14%, transparent);
-  padding: 0.2rem 0.45rem;
-  border-radius: var(--radius-xs);
-  white-space: nowrap;
-}
-.leaderboard-record {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-size: 0.88rem;
-  white-space: nowrap;
-}
-.leaderboard-pct {
-  display: block;
-  font-weight: 800;
-  font-size: 0.95rem;
-}
-.leaderboard-wl {
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-@media (max-width: 560px) {
-  .leaderboard-row a {
-    grid-template-columns: 1.6rem 1fr auto;
-  }
-  .leaderboard-streak {
-    display: none;
-  }
-}
-.podium {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.6rem;
-  margin: 1.5rem 0 0.6rem;
-}
-.podium-card {
-  display: block;
-  border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
-  border-radius: var(--radius-sm);
-  padding: 0.9rem 0.8rem;
-  text-align: center;
+  font-weight: 600;
   text-decoration: none;
-  color: inherit;
 }
-.podium-card.rank-1 {
-  background: var(--ace);
-  border-color: var(--ace);
-  color: var(--ink);
+.lb-stripe-grid ol a:hover {
+  color: var(--ace);
 }
-.podium-card.rank-1 .muted-sub {
-  color: color-mix(in srgb, var(--ink) 70%, transparent);
-}
-.podium-card.rank-2,
-.podium-card.rank-3 {
-  border-color: var(--ace-fg);
-}
-.podium-rank {
-  font-size: 0.7rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.85;
-}
-.podium-name {
-  font-weight: 800;
-  font-size: 1rem;
-  margin: 0.3rem 0 0.15rem;
-}
-.podium-pct {
-  font-size: 1.3rem;
+.lb-stripe-n {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-}
-.muted-sub {
-  color: var(--muted);
-  font-size: 0.78rem;
-}
-.unranked-note {
-  margin: -0.4rem 0 0.8rem;
+  color: var(--ace);
 }
 @media (max-width: 640px) {
-  .podium {
+  .lb-podium {
     grid-template-columns: 1fr;
   }
+  .lb-podium-1,
+  .lb-podium-2,
+  .lb-podium-3 {
+    order: 0;
+  }
+  .lb-podium a {
+    min-height: 0;
+  }
 }
+
 .section-label {
   display: flex;
   align-items: center;
@@ -1137,64 +1338,6 @@ main {
   color: var(--page-fg);
   font-size: 0.9rem;
   min-width: 220px;
-}
-.stat-grid {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 0.6rem;
-}
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
-  border-radius: var(--radius-sm);
-  padding: 0.65rem 0.8rem;
-  text-decoration: none;
-  color: inherit;
-}
-.stat-card:hover {
-  border-color: var(--ace-fg);
-}
-.stat-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--ace);
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 0.78rem;
-}
-.stat-who {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.stat-name {
-  font-weight: 700;
-  font-size: 0.88rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.stat-rec {
-  font-size: 0.76rem;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.stat-pct {
-  font-weight: 800;
-  font-size: 0.92rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 .chip-flow {
   list-style: none;
