@@ -33,11 +33,11 @@ function MediaAdmin({ isOwner }: { isOwner: boolean }) {
     adminApi.events.list().then((res) => setEvents(res.events)).catch(() => {})
   }, [])
 
-  async function handleFiles(files: FileList) {
+  async function handleFiles(files: File[]) {
     setUploading(true)
     setError(null)
     const eventId = uploadEventId ? Number(uploadEventId) : null
-    const result = await runBulk(Array.from(files), async (file) => {
+    const result = await runBulk(files, async (file) => {
       const mediaType: MediaType = file.type.startsWith('video/') ? 'video' : 'photo'
       const toSend = mediaType === 'photo' ? await resizeImageForUpload(file) : file
       return adminApi.media.upload(toSend, {
@@ -136,9 +136,11 @@ function MediaAdmin({ isOwner }: { isOwner: boolean }) {
           multiple
           hidden
           onChange={(e) => {
-            const files = e.target.files
+            // Copy out before clearing: input.files is live, so resetting
+            // the value (to allow re-picking the same file) empties it.
+            const files = Array.from(e.target.files ?? [])
             e.target.value = ''
-            if (files && files.length > 0) handleFiles(files)
+            if (files.length > 0) handleFiles(files)
           }}
         />
       </div>
