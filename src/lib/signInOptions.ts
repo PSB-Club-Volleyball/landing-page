@@ -49,6 +49,13 @@ export function signInOptions(providers: LoginProviders): SignInOption[] {
   return all.filter((o) => o.enabled).map(({ enabled: _enabled, ...o }) => o)
 }
 
+// Ephemeral PR previews are served from `*.pages.dev`, where OAuth can't
+// complete, so GET /api/auth/providers reports every provider off there (see
+// functions/api/_lib/preview.ts). Lets the UI explain why sign-in is missing.
+export function isPreviewHost(): boolean {
+  return window.location.hostname.endsWith('.pages.dev')
+}
+
 function start(id: string, redirect?: string): string {
   const base = `/api/auth/${id}/start`
   return redirect ? `${base}?redirect=${encodeURIComponent(redirect)}` : base

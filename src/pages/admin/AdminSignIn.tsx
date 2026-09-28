@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getLoginProviders } from '../../lib/api'
-import { signInOptions, DEFAULT_PROVIDERS } from '../../lib/signInOptions'
+import { signInOptions, DEFAULT_PROVIDERS, isPreviewHost } from '../../lib/signInOptions'
 import OAuthButton from '../../components/OAuthButton'
 import { authErrorMessage } from '../../lib/authErrors'
 
@@ -25,7 +25,13 @@ function AdminSignIn() {
         {opts.map((opt) => (
           <OAuthButton key={opt.id} option={opt} />
         ))}
-        {opts.length === 0 && <p>Sign-in is temporarily disabled.</p>}
+        {opts.length === 0 && (
+          <p>
+            {isPreviewHost()
+              ? 'Sign-in is disabled on preview deployments. Use the production site to sign in.'
+              : 'Sign-in is temporarily disabled.'}
+          </p>
+        )}
       </div>
     </div>
   )

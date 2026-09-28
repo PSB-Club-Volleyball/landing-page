@@ -1,6 +1,7 @@
 import type { Env } from '../../_lib/env'
 import { serializeCookie, OAUTH_STATE_COOKIE, OAUTH_REDIRECT_COOKIE } from '../../_lib/cookies'
 import { randomToken } from '../../_lib/crypto'
+import { isPreviewDeployment } from '../../_lib/preview'
 import { getProvider } from '../_lib/providers'
 import { getLoginSettings, isProviderEnabled } from '../_lib/settings'
 
@@ -9,6 +10,10 @@ import { getLoginSettings, isProviderEnabled } from '../_lib/settings'
 // (checked again on read at the callback) so signing in from any public page
 // returns there instead of always landing on /admin.
 export const onRequestGet: PagesFunction<Env> = async ({ request, params, env }) => {
+  if (isPreviewDeployment(request)) {
+    return new Response('Sign-in is disabled on preview deployments', { status: 404 })
+  }
+
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
   if (!provider) return new Response('Unknown auth provider', { status: 404 })
