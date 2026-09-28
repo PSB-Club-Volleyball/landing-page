@@ -414,6 +414,23 @@ export interface AdminUser {
   // person's signups never auto-confirm — see events/[id]/signups.ts.
   rsvp_restricted: boolean
   created_at: string
+  // Every email on the account, primary (= email) first. Signups under any
+  // of them count as this person's.
+  emails: string[]
+}
+
+// What merging one account into another would move (GET .../merge).
+export interface MergePreview {
+  into: { id: number; name: string | null; email: string; role: UserRole }
+  from: { id: number; name: string | null; email: string; role: UserRole }
+  moves: {
+    emails: string[]
+    logins: string[]
+    team_spots: number
+    kudos: number
+    roster_rows: number
+    signups: number
+  }
 }
 
 export interface PlayerResult {

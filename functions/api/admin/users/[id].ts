@@ -173,6 +173,18 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
       .bind(id, email)
       .first()
     if (!owned) return badRequest("primary_email must be one of this account's emails")
+    // On an account nobody has signed into yet, the primary email is the one
+    // whose first sign-in claims it (auth/_lib/accounts.ts canClaim) — so
+    // repointing it is handing the account to that address, owner-only like
+    // granting admin.
+    if (data.user.role !== 'owner') {
+      const logins = await env.DB.prepare(`SELECT COUNT(*) AS n FROM user_logins WHERE user_id = ?1`)
+        .bind(id)
+        .first<number>('n')
+      if (logins === 0) {
+        return badRequest("Only the owner can change the primary email of an account nobody has signed into yet")
+      }
+    }
     values.push(email)
     setClauses.push(`email = ?${values.length}`)
     auditDetails.primary_email = email

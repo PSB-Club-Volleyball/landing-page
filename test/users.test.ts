@@ -394,3 +394,26 @@ test('a pre-made account is claimed only through its primary email', async () =>
   assert.deepEqual(await signIn(w.env, 'google', prof('evil@gmail.com', 'g-evil')), { error: 'account_exists' })
   assert.deepEqual(await signIn(w.env, 'microsoft', prof('boss@psu.edu', 'ms-boss')), { userId: id })
 })
+
+test('only the owner repoints the primary email of an account nobody has signed into', async () => {
+  const w = world()
+  const { id } = await body<{ id: number }>(await w.create(w.admin.cookie, { name: 'Boss', email: 'boss@psu.edu' }))
+  sql(w.db, `INSERT INTO user_emails (email, user_id) VALUES ('evil@gmail.com', ?)`, id)
+  const repoint = (cookie: string) =>
+    callAdmin(updateUser, w.env, { method: 'PUT', params: { id }, body: { primary_email: 'evil@gmail.com' }, cookie })
+  assert.equal((await repoint(w.admin.cookie)).status, 400)
+  assert.deepEqual(await signIn(w.env, 'google', prof('evil@gmail.com', 'g-evil')), { error: 'account_exists' })
+  assert.equal((await repoint(w.owner.cookie)).status, 200)
+})
+
+test('a pre-made account that absorbs a signed-in one records its provider', async () => {
+  const w = world()
+  const { id } = await body<{ id: number }>(await w.create(w.admin.cookie, { name: 'Pat', email: 'pat@psu.edu' }))
+  const g = seedUser(w.db, { email: 'pat@gmail.com', role: 'outsider' })
+  const res = await callAdmin(merge, w.env, { params: { id }, body: { from_id: g.id }, cookie: w.admin.cookie })
+  assert.equal(res.status, 200, await res.clone().text())
+  assert.deepEqual(sql(w.db, `SELECT provider, provider_sub FROM users WHERE id = ?`, id)[0], {
+    provider: 'google',
+    provider_sub: 'pat@gmail.com',
+  })
+})

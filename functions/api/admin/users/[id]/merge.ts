@@ -182,9 +182,19 @@ export const onRequestPost: PagesFunction<Env, 'id', AdminData> = async ({ reque
     bind(`UPDATE event_signups SET decided_by = ?1 WHERE decided_by = ?2`),
     bind(`UPDATE audit_log SET user_id = ?1 WHERE user_id = ?2`),
     gone(`DELETE FROM users WHERE id = ?1`),
+    // A pre-made account that absorbed a signed-in one is signed into now:
+    // record a real provider (after the delete, since "from" held the same
+    // provider/provider_sub pair and users has a unique index on it).
+    env.DB.prepare(
+      `UPDATE users SET
+         provider = (SELECT provider FROM user_logins WHERE user_id = ?1 ORDER BY created_at, provider_sub LIMIT 1),
+         provider_sub = (SELECT provider_sub FROM user_logins WHERE user_id = ?1 ORDER BY created_at, provider_sub LIMIT 1)
+       WHERE id = ?1 AND provider = 'none' AND EXISTS (SELECT 1 FROM user_logins WHERE user_id = ?1)`
+    ).bind(into.id),
   ])
-  if (results[results.length - 1].meta.changes !== 1) {
-    throw new Error(`Merge of user ${from.id} into ${into.id} deleted ${results[results.length - 1].meta.changes} rows`)
+  const deleted = results[results.length - 2].meta.changes
+  if (deleted !== 1) {
+    throw new Error(`Merge of user ${from.id} into ${into.id} deleted ${deleted} rows`)
   }
 
   // A merge can raise the kept account's role (e.g. an outsider absorbing a
