@@ -22,7 +22,7 @@ import type {
   TeamsResponse,
   UserRole,
 } from '../types'
-import { clearAuthCaches } from './api'
+import { ApiError, clearAuthCaches } from './api'
 
 interface FormInput {
   name: string
@@ -40,7 +40,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (init?.method && init.method !== 'GET') clearAuthCaches()
   if (!res.ok) {
     const body = await res.json().catch(() => ({}) as { error?: string })
-    throw new Error(body.error || `${path} responded ${res.status}`)
+    throw new ApiError(res.status, body.error || `${path} responded ${res.status}`)
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
