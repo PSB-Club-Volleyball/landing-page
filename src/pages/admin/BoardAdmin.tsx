@@ -268,7 +268,10 @@ function BoardAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChang
   return (
     <>
       <div className="admin-main-head">
-        <h2>Board</h2>
+        <div>
+          <h2>Board</h2>
+          <p className="admin-page-desc">Club officers shown on the site, by season.</p>
+        </div>
       </div>
       {error && <p className="admin-error">{error}</p>}
       {!season && !seasonError && (

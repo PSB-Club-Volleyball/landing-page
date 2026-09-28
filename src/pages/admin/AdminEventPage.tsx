@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { adminApi } from '../../lib/adminApi'
 import type { AdminEventRow, FormTemplate } from '../../types'
-import { EVENT_TYPE_LABELS } from '../../lib/eventFormat'
+import { EVENT_TYPE_LABELS, formatEventDate, formatTimeRange } from '../../lib/eventFormat'
 import { emptyDraft, eventToDraft, toInput, type Draft } from './eventDraft'
-import { EventFormFields } from './eventForm'
+import { EventFormFields, PublishingFields } from './eventForm'
 import SignupsPanel from './SignupsPanel'
 import TeamsAdmin from './TeamsAdmin'
 import ScheduleAdmin from './ScheduleAdmin'
@@ -45,6 +45,9 @@ export default function AdminEventPage({
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  // Failures of the one-click actions (release early, delete): shown as a
+  // plain error, not in the unsaved-changes bar, which is only for Save.
+  const [actionError, setActionError] = useState<string | null>(null)
   const [savedNote, setSavedNote] = useState(false)
   // Background failures (forms list, post-save refetch) that don't tear the
   // page down but would otherwise leave stale or missing data unexplained.
@@ -145,13 +148,23 @@ export default function AdminEventPage({
     }
   }
 
+  async function toggleReleaseEarly(current: boolean) {
+    try {
+      await adminApi.events.update(id, { released_early: !current })
+      setActionError(null)
+      refetch(false)
+    } catch (err) {
+      setActionError((err as Error).message)
+    }
+  }
+
   async function handleDelete() {
     if (!confirm('Delete this event? This can’t be undone.')) return
     try {
       await adminApi.events.remove(id)
       navigate('/admin')
     } catch (err) {
-      setSaveError((err as Error).message)
+      setActionError((err as Error).message)
     }
   }
 
@@ -160,7 +173,7 @@ export default function AdminEventPage({
     return (
       <div className="admin-event-page">
         <Link className="admin-back-link" to="/admin">
-          &larr; All events
+          &larr; Events
         </Link>
         <h2>Couldn&rsquo;t load this event</h2>
         {loadError && <p className="admin-error">{loadError}</p>}
@@ -187,23 +200,40 @@ export default function AdminEventPage({
           if (!confirmLeave()) ev.preventDefault()
         }}
       >
-        &larr; All events
+        &larr; Events
       </Link>
       <div className="admin-main-head">
         <div>
-          <p className="admin-event-eyebrow">
-            {EVENT_TYPE_LABELS[e.event_type] ?? e.event_type}
-            <span className={`admin-status-pill status-${statusWord}`}>{statusWord}</span>
-          </p>
           <h2>{e.title}</h2>
           <p className="admin-event-sub">
-            {new Date(e.start_time).toLocaleString()} &middot; {e.signup_count} signup
-            {e.signup_count === 1 ? '' : 's'}
+            <span className={`admin-status-pill status-${statusWord}`}>{statusWord}</span>
+            <span>{EVENT_TYPE_LABELS[e.event_type] ?? e.event_type}</span>
+            <span aria-hidden="true">&middot;</span>
+            <span>
+              {formatEventDate(e.start_time)}, {formatTimeRange(e)}
+            </span>
+            {e.signup_enabled && (
+              <>
+                <span aria-hidden="true">&middot;</span>
+                <span>
+                  {e.capacity !== null ? `${e.signup_count}/${e.capacity}` : e.signup_count} signed up
+                </span>
+              </>
+            )}
           </p>
         </div>
+        {/* The public page 404s a draft (functions/api/events/[id].ts). */}
+        {e.status !== 'draft' && (
+          <div className="admin-head-actions">
+            <a className="btn btn-outline btn-sm" href={`/events/${e.id}`} target="_blank" rel="noreferrer">
+              View public page
+            </a>
+          </div>
+        )}
       </div>
 
       {bgError && <p className="admin-error">{bgError}</p>}
+      {actionError && <p className="admin-error">{actionError}</p>}
 
       <div className="admin-subtabs" role="tablist">
         <button
@@ -249,31 +279,80 @@ export default function AdminEventPage({
       </div>
 
       {tab === 'details' && (
-        <form className="event-form" onSubmit={handleSave}>
-          <EventFormFields
-            draft={draft}
-            onChange={setDraft}
-            forms={forms}
-            showMoreOptions={showMoreOptions}
-            onToggleMoreOptions={() => setShowMoreOptions((v) => !v)}
-            includeRecurrence={false}
-          />
-          {saveError && <p className="admin-error">{saveError}</p>}
-          {savedNote && <p className="admin-note">Saved.</p>}
-          <div className="form-actions">
-            {isOwner && (
-              <button className="btn btn-outline danger" type="button" onClick={handleDelete}>
-                Delete event
-              </button>
-            )}
-            <span className="form-actions-spacer" />
-            <button className="btn btn-outline" type="button" onClick={() => confirmLeave() && navigate('/admin')}>
-              Back
-            </button>
-            <button className="btn btn-ace" type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </button>
+        <form className="event-details" onSubmit={handleSave}>
+          <div className="event-form event-details-main">
+            <EventFormFields
+              draft={draft}
+              onChange={setDraft}
+              forms={forms}
+              showMoreOptions={showMoreOptions}
+              onToggleMoreOptions={() => setShowMoreOptions((v) => !v)}
+              includeRecurrence={false}
+              includePublishing={false}
+            />
           </div>
+          <aside className="event-details-side">
+            <section className="admin-card">
+              <h3>Publishing</h3>
+              <PublishingFields draft={draft} onChange={setDraft} />
+              {e.series_id !== null && (
+                <div className="admin-card-row">
+                  <span className="field-hint">
+                    {e.released_early
+                      ? 'Shown on the site early.'
+                      : 'Part of a series: appears on the site a week before it happens.'}
+                  </span>
+                  <button className="btn btn-outline btn-sm" type="button" onClick={() => toggleReleaseEarly(e.released_early)}>
+                    {e.released_early ? 'Hide until then' : 'Show now'}
+                  </button>
+                </div>
+              )}
+            </section>
+            {isOwner && (
+              <section className="admin-card">
+                <h3>Delete event</h3>
+                <p className="field-hint">
+                  Removes the event with its signups, teams, schedule, scores and kudos. This can&rsquo;t be
+                  undone. To keep it listed as cancelled instead, set Status to Cancelled.
+                </p>
+                <button className="btn btn-outline btn-sm danger" type="button" onClick={handleDelete}>
+                  Delete event
+                </button>
+              </section>
+            )}
+          </aside>
+          {(detailsDirty || saving || saveError) && (
+            <div className="admin-savebar" role="region" aria-label="Unsaved changes">
+              {saveError ? (
+                <p className="admin-savebar-error" role="alert">
+                  {saveError}
+                </p>
+              ) : (
+                <span>You have unsaved changes.</span>
+              )}
+              <span className="admin-savebar-actions">
+                <button
+                  className="btn btn-outline btn-sm"
+                  type="button"
+                  disabled={saving}
+                  onClick={() => {
+                    setDraft(eventToDraft(e))
+                    setSaveError(null)
+                  }}
+                >
+                  Discard
+                </button>
+                <button className="btn btn-ace btn-sm" type="submit" disabled={saving}>
+                  {saving ? 'Saving…' : 'Save changes'}
+                </button>
+              </span>
+            </div>
+          )}
+          {savedNote && !detailsDirty && (
+            <p className="admin-note" role="status">
+              Saved.
+            </p>
+          )}
         </form>
       )}
 

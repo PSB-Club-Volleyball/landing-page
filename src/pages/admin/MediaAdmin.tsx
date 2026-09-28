@@ -101,11 +101,11 @@ function MediaAdmin() {
   return (
     <>
       <div className="admin-main-head">
-        <h2>Media</h2>
+        <div>
+          <h2>Media</h2>
+          <p className="admin-page-desc">Photos and videos for the public Photos page. Tag a batch to an event to group it as an album.</p>
+        </div>
       </div>
-      <p className="admin-note">
-        Upload photos and videos for the public Photos page &mdash; optionally tag a batch to an event/album.
-      </p>
       {error && <p className="admin-error">{error}</p>}
 
       <div className="media-upload-bar">

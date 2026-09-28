@@ -3,9 +3,17 @@ import { Link } from 'react-router-dom'
 import { adminApi } from '../../lib/adminApi'
 import { formatEventDate, formatTimeRange, SKILL_LEVEL_LABELS } from '../../lib/eventFormat'
 import type { AdminEventRow, AdminUser, EventSignup } from '../../types'
+import type { TabIntent } from './AdminLayout'
 
 const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short' })
 const dayFormatter = new Intl.DateTimeFormat('en-US', { day: 'numeric' })
+const todayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+type QueueFilter = 'all' | 'rsvp' | 'skill' | 'waitlist'
+type QueueItem = { kind: 'rsvp' | 'waitlist'; signup: PendingSignup } | { kind: 'skill'; user: AdminUser }
+
+const KIND_LABELS: Record<QueueItem['kind'], string> = { rsvp: 'RSVP', waitlist: 'Waitlist', skill: 'Skill' }
+const QUEUE_SHOWN = 6
 
 // One pending/waitlisted signup, carrying the event it belongs to — the
 // per-event admin page only has its own event's signups, but the dashboard
@@ -14,12 +22,21 @@ interface PendingSignup extends EventSignup {
   event: AdminEventRow
 }
 
-function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void }) {
+function DashboardAdmin({
+  onGoTo,
+  onAttentionChange,
+}: {
+  onGoTo: (tab: 'events' | 'users' | 'media', intent?: TabIntent) => void
+  // Feeds the sidebar's Dashboard badge.
+  onAttentionChange: (count: number) => void
+}) {
   const [events, setEvents] = useState<AdminEventRow[] | null>(null)
   const [pending, setPending] = useState<PendingSignup[] | null>(null)
   const [users, setUsers] = useState<AdminUser[] | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
+  const [filter, setFilter] = useState<QueueFilter>('all')
+  const [showAll, setShowAll] = useState(false)
 
   async function load() {
     setError('')
@@ -49,6 +66,12 @@ function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void 
   useEffect(() => {
     load()
   }, [])
+
+  const skillRequests = (users ?? []).filter((u) => u.skill_level_change_requested)
+  const attention = pending && users ? pending.length + skillRequests.length : null
+  useEffect(() => {
+    if (attention !== null) onAttentionChange(attention)
+  }, [attention, onAttentionChange])
 
   async function decide(signup: PendingSignup, status: 'approved' | 'denied') {
     setBusy(`signup:${signup.id}`)
@@ -94,184 +117,239 @@ function DashboardAdmin({ onGoTo }: { onGoTo: (tab: 'events' | 'users') => void 
     }
   }
 
+  const actions = (
+    <div className="admin-head-actions">
+      <button type="button" className="btn btn-outline btn-sm" onClick={() => onGoTo('media')}>
+        Upload media
+      </button>
+      <button type="button" className="add-btn" onClick={() => onGoTo('events', 'create')}>
+        New event
+      </button>
+    </div>
+  )
+  const today = todayFormatter.format(new Date())
+
   if (!events || !users || !pending) {
     return (
       <>
         <div className="admin-main-head">
           <div>
             <h2>Dashboard</h2>
-            <p className="admin-note">What needs attention, and what's coming up.</p>
+            <p className="admin-page-desc">{today}</p>
           </div>
+          {actions}
         </div>
         {error ? <p className="admin-error">{error}</p> : <p className="admin-loading">Loading…</p>}
       </>
     )
   }
 
-  const skillRequests = users.filter((u) => u.skill_level_change_requested)
-  const waitlistCount = pending.filter((s) => s.status === 'waitlist').length
-  const pendingCount = pending.length - waitlistCount
+  const queue: QueueItem[] = [
+    ...pending.map((signup) => ({ kind: signup.status === 'waitlist' ? ('waitlist' as const) : ('rsvp' as const), signup })),
+    ...skillRequests.map((user) => ({ kind: 'skill' as const, user })),
+  ]
+  const counts = {
+    all: queue.length,
+    rsvp: queue.filter((q) => q.kind === 'rsvp').length,
+    skill: queue.filter((q) => q.kind === 'skill').length,
+    waitlist: queue.filter((q) => q.kind === 'waitlist').length,
+  }
+  // A kind whose last item was just handled loses its chip, so fall back to
+  // All rather than leave the list stuck on an empty filter.
+  const activeFilter: QueueFilter = filter === 'all' || counts[filter] > 0 ? filter : 'all'
+  const filtered = activeFilter === 'all' ? queue : queue.filter((q) => q.kind === activeFilter)
+  const shown = showAll ? filtered : filtered.slice(0, QUEUE_SHOWN)
 
   const now = Date.now()
   const upcoming = events
     .filter((e) => e.status === 'published' && !e.is_past && new Date(e.start_time).getTime() >= now)
     .sort((a, b) => a.start_time.localeCompare(b.start_time))
-    .slice(0, 6)
+    .slice(0, 5)
 
-  const PENDING_SHOWN = 4
-  const SKILL_SHOWN = 4
+  // UTC, matching the server's getUTCFullYear() when it stamps the year.
+  const year = new Date().getUTCFullYear()
+  const waiverMissing = users.filter((u) => u.waiver_signed_year !== year).length
+  const duesUnpaid = users.filter(
+    (u) => (u.role === 'club_member' || u.role === 'admin') && u.dues_paid_year !== year,
+  ).length
+
+  const filters: { key: QueueFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'rsvp', label: 'RSVPs' },
+    { key: 'skill', label: 'Skill' },
+    { key: 'waitlist', label: 'Waitlist' },
+  ]
 
   return (
     <>
       <div className="admin-main-head">
         <div>
           <h2>Dashboard</h2>
-          <p className="admin-note">What needs attention, and what's coming up.</p>
+          <p className="admin-page-desc">
+            {today}.{' '}
+            {queue.length === 0
+              ? 'Nothing needs you right now.'
+              : `${queue.length} thing${queue.length === 1 ? '' : 's'} need${queue.length === 1 ? 's' : ''} you.`}
+          </p>
         </div>
+        {actions}
       </div>
 
       {error && <p className="admin-error">{error}</p>}
 
-      <div className="dash-stats">
-        <div className={pendingCount > 0 ? 'dash-stat attn' : 'dash-stat'}>
-          <span className="dash-stat-num">{pendingCount}</span>
-          <span className="dash-stat-label">Pending RSVPs</span>
-        </div>
-        <div className={waitlistCount > 0 ? 'dash-stat attn' : 'dash-stat'}>
-          <span className="dash-stat-num">{waitlistCount}</span>
-          <span className="dash-stat-label">Waitlisted</span>
-        </div>
-        <div className={skillRequests.length > 0 ? 'dash-stat attn' : 'dash-stat'}>
-          <span className="dash-stat-num">{skillRequests.length}</span>
-          <span className="dash-stat-label">Skill requests</span>
-        </div>
-        <div className="dash-stat">
-          <span className="dash-stat-num">{upcoming.length}</span>
-          <span className="dash-stat-label">Upcoming events</span>
-        </div>
-      </div>
-
-      <div className="dash-grid cols-2">
-        <div className="dash-panel">
+      <div className="dash-layout">
+        <section className="dash-panel">
           <div className="dash-panel-head">
-            <h3>Pending RSVPs</h3>
-            <span className={pending.length > 0 ? 'dash-panel-count' : 'dash-panel-count zero'}>{pending.length}</span>
-          </div>
-          <div className="dash-panel-body">
-            {pending.length === 0 && <p className="dash-empty">Nothing pending.</p>}
-            {pending.slice(0, PENDING_SHOWN).map((signup) => (
-              <div className="dash-row" key={signup.id}>
-                <div className="dash-row-main">
-                  <span className="dash-row-title">{signup.name}</span>
-                  <span className="dash-row-sub">
-                    {signup.event.title} &middot; {formatEventDate(signup.event.start_time)}
-                  </span>
-                </div>
-                <span className={`status-chip status-${signup.status}`}>
-                  {signup.status === 'waitlist' ? 'Waitlist' : 'Pending'}
-                </span>
-                <div className="row-actions dash-row-actions">
-                  <button type="button" className="primary" disabled={busy === `signup:${signup.id}`} onClick={() => decide(signup, 'approved')}>
-                    Approve
-                  </button>
-                  <button type="button" className="danger" disabled={busy === `signup:${signup.id}`} onClick={() => decide(signup, 'denied')}>
-                    Deny
-                  </button>
-                </div>
-              </div>
-            ))}
-            {pending.length > PENDING_SHOWN && (
-              <div className="dash-row">
-                <div className="dash-row-main">
-                  <span className="dash-row-title">
-                    +{pending.length - PENDING_SHOWN} more across{' '}
-                    {new Set(pending.slice(PENDING_SHOWN).map((s) => s.event.id)).size} event(s)
-                  </span>
-                </div>
-                <div className="row-actions dash-row-actions">
-                  <button type="button" className="link-btn" onClick={() => onGoTo('events')}>
-                    View all →
-                  </button>
-                </div>
+            <h3>Needs you</h3>
+            {queue.length > 0 && (
+              <div className="dash-filters" role="group" aria-label="Show">
+                {filters
+                  .filter((f) => f.key === 'all' || counts[f.key] > 0)
+                  .map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      aria-pressed={activeFilter === f.key}
+                      className={activeFilter === f.key ? 'active' : undefined}
+                      onClick={() => {
+                        setFilter(f.key)
+                        setShowAll(false)
+                      }}
+                    >
+                      {f.label} {counts[f.key]}
+                    </button>
+                  ))}
               </div>
             )}
           </div>
-        </div>
-
-        <div className="dash-panel">
-          <div className="dash-panel-head">
-            <h3>Skill level change requests</h3>
-            <span className={skillRequests.length > 0 ? 'dash-panel-count' : 'dash-panel-count zero'}>
-              {skillRequests.length}
-            </span>
-          </div>
           <div className="dash-panel-body">
-            {skillRequests.length === 0 && <p className="dash-empty">Nothing pending.</p>}
-            {skillRequests.slice(0, SKILL_SHOWN).map((user) => (
-              <div className="dash-row" key={user.id}>
-                <div className="dash-row-main">
-                  <span className="dash-row-title">{user.name || user.email}</span>
-                  <span className="dash-row-sub">
-                    {user.skill_level ? SKILL_LEVEL_LABELS[user.skill_level] : 'Unset'} →{' '}
-                    {SKILL_LEVEL_LABELS[user.skill_level_change_requested!]}
-                  </span>
+            {filtered.length === 0 && <p className="dash-empty">You&rsquo;re all caught up.</p>}
+            {shown.map((item) =>
+              item.kind === 'skill' ? (
+                <div className="dash-row" key={`user:${item.user.id}`}>
+                  <span className="dash-kind kind-skill">{KIND_LABELS.skill}</span>
+                  <div className="dash-row-main">
+                    <span className="dash-row-title">{item.user.name || item.user.email}</span>
+                    <span className="dash-row-sub">
+                      {item.user.skill_level ? SKILL_LEVEL_LABELS[item.user.skill_level] : 'Unset'} to{' '}
+                      {SKILL_LEVEL_LABELS[item.user.skill_level_change_requested!]}
+                    </span>
+                  </div>
+                  <div className="row-actions dash-row-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={busy === `user:${item.user.id}`}
+                      onClick={() => approveSkillRequest(item.user)}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy === `user:${item.user.id}`}
+                      onClick={() => dismissSkillRequest(item.user)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 </div>
-                <div className="row-actions dash-row-actions">
-                  <button type="button" className="primary" disabled={busy === `user:${user.id}`} onClick={() => approveSkillRequest(user)}>
-                    Approve
-                  </button>
-                  <button type="button" disabled={busy === `user:${user.id}`} onClick={() => dismissSkillRequest(user)}>
-                    Dismiss
-                  </button>
+              ) : (
+                <div className="dash-row" key={`signup:${item.signup.id}`}>
+                  <span className={`dash-kind kind-${item.kind}`}>{KIND_LABELS[item.kind]}</span>
+                  <div className="dash-row-main">
+                    <span className="dash-row-title">{item.signup.name}</span>
+                    <span className="dash-row-sub">
+                      <Link to={`/admin/events/${item.signup.event.id}?tab=signups`}>{item.signup.event.title}</Link>{' '}
+                      &middot; {formatEventDate(item.signup.event.start_time)}
+                    </span>
+                  </div>
+                  <div className="row-actions dash-row-actions">
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={busy === `signup:${item.signup.id}`}
+                      onClick={() => decide(item.signup, 'approved')}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      className="danger"
+                      disabled={busy === `signup:${item.signup.id}`}
+                      onClick={() => decide(item.signup, 'denied')}
+                    >
+                      Deny
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-            {skillRequests.length > SKILL_SHOWN && (
-              <div className="dash-row">
-                <div className="dash-row-main">
-                  <span className="dash-row-title">+{skillRequests.length - SKILL_SHOWN} more</span>
-                </div>
-                <div className="row-actions dash-row-actions">
-                  <button type="button" className="link-btn" onClick={() => onGoTo('users')}>
-                    View in Users →
-                  </button>
-                </div>
-              </div>
+              ),
+            )}
+            {filtered.length > QUEUE_SHOWN && (
+              <button type="button" className="dash-more" onClick={() => setShowAll((v) => !v)}>
+                {showAll ? 'Show fewer' : `Show ${filtered.length - QUEUE_SHOWN} more`}
+              </button>
             )}
           </div>
-        </div>
-      </div>
+        </section>
 
-      <div className="dash-panel">
-        <div className="dash-panel-head">
-          <h3>Upcoming events</h3>
-          <span className="dash-panel-count zero">{upcoming.length}</span>
-        </div>
-        <div className="dash-panel-body">
-          {upcoming.length === 0 && <p className="dash-empty">No upcoming events.</p>}
-          {upcoming.map((event) => {
-            const full = event.capacity !== null && event.signup_count >= event.capacity
-            return (
-              <Link className="dash-event-row" to={`/admin/events/${event.id}`} key={event.id}>
-                <div className="dash-event-date">
-                  <span className="mon">{monthFormatter.format(new Date(event.start_time))}</span>
-                  <span className="day">{dayFormatter.format(new Date(event.start_time))}</span>
-                </div>
-                <div className="dash-event-main">
-                  <span className="dash-event-title">{event.title}</span>
-                  <span className="dash-event-sub">
-                    {formatTimeRange(event)}
-                    {event.location_name ? ` · ${event.location_name}` : ''}
-                  </span>
-                </div>
-                <div className="dash-event-meta">
-                  <span className={full ? 'cap-chip full' : 'cap-chip'}>
-                    {event.capacity !== null ? `${event.signup_count} / ${event.capacity}` : '—'}
-                  </span>
-                </div>
-              </Link>
-            )
-          })}
+        <div className="dash-side">
+          <section className="dash-panel">
+            <div className="dash-panel-head">
+              <h3>Coming up</h3>
+              <button type="button" className="link-btn" onClick={() => onGoTo('events')}>
+                All events
+              </button>
+            </div>
+            <div className="dash-panel-body">
+              {upcoming.length === 0 && <p className="dash-empty">No upcoming events.</p>}
+              {upcoming.map((event) => {
+                const full = event.capacity !== null && event.signup_count >= event.capacity
+                return (
+                  <Link className="dash-event-row" to={`/admin/events/${event.id}`} key={event.id}>
+                    <div className="dash-event-date">
+                      <span className="mon">{monthFormatter.format(new Date(event.start_time))}</span>
+                      <span className="day">{dayFormatter.format(new Date(event.start_time))}</span>
+                    </div>
+                    <div className="dash-event-main">
+                      <span className="dash-event-title">{event.title}</span>
+                      <span className="dash-event-sub">{formatTimeRange(event)}</span>
+                      {event.capacity !== null && event.capacity > 0 ? (
+                        <span className="dash-fill">
+                          <span className="dash-fill-track" aria-hidden="true">
+                            <span
+                              className={full ? 'dash-fill-bar full' : 'dash-fill-bar'}
+                              style={{ width: `${Math.min(100, (100 * event.signup_count) / event.capacity)}%` }}
+                            />
+                          </span>
+                          <span className={full ? 'cap-chip full' : 'cap-chip'}>
+                            {event.signup_count}/{event.capacity}
+                          </span>
+                        </span>
+                      ) : (
+                        event.signup_enabled && <span className="cap-chip">{event.signup_count} signed up</span>
+                      )}
+                    </div>
+                  </Link>
+                )
+              })}
+            </div>
+          </section>
+
+          <section className="dash-panel">
+            <div className="dash-panel-head">
+              <h3>Paperwork ({year})</h3>
+            </div>
+            <div className="dash-panel-body">
+              <button type="button" className="dash-count-row" onClick={() => onGoTo('users', 'waiver-missing')}>
+                <span>Waiver missing</span>
+                <b>{waiverMissing}</b>
+              </button>
+              <button type="button" className="dash-count-row" onClick={() => onGoTo('users', 'dues-unpaid')}>
+                <span>Dues unpaid</span>
+                <b>{duesUnpaid}</b>
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     </>

@@ -54,7 +54,10 @@ function SettingsAdmin() {
   return (
     <>
       <div className="admin-main-head">
-        <h2>Settings</h2>
+        <div>
+          <h2>Settings</h2>
+          <p className="admin-page-desc">Sign-in providers and the current roster season. Owner only.</p>
+        </div>
       </div>
       {error && <p className="admin-error">{error}</p>}
       {!settings && !error && <p>Loading&hellip;</p>}

@@ -25,7 +25,10 @@ function AuditLogAdmin() {
   return (
     <>
       <div className="admin-main-head">
-        <h2>Audit log</h2>
+        <div>
+          <h2>Audit log</h2>
+          <p className="admin-page-desc">The latest 200 admin changes, newest first. Owner only.</p>
+        </div>
       </div>
       {error && <p className="admin-error">{error}</p>}
       {loading && <p>Loading&hellip;</p>}
