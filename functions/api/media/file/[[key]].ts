@@ -23,6 +23,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   object.writeHttpMetadata(headers)
   headers.set('etag', object.httpEtag)
   headers.set('cache-control', 'public, max-age=31536000, immutable')
+  // Never let a browser sniff a stored object into something executable.
+  headers.set('x-content-type-options', 'nosniff')
 
   if (!('body' in object)) {
     // onlyIf matched: object unchanged since the client's cached copy

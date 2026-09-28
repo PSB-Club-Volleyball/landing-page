@@ -3,6 +3,7 @@ import { badRequest, json, notFound } from '../_lib/http'
 import { getSessionUser } from '../_lib/session'
 import { computeStandings } from '../_lib/standings'
 import { readScheduleConfig, slotStartTime } from '../_lib/schedule'
+import { canSeeVisibility } from '../_lib/visibility'
 
 // GET /api/events/:id -> a single published or cancelled event, for its own
 // public page at /events/:eventId. Drafts stay admin-only (404 here). Unlike
@@ -11,13 +12,15 @@ import { readScheduleConfig, slotStartTime } from '../_lib/schedule'
 // list is the only place that "releases" weekly occurrences a week at a time.
 // If the visitor is signed in, the event carries their own signup (if any) so
 // the page can offer "manage" instead of "sign up" without a second request.
+// A club/eboard event is a 404 to anyone whose role can't see it, same as a
+// draft — IDs are guessable, so the list filter alone isn't access control.
 export const onRequestGet: PagesFunction<Env> = async ({ request, env, params }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
 
   const event = await env.DB.prepare(
     `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
-            e.location_name, e.location_address, e.status,
+            e.location_name, e.location_address, e.status, e.visibility,
             e.signup_enabled, e.rsvp_gated, e.form_id, e.capacity, e.tags, e.signup_deadline, e.allowed_skill_levels,
             e.play_format, e.format_config,
             (SELECT COUNT(*) FROM event_signups s WHERE s.event_id = e.id AND s.status = 'approved') AS signup_count
@@ -31,6 +34,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
           rsvp_gated: number
           id: number
           start_time: string
+          visibility: string
           play_format: string | null
           format_config: string | null
         })
@@ -40,6 +44,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   if (!event) return notFound('Event not found')
 
   const sessionUser = await getSessionUser(request, env)
+  if (!canSeeVisibility(sessionUser?.role ?? 'outsider', event.visibility)) return notFound('Event not found')
+
   let mySignup: { id: number; status: string } | null = null
   if (sessionUser) {
     mySignup = await env.DB.prepare(

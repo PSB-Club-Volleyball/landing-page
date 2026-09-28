@@ -1,4 +1,5 @@
 import type { Env } from './env'
+import { visibilitiesFor } from './visibility'
 import { readScheduleConfig } from './schedule'
 import { computeStandings, type MatchLike, type StandingRow } from './standings'
 
@@ -24,6 +25,15 @@ export interface PlayerSummary {
   currentStreak: number
 }
 
+// Only events the *viewer* may see count toward a profile, so a draft, or a
+// club/eboard event, never leaks its title to an outsider through /api/members,
+// while club members still see club-only tournaments on everyone's record.
+// The visibility list comes from visibilitiesFor (fixed literals, safe to inline).
+function listedEventIds(viewerRole: string): string {
+  const visible = visibilitiesFor(viewerRole).map((v) => `'${v}'`).join(', ')
+  return `SELECT id FROM events WHERE status IN ('published', 'cancelled') AND visibility IN (${visible})`
+}
+
 // Cross-event W/L/sets per account. A team member counts as an account when
 // it's linked to it (event_team_members.user_id, see migration 0031), or — if
 // unlinked — when its signup email is the account's email and the account
@@ -35,25 +45,29 @@ export interface PlayerSummary {
 // matter how many accounts are asked for (GET /api/members asks for all).
 export async function getPlayerResultsByUser(
   env: Env,
-  users: { id: number; email: string }[]
+  users: { id: number; email: string }[],
+  viewerRole: string
 ): Promise<Map<number, PlayerResult[]>> {
+  const LISTED_EVENT_IDS = listedEventIds(viewerRole)
+  const COUNTED_TEAMS = `SELECT event_id FROM event_teams WHERE published = 1 AND event_id IN (${LISTED_EVENT_IDS})`
   const [memberRows, teamRows, matchRows, eventRows] = await env.DB.batch([
     // Every team, published or not: a link on an unpublished team still
     // blocks email attribution for that event.
     env.DB.prepare(
-      `SELECT etm.user_id, LOWER(es.email) AS email, et.id AS team_id, et.event_id, et.published
+      `SELECT etm.user_id, LOWER(es.email) AS email, et.id AS team_id, et.event_id,
+              (et.published = 1 AND et.event_id IN (${LISTED_EVENT_IDS})) AS counted
        FROM event_team_members etm
        JOIN event_teams et ON et.id = etm.team_id
        LEFT JOIN event_signups es ON es.id = etm.signup_id`
     ),
-    env.DB.prepare(`SELECT id, name, event_id FROM event_teams WHERE published = 1`),
+    env.DB.prepare(`SELECT id, name, event_id FROM event_teams WHERE published = 1 AND event_id IN (${LISTED_EVENT_IDS})`),
     env.DB.prepare(
       `SELECT id, event_id, team_a_id, team_b_id, scores, forfeit_team_id FROM event_matches
-       WHERE event_id IN (SELECT event_id FROM event_teams WHERE published = 1)`
+       WHERE event_id IN (${COUNTED_TEAMS})`
     ),
     env.DB.prepare(
       `SELECT id, title, start_time, format_config FROM events
-       WHERE id IN (SELECT event_id FROM event_teams WHERE published = 1)`
+       WHERE id IN (${COUNTED_TEAMS})`
     ),
   ])
   const members = memberRows.results as {
@@ -61,7 +75,7 @@ export async function getPlayerResultsByUser(
     email: string | null
     team_id: number
     event_id: number
-    published: number
+    counted: number
   }[]
 
   const teamsByEvent = new Map<number, { id: number; name: string }[]>()
@@ -121,7 +135,7 @@ export async function getPlayerResultsByUser(
   // Distinct (event, team) pairs each account played on.
   const played = new Map<number, Map<string, { eventId: number; teamId: number }>>(users.map((u) => [u.id, new Map()]))
   for (const m of members) {
-    if (m.published !== 1) continue
+    if (m.counted !== 1) continue
     const owners =
       m.user_id != null
         ? [m.user_id]
@@ -136,7 +150,7 @@ export async function getPlayerResultsByUser(
     const results: PlayerResult[] = []
     for (const { eventId, teamId } of pairs.values()) {
       const ev = events.get(eventId)
-      if (!ev) throw new Error(`Published team ${teamId} references missing event ${eventId}`)
+      if (!ev) throw new Error(`Counted team ${teamId} references missing event ${eventId}`)
       if ((matchesByEvent.get(eventId) ?? []).length === 0) continue
       const myRow = standingsFor(eventId, ev.format_config).find((r) => r.team_id === teamId)
       if (!myRow || myRow.played === 0) continue
@@ -167,8 +181,12 @@ function parseScores(raw: string, matchId: number, eventId: number): [number, nu
   }
 }
 
-export async function getPlayerResults(env: Env, user: { id: number; email: string }): Promise<PlayerResult[]> {
-  const results = (await getPlayerResultsByUser(env, [user])).get(user.id)
+export async function getPlayerResults(
+  env: Env,
+  user: { id: number; email: string },
+  viewerRole: string
+): Promise<PlayerResult[]> {
+  const results = (await getPlayerResultsByUser(env, [user], viewerRole)).get(user.id)
   if (!results) throw new Error(`No results computed for user ${user.id}`)
   return results
 }

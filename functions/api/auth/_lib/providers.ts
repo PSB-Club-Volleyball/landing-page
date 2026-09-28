@@ -27,7 +27,8 @@ export function getProvider(name: string, env: Env): ProviderConfig | null {
   //                      tenant endpoint (the /common endpoint rejects a
   //                      single-tenant app with AADSTS50194).
   //   microsoft-other -> a separate multi-tenant + personal-accounts app on
-  //                      /common, for any non-PSU Microsoft account.
+  //                      /common. The callback accepts only personal (MSA)
+  //                      accounts from it; see isPersonalMicrosoftAccount.
   // Both use Microsoft's OIDC userinfo endpoint, which returns the same
   // sub/email/name claim shape as Google's — normalizeProfile needs no
   // provider-specific case.
@@ -67,6 +68,29 @@ export interface OAuthProfile {
   email: string
   name: string | null
   picture: string | null
+  // Google's userinfo carries email_verified; Microsoft's doesn't, so null
+  // there means "not reported", not "unverified".
+  emailVerified: boolean | null
+}
+
+// The fixed tenant ID Microsoft stamps on every personal (MSA: outlook.com,
+// hotmail, live) account's tokens. Any other tid is a work/school tenant,
+// whose admins can set a user's email to anything.
+export const MSA_CONSUMER_TENANT_ID = '9188040d-6c67-4c5b-b112-36a304b66dad'
+
+// Reads the payload of an ID token without checking its signature. That is
+// only safe because every caller got the token straight from the provider's
+// token endpoint over TLS in the same request — never from the browser.
+export function decodeIdTokenPayload(idToken: string): Record<string, unknown> {
+  const parts = idToken.split('.')
+  if (parts.length !== 3) throw new Error('Malformed id_token')
+  const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+  const json = new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)))
+  return JSON.parse(json) as Record<string, unknown>
+}
+
+export function isPersonalMicrosoftAccount(idToken: string): boolean {
+  return decodeIdTokenPayload(idToken).tid === MSA_CONSUMER_TENANT_ID
 }
 
 export function normalizeProfile(raw: Record<string, unknown>): OAuthProfile | null {
@@ -78,5 +102,6 @@ export function normalizeProfile(raw: Record<string, unknown>): OAuthProfile | n
     email: String(email).toLowerCase(),
     name: typeof raw.name === 'string' ? raw.name : null,
     picture: typeof raw.picture === 'string' ? raw.picture : null,
+    emailVerified: typeof raw.email_verified === 'boolean' ? raw.email_verified : null,
   }
 }

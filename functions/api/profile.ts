@@ -91,7 +91,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     status: r.status,
   }))
 
-  const results = await getPlayerResults(env, sessionUser)
+  const results = await getPlayerResults(env, sessionUser, sessionUser.role)
 
   return json({
     profile: {

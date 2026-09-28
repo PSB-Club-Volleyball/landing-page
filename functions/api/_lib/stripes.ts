@@ -1,5 +1,6 @@
 import type { Env } from './env'
 import { easternWallClock } from './time'
+import { visibilitiesFor } from './visibility'
 
 export const STRIPE_SKILLS = ['serving', 'passing', 'setting', 'hitting', 'blocking', 'digging', 'hustle', 'teammate'] as const
 export type StripeSkill = (typeof STRIPE_SKILLS)[number]
@@ -97,13 +98,16 @@ export interface MemberStripes {
   awards: { giver_id: number | null; giver_name: string | null; event_id: number; event_title: string; skills: StripeSkill[] }[]
 }
 
-export async function getMemberStripes(env: Env, userId: number): Promise<MemberStripes> {
+// Awards from draft, club, or eboard events are left out so their titles
+// don't leak to every signed-in viewer of a profile; see playerResults.ts.
+export async function getMemberStripes(env: Env, userId: number, viewerRole: string): Promise<MemberStripes> {
+  const visible = visibilitiesFor(viewerRole).map((v) => `'${v}'`).join(', ')
   const rows = await env.DB.prepare(
     `SELECT st.skill, st.giver_id, u.name AS giver_name, st.event_id, e.title AS event_title
      FROM stripes st
      LEFT JOIN users u ON u.id = st.giver_id
      JOIN events e ON e.id = st.event_id
-     WHERE st.receiver_id = ?1
+     WHERE st.receiver_id = ?1 AND e.status IN ('published', 'cancelled') AND e.visibility IN (${visible})
      ORDER BY e.start_time DESC, st.event_id, st.giver_id, st.id`
   )
     .bind(userId)

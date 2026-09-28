@@ -3,6 +3,7 @@ import { json, unauthorized } from './_lib/http'
 import { getSessionUser } from './_lib/session'
 import { getPlayerResultsByUser, getPlayerSummary } from './_lib/playerResults'
 import { getLoginSettings } from './auth/_lib/settings'
+import { visibilitiesFor } from './_lib/visibility'
 import type { StripeSkill } from './_lib/stripes'
 
 // GET /api/members -> every signed-in account (club member or outsider),
@@ -25,7 +26,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
        WHERE r.user_id IS NOT NULL
          AND r.season = (SELECT MAX(r2.season) FROM roster r2 WHERE r2.user_id = r.user_id)`
     ),
-    env.DB.prepare(`SELECT receiver_id, skill, COUNT(*) AS n FROM stripes GROUP BY receiver_id, skill`),
+    // Same event filter as the profile (getMemberStripes), so a card's
+    // counts never disagree with the profile it links to.
+    env.DB.prepare(
+      `SELECT st.receiver_id, st.skill, COUNT(*) AS n FROM stripes st
+       JOIN events e ON e.id = st.event_id
+       WHERE e.status IN ('published', 'cancelled')
+         AND e.visibility IN (${visibilitiesFor(sessionUser.role).map((v) => `'${v}'`).join(', ')})
+       GROUP BY st.receiver_id, st.skill`
+    ),
     // Events where the viewer and this account were linked to the same
     // published team.
     env.DB.prepare(
@@ -60,7 +69,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   }
   const shared = new Map((sharedRows.results as { user_id: number; n: number }[]).map((r) => [r.user_id, r.n]))
 
-  const resultsByUser = await getPlayerResultsByUser(env, users)
+  const resultsByUser = await getPlayerResultsByUser(env, users, sessionUser.role)
 
   const members = []
   for (const u of users) {
