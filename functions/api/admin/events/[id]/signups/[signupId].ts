@@ -50,11 +50,17 @@ export const onRequestPut: PagesFunction<Env, 'id' | 'signupId', AdminData> = as
   const oldStatus = signup.status
 
   if (body.status !== undefined) {
-    await env.DB.prepare(
-      `UPDATE event_signups SET status = ?1, decided_at = CURRENT_TIMESTAMP, decided_by = ?2 WHERE id = ?3`
+    // Guarded on the status we read, so two admins acting at once can't both
+    // trigger the approval email or a waitlist promotion below.
+    const result = await env.DB.prepare(
+      `UPDATE event_signups SET status = ?1, decided_at = CURRENT_TIMESTAMP, decided_by = ?2
+       WHERE id = ?3 AND status = ?4`
     )
-      .bind(body.status, data.user.id, signupId)
+      .bind(body.status, data.user.id, signupId, oldStatus)
       .run()
+    if (result.meta.changes === 0) {
+      return json({ error: 'This signup changed while you were editing it — reload and try again' }, { status: 409 })
+    }
   }
   if (body.checked_in !== undefined) {
     await env.DB.prepare(`UPDATE event_signups SET checked_in_at = ?1 WHERE id = ?2`)
@@ -84,13 +90,13 @@ export const onRequestDelete: PagesFunction<Env, 'id' | 'signupId', AdminData> =
   const signupId = Number(params.signupId)
   if (!Number.isInteger(eventId) || !Number.isInteger(signupId)) return badRequest('Invalid id')
 
-  const signup = await env.DB.prepare(`SELECT status FROM event_signups WHERE id = ?1 AND event_id = ?2`)
+  // RETURNING the removed row's status means only the request that actually
+  // deleted an approved signup promotes someone from the waitlist.
+  const removed = await env.DB.prepare(`DELETE FROM event_signups WHERE id = ?1 AND event_id = ?2 RETURNING status`)
     .bind(signupId, eventId)
     .first<{ status: string }>()
-  if (!signup) return notFound('Signup not found')
-
-  await env.DB.prepare(`DELETE FROM event_signups WHERE id = ?1 AND event_id = ?2`).bind(signupId, eventId).run()
-  if (signup.status === 'approved') await promoteFromWaitlist(env, eventId)
+  if (!removed) return notFound('Signup not found')
+  if (removed.status === 'approved') await promoteFromWaitlist(env, eventId)
 
   await logAudit(env, data.user.id, 'delete', 'event_signups', signupId, { event_id: eventId })
   return json({ ok: true })

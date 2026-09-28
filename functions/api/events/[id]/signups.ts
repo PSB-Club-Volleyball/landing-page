@@ -1,6 +1,6 @@
 import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
-import { fetchFormFields, validateAnswer } from '../../_lib/forms'
+import { EMAIL_PATTERN, fetchFormFields, validateAnswer } from '../../_lib/forms'
 import { randomToken } from '../../_lib/crypto'
 import {
   buildCancelUrl,
@@ -10,8 +10,7 @@ import {
 } from '../../_lib/eventEmails'
 import { getSessionUser } from '../../_lib/session'
 import { isAtLeast } from '../../_lib/roles'
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+import { eventCutoff, eventEndWallClock } from '../../_lib/time'
 
 const SKILL_LEVEL_LABELS: Record<string, string> = {
   beginner: 'Beginner',
@@ -41,8 +40,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
   const event = await env.DB.prepare(
-    `SELECT id, title, start_time, location_name, status, visibility, signup_enabled, rsvp_gated, form_id, capacity,
-            signup_deadline, allowed_skill_levels, datetime(signup_deadline) < datetime('now') AS deadline_passed
+    `SELECT id, title, start_time, end_time, location_name, status, visibility, signup_enabled, rsvp_gated, form_id, capacity,
+            signup_deadline, allowed_skill_levels
      FROM events WHERE id = ?1`
   )
     .bind(eventId)
@@ -50,6 +49,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       id: number
       title: string
       start_time: string
+      end_time: string | null
       location_name: string | null
       status: string
       visibility: string
@@ -59,7 +59,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       capacity: number | null
       signup_deadline: string | null
       allowed_skill_levels: string | null
-      deadline_passed: number | null
     }>()
   if (!event || event.status !== 'published') return notFound('Event not found')
 
@@ -76,7 +75,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   }
 
   if (!event.signup_enabled) return badRequest('Signup is not open for this event')
-  if (event.signup_deadline && event.deadline_passed) return badRequest('Deadline for registration passed')
+  // Event times and signup_deadline are Eastern wall-clock strings (see
+  // _lib/time.ts), so compare them against Eastern "now", not SQLite's UTC
+  // datetime('now'). With no deadline, walk-ins can still RSVP to an event
+  // that's under way; only a finished event is closed.
+  const now = eventCutoff(0)
+  if (eventEndWallClock(event) <= now) return badRequest('This event has already ended')
+  if (event.signup_deadline && event.signup_deadline.slice(0, 16) <= now) {
+    return badRequest('Deadline for registration passed')
+  }
 
   const body = await request.json<Partial<SignupInput>>().catch(() => null)
   if (!body || !body.name?.trim() || !body.email?.trim()) return badRequest('name and email are required')
@@ -115,22 +122,27 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     if (error) return badRequest(error)
   }
 
+  // A form's max_responses is a cap across every event using that form.
+  let maxResponses: number | null = null
   if (event.form_id) {
     const form = await env.DB.prepare(`SELECT max_responses FROM forms WHERE id = ?1`)
       .bind(event.form_id)
       .first<{ max_responses: number | null }>()
-    if (form?.max_responses != null) {
-      const responseCount = await env.DB.prepare(
-        `SELECT COUNT(*) AS n FROM event_signups s JOIN events e ON e.id = s.event_id
-         WHERE e.form_id = ?1 AND s.status != 'denied'`
-      )
-        .bind(event.form_id)
-        .first<{ n: number }>()
-      if ((responseCount?.n ?? 0) >= form.max_responses) {
-        return badRequest('This form is no longer accepting responses')
-      }
-    }
+    // forms/[id].ts refuses to delete a form still attached to an event.
+    if (!form) throw new Error(`Event ${eventId} references missing form ${event.form_id}`)
+    maxResponses = form.max_responses
   }
+
+  // A user an admin has flagged as RSVP-restricted (repeated no-shows/late
+  // cancellations, say) never gets auto-confirmed, even on an event that
+  // isn't gated and has room — their signup still lands as a pending
+  // request an admin has to decide on. Already being over capacity still
+  // means the waitlist, same as anyone else.
+  const restricted = event.rsvp_gated
+    ? null
+    : await env.DB.prepare(`SELECT 1 FROM users WHERE LOWER(email) = ?1 AND rsvp_restricted = 1`)
+        .bind(email)
+        .first()
 
   // Gated events always take the request as 'pending', regardless of
   // capacity — every signup needs a manual decision anyway, and the admin
@@ -139,40 +151,31 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   // pending count reaches capacity would block people from ever getting in
   // that queue in the first place. Ungated events waitlist instead of
   // rejecting once approved seats run out.
-  let status: 'pending' | 'approved' | 'waitlist' = 'approved'
-  if (event.rsvp_gated) {
-    status = 'pending'
-  } else if (event.capacity !== null) {
-    const approvedCount = await env.DB.prepare(
-      `SELECT COUNT(*) AS n FROM event_signups WHERE event_id = ?1 AND status = 'approved'`
-    )
-      .bind(eventId)
-      .first<{ n: number }>()
-    status = (approvedCount?.n ?? 0) < event.capacity ? 'approved' : 'waitlist'
-  }
-
-  // A user an admin has flagged as RSVP-restricted (repeated no-shows/late
-  // cancellations, say) never gets auto-confirmed, even on an event that
-  // isn't gated and has room — their signup still lands as a pending
-  // request an admin has to decide on. Already being over capacity still
-  // means the waitlist, same as anyone else.
-  if (status === 'approved') {
-    const restricted = await env.DB.prepare(`SELECT 1 FROM users WHERE LOWER(email) = ?1 AND rsvp_restricted = 1`)
-      .bind(email)
-      .first()
-    if (restricted) status = 'pending'
-  }
+  const roomStatus = event.rsvp_gated || restricted ? 'pending' : 'approved'
+  const capacity = event.rsvp_gated ? null : event.capacity
 
   const filteredAnswers = Object.fromEntries(
     fields.filter((f) => answers[f.id] !== undefined).map((f) => [f.id, String(answers[f.id])])
   )
 
   const cancelToken = randomToken(24)
-  let signupId: number
+  let inserted: { id: number; status: 'pending' | 'approved' | 'waitlist' } | null
 
+  // The capacity and max_responses checks run inside the INSERT itself, so
+  // two signups racing for the last seat can't both be approved and a full
+  // form can't be overfilled — D1 runs each statement atomically. No row
+  // back means the form's max_responses was already reached.
   try {
-    const result = await env.DB.prepare(
-      `INSERT INTO event_signups (event_id, name, email, answers, cancel_token, status) VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+    inserted = await env.DB.prepare(
+      `INSERT INTO event_signups (event_id, name, email, answers, cancel_token, status)
+       SELECT ?1, ?2, ?3, ?4, ?5,
+              CASE WHEN ?7 IS NULL
+                     OR (SELECT COUNT(*) FROM event_signups WHERE event_id = ?1 AND status = 'approved') < ?7
+                   THEN ?6 ELSE 'waitlist' END
+       WHERE ?8 IS NULL
+          OR (SELECT COUNT(*) FROM event_signups s JOIN events e ON e.id = s.event_id
+              WHERE e.form_id = ?9 AND s.status != 'denied') < ?8
+       RETURNING id, status`
     )
       .bind(
         eventId,
@@ -180,10 +183,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
         email,
         Object.keys(filteredAnswers).length ? JSON.stringify(filteredAnswers) : null,
         cancelToken,
-        status
+        roomStatus,
+        capacity,
+        maxResponses,
+        event.form_id
       )
-      .run()
-    signupId = Number(result.meta.last_row_id)
+      .first<{ id: number; status: 'pending' | 'approved' | 'waitlist' }>()
   } catch (e) {
     // idx_event_signups_event_email is what this is meant to catch (a
     // cancel_token collision could theoretically also trip the unique-index
@@ -194,6 +199,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
     }
     throw e
   }
+  if (!inserted) return badRequest('This form is no longer accepting responses')
+  const signupId = inserted.id
+  const status = inserted.status
 
   const eventInfo = { title: event.title, start_time: event.start_time, location_name: event.location_name }
   const cancelUrl = buildCancelUrl(env, eventId, signupId, cancelToken)

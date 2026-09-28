@@ -27,3 +27,17 @@ export function easternWallClock(instant: Date): string {
 export function eventCutoff(hoursAgo = 0): string {
   return easternWallClock(new Date(Date.now() - hoursAgo * 60 * 60 * 1000))
 }
+
+// When an event is over, as an Eastern wall-clock "YYYY-MM-DDTHH:MM". No end
+// time means it ends when it starts. The admin form stores an overnight
+// event's end on its start date (7 PM - 12:30 AM ends "T00:30" the same day),
+// so an end before the start is the next day.
+export function eventEndWallClock(event: { start_time: string; end_time: string | null }): string {
+  const start = event.start_time.slice(0, 16)
+  if (event.end_time === null) return start
+  const end = event.end_time.slice(0, 16)
+  if (end >= start) return end
+  const ms = Date.parse(`${end}:00Z`)
+  if (Number.isNaN(ms)) throw new Error(`Bad event end_time: ${event.end_time}`)
+  return new Date(ms + 24 * 3_600_000).toISOString().slice(0, 16)
+}
