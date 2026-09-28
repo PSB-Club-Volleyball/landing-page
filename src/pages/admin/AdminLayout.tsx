@@ -61,7 +61,7 @@ function ConsoleTab({
     case 'forms':
       return <FormsAdmin isOwner={isOwner} />
     case 'media':
-      return <MediaAdmin isOwner={isOwner} />
+      return <MediaAdmin />
     case 'users':
       return <UsersAdmin currentUser={user} />
     case 'audit-log':

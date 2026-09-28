@@ -7,7 +7,7 @@ import { resizeImageForUpload } from '../../lib/imageResize'
 import { useSelection } from '../../lib/useSelection'
 import type { AdminEventRow, MediaItem, MediaType } from '../../types'
 
-function MediaAdmin({ isOwner }: { isOwner: boolean }) {
+function MediaAdmin() {
   const [media, setMedia] = useState<MediaItem[]>([])
   const [events, setEvents] = useState<AdminEventRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -151,11 +151,9 @@ function MediaAdmin({ isOwner }: { isOwner: boolean }) {
         </button>
       )}
       <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
-        {isOwner && (
-          <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
-            Delete selected
-          </button>
-        )}
+        <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
+          Delete selected
+        </button>
       </BulkActionBar>
 
       {loading && <p className="admin-note">Loading&hellip;</p>}
@@ -191,11 +189,9 @@ function MediaAdmin({ isOwner }: { isOwner: boolean }) {
                   </option>
                 ))}
               </select>
-              {isOwner && (
-                <button type="button" className="danger media-admin-delete" onClick={() => handleDelete(item.id)}>
-                  Delete
-                </button>
-              )}
+              <button type="button" className="danger media-admin-delete" onClick={() => handleDelete(item.id)}>
+                Delete
+              </button>
             </li>
           ))}
         </ul>
