@@ -1,5 +1,6 @@
 import type {
   AuthUser,
+  EventStripes,
   BoardMember,
   FormWithFields,
   MediaItem,
@@ -10,6 +11,7 @@ import type {
   PublicMemberProfile,
   SignupStatus,
   SkillLevel,
+  StripeSkill,
 } from '../types'
 import type { LoginProviders } from './signInOptions'
 
@@ -129,6 +131,25 @@ export function getMembers(): Promise<{ members: MemberSummary[] }> {
   })
   membersCache = { promise, expiresAt: Date.now() + MEMBERS_CACHE_TTL_MS }
   return promise
+}
+
+export function getEventStripes(eventId: number): Promise<EventStripes> {
+  return getJson(`/api/events/${eventId}/stripes`)
+}
+
+// Award (award=true) or take back one stripe. Throws with the server's
+// reason (window locked, not a teammate, …) so the page can show it.
+export async function setStripe(eventId: number, receiverId: number, skill: StripeSkill, award: boolean): Promise<void> {
+  const res = await fetch(`/api/events/${eventId}/stripes`, {
+    method: award ? 'POST' : 'DELETE',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ receiver_id: receiverId, skill }),
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string })
+    throw new ApiError(res.status, body.error || `Stripe update failed (${res.status})`)
+  }
 }
 
 export function getMemberProfile(id: number): Promise<{ member: PublicMemberProfile }> {

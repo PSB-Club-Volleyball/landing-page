@@ -657,6 +657,272 @@ main {
   background: color-mix(in srgb, var(--page-fg) 8%, transparent);
   color: var(--muted);
 }
+/* Stripes on a member profile: skill bars, character tags, and who awarded
+   them. Ace marks the counts, matching the stat numbers above. */
+.mp-stripes {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  margin: 0 0 1.75rem;
+}
+.mp-stripes-main,
+.mp-stripes-side {
+  border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 1.25rem;
+}
+/* Doubled class so it outranks .legal-page h2/ul/li, which come later. */
+.mp-stripes .mp-stripes-head h2 {
+  margin: 0 0 0.25rem;
+}
+.mp-stripes .mp-stripes-side h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+.mp-stripes-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.mp-stripes-head p {
+  margin: 0;
+}
+.mp-stripes-how {
+  max-width: 16rem;
+  text-align: right;
+}
+.mp-stripes .mp-stripe-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.mp-stripes .mp-stripe-bars li {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 6.5rem 1fr 2.5rem;
+  gap: 0.85rem;
+  align-items: center;
+}
+.mp-stripe-label {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.mp-stripe-track {
+  height: 10px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--page-fg) 8%, transparent);
+  overflow: hidden;
+}
+.mp-stripe-fill {
+  display: block;
+  height: 100%;
+  background: var(--ace);
+}
+.mp-stripe-n {
+  text-align: right;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.mp-stripe-traits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
+}
+.mp-stripe-traits-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.mp-stripe-trait {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  border-radius: var(--radius-xs);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+.mp-stripes .mp-stripes-side ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.mp-stripes .mp-stripes-side li {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 8%, transparent);
+}
+.mp-stripes-side a {
+  font-weight: 700;
+  color: var(--ace-fg);
+}
+@media (max-width: 760px) {
+  .mp-stripes {
+    grid-template-columns: 1fr;
+  }
+  .mp-stripes-head {
+    flex-direction: column;
+  }
+  .mp-stripes-how {
+    text-align: left;
+  }
+}
+
+/* Event page Stripes tab: the award window banner and one collapsible row
+   per teammate with a toggle per skill. */
+.stripes-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: 40rem;
+}
+.stripes-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--chalk);
+  box-shadow: inset 0 3px 0 var(--ace);
+}
+.stripes-banner span {
+  font-size: 0.88rem;
+  color: color-mix(in srgb, var(--chalk) 78%, transparent);
+}
+.stripes-banner.is-locked {
+  background: transparent;
+  color: var(--page-fg);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  box-shadow: none;
+}
+.stripes-banner.is-locked span {
+  color: var(--muted);
+}
+.stripes-mates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.stripes-mates > li {
+  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  border-radius: var(--radius-sm);
+}
+.stripes-mates > li.is-open {
+  border: 2px solid var(--page-fg);
+}
+.stripes-mate-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 0.9rem;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.stripes-mate-name {
+  font-weight: 800;
+}
+.stripes-mate-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0 0.9rem 0.9rem;
+}
+.stripes-profile-link {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ace-fg);
+}
+.stripes-chips {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.stripe-chip {
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.stripe-chip.on {
+  border: 2px solid var(--ace-fg);
+  background: color-mix(in srgb, var(--ace) 18%, transparent);
+}
+.stripe-chip:disabled {
+  cursor: progress;
+}
+.stripes-summary {
+  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.9rem 1rem;
+}
+.stripes-summary h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.stripes-summary p {
+  margin: 0.4rem 0 0;
+}
+.stripes-tags,
+.stripes-given-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.stripes-given-list {
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.stripes-tags li {
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--ace) 16%, transparent);
+  color: var(--ace-fg);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+@media (min-width: 640px) {
+  .stripes-chips {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .mp-stats-row {
   display: flex;
   gap: 1.75rem;

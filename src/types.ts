@@ -493,6 +493,32 @@ export interface PublicMemberProfile {
     currentStreak: number
   }
   results: PlayerResult[]
+  stripes: MemberStripes
+}
+
+// Stripes: teammate-awarded recognition, earned at an event (see
+// functions/api/_lib/stripes.ts). Keys match the DB's CHECK list.
+export type StripeSkill = 'serving' | 'passing' | 'setting' | 'hitting' | 'blocking' | 'digging' | 'hustle' | 'teammate'
+
+export interface MemberStripes {
+  total: number
+  giver_count: number
+  counts: { skill: StripeSkill; count: number }[]
+  // giver_id is null when the giver's account was deleted.
+  awards: { giver_id: number | null; giver_name: string | null; event_id: number; event_title: string; skills: StripeSkill[] }[]
+}
+
+// GET /api/events/:id/stripes — the signed-in player's view of one event.
+export interface EventStripes {
+  window: {
+    opens_at: string
+    closes_at: string
+    state: 'upcoming' | 'open' | 'closed'
+    closes_in_minutes: number | null
+  }
+  team: { id: number; name: string } | null
+  teammates: { user_id: number; name: string | null; given: StripeSkill[] }[]
+  received: { skill: StripeSkill; from_user_id: number | null; from_name: string | null }[]
 }
 
 export interface AuditEntry {
