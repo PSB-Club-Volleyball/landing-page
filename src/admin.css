@@ -1017,6 +1017,50 @@
   font-size: 0.8rem;
   padding: 0.25rem 0.4rem;
 }
+.bulk-set {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.bulk-actions .bulk-apply {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0.3rem 0.8rem;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: var(--ace);
+  color: var(--ink);
+  cursor: pointer;
+}
+.bulk-actions .bulk-apply:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.admin-bulk-note {
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  font-size: 0.85rem;
+}
+/* Phones: the Users bar stacks, with full-width 44px controls. Scoped with
+   :has so other pages' bulk bars keep their layout. */
+@media (max-width: 640px) {
+  .bulk-actions:has(.bulk-set),
+  .bulk-set {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .bulk-set select,
+  .bulk-actions .bulk-apply {
+    min-height: 44px;
+    font-size: 0.95rem;
+  }
+}
 .select-col {
   width: 1.6rem;
 }
@@ -2783,6 +2827,10 @@
   .users-table td.user-edit,
   .events-table td.events-row-actions {
     order: 1;
+  }
+  /* Users only has a narrow Edit button, so less room is left for it. */
+  .users-table td.user-person {
+    flex-basis: calc(100% - 4.5rem);
   }
   .users-table td.user-role,
   .users-table td.user-pos,
