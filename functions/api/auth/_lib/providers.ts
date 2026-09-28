@@ -27,8 +27,10 @@ export function getProvider(name: string, env: Env): ProviderConfig | null {
   //                      tenant endpoint (the /common endpoint rejects a
   //                      single-tenant app with AADSTS50194).
   //   microsoft-other -> a separate multi-tenant + personal-accounts app on
-  //                      /common. The callback accepts only personal (MSA)
-  //                      accounts from it; see isPersonalMicrosoftAccount.
+  //                      the /consumers endpoint, so Microsoft's own sign-in
+  //                      page only offers personal (MSA) accounts. The
+  //                      callback still checks the tid too; see
+  //                      isPersonalMicrosoftAccount.
   // Both use Microsoft's OIDC userinfo endpoint, which returns the same
   // sub/email/name claim shape as Google's — normalizeProfile needs no
   // provider-specific case.
@@ -52,8 +54,8 @@ export function getProvider(name: string, env: Env): ProviderConfig | null {
       throw new Error('MICROSOFT_OTHER_CLIENT_ID / MICROSOFT_OTHER_CLIENT_SECRET not set')
     }
     return {
-      authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-      tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+      authUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
+      tokenUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
       userinfoUrl: 'https://graph.microsoft.com/oidc/userinfo',
       scope: 'openid email profile',
       clientId: env.MICROSOFT_OTHER_CLIENT_ID,

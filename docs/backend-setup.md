@@ -105,7 +105,8 @@ registration:
   (`wrangler.toml`, default `psu.edu`) rather than `/common`. Serves Penn State
   / Behrend accounts.
 - **`microsoft-other`** — a separate registration you own, configured
-  multi-tenant + personal accounts, hardcoded to `/common`. The callback accepts
+  multi-tenant + personal accounts, hardcoded to the `/consumers` endpoint so
+  Microsoft's sign-in page only offers personal accounts. The callback also accepts
   only personal Microsoft accounts (Outlook, Hotmail, Live — the id_token's
   `tid` is the consumer tenant `9188040d-6c67-4c5b-b112-36a304b66dad`) and
   rejects every work/school tenant with `?error=personal_accounts_only`, since a
