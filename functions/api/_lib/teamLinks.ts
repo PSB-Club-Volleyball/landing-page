@@ -10,7 +10,7 @@ const IN_EVENT = `team_id IN (SELECT id FROM event_teams WHERE event_id = ?1)`
 
 // Links every still-unlinked team member of one event to an account, using
 // the same two passes as migration 0031's backfill:
-//   1. signup email == account email, unless that account is already linked
+//   1. signup email is one of an account's emails, unless that account is already linked
 //      to another member of the event
 //   2. name == exactly one account's name (case-insensitive), unless that
 //      account is already linked to another member of the event or two
@@ -23,17 +23,31 @@ export function autoLinkStatements(env: Env, eventId: number): D1PreparedStateme
     env.DB.prepare(
       `UPDATE event_team_members
        SET user_id = (
-         SELECT u.id FROM event_signups s
-         JOIN users u ON LOWER(u.email) = LOWER(s.email)
+         SELECT ue.user_id FROM event_signups s
+         JOIN user_emails ue ON ue.email = LOWER(s.email)
          WHERE s.id = event_team_members.signup_id
        )
        WHERE user_id IS NULL AND signup_id IS NOT NULL AND ${IN_EVENT}
+         -- An account can hold several emails, so two unlinked members of the
+         -- event may match the same one; only the earliest links. (The NOT
+         -- EXISTS below only sees links made before this statement.)
+         AND event_team_members.id = (
+           SELECT MIN(m.id) FROM event_team_members m
+           JOIN event_teams mt ON mt.id = m.team_id
+           JOIN event_signups ms ON ms.id = m.signup_id
+           JOIN user_emails mue ON mue.email = LOWER(ms.email)
+           WHERE mt.event_id = ?1 AND m.user_id IS NULL
+             AND mue.user_id = (
+               SELECT ue.user_id FROM event_signups s JOIN user_emails ue ON ue.email = LOWER(s.email)
+               WHERE s.id = event_team_members.signup_id
+             )
+         )
          AND NOT EXISTS (
            SELECT 1 FROM event_team_members o
            JOIN event_teams ot ON ot.id = o.team_id
            JOIN event_signups s ON s.id = event_team_members.signup_id
-           JOIN users u ON u.id = o.user_id
-           WHERE ot.event_id = ?1 AND LOWER(u.email) = LOWER(s.email)
+           JOIN user_emails ue ON ue.user_id = o.user_id
+           WHERE ot.event_id = ?1 AND ue.email = LOWER(s.email)
          )`
     ).bind(eventId),
     env.DB.prepare(

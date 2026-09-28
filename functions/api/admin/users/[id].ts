@@ -3,6 +3,7 @@ import { badRequest, json, notFound } from '../../_lib/http'
 import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
 import { ensureRosterEntry } from '../_lib/roster'
+import { normalizeEmail } from '../_lib/userEmails'
 
 const SETTABLE_ROLES = ['outsider', 'club_member', 'admin'] as const
 type SettableRole = (typeof SETTABLE_ROLES)[number]
@@ -21,9 +22,12 @@ interface UsersPatchInput {
   waiver_signed?: boolean
   dues_paid?: boolean
   rsvp_restricted?: boolean
+  primary_email?: string
 }
 
-// PUT /api/admin/users/:id  Body: any subset of { role, name, position, team, skill_level, skill_level_locked, skill_level_change_requested, waiver_signed, dues_paid, rsvp_restricted }
+// PUT /api/admin/users/:id  Body: any subset of { role, name, position, team, skill_level, skill_level_locked, skill_level_change_requested, waiver_signed, dues_paid, rsvp_restricted, primary_email }
+// primary_email picks which of the account's emails (user_emails) is the
+// one shown and exported; it must already be one of them.
 // Any admin can promote/demote between outsider and club_member, edit a
 // member's display name/position/team, and mark/unmark a waiver or dues as
 // on file for the current year — the latter is an annual, admin-verified
@@ -160,6 +164,18 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     values.push(body.rsvp_restricted ? 1 : 0)
     setClauses.push(`rsvp_restricted = ?${values.length}`)
     auditDetails.rsvp_restricted = body.rsvp_restricted
+  }
+
+  if (body.primary_email !== undefined) {
+    const email = normalizeEmail(body.primary_email)
+    if (!email) return badRequest('primary_email must be an email address')
+    const owned = await env.DB.prepare(`SELECT 1 FROM user_emails WHERE user_id = ?1 AND email = ?2`)
+      .bind(id, email)
+      .first()
+    if (!owned) return badRequest("primary_email must be one of this account's emails")
+    values.push(email)
+    setClauses.push(`email = ?${values.length}`)
+    auditDetails.primary_email = email
   }
 
   if (setClauses.length === 0) return badRequest('No recognized fields to update')

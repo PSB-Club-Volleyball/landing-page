@@ -49,9 +49,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
   let mySignup: { id: number; status: string } | null = null
   if (sessionUser) {
     mySignup = await env.DB.prepare(
-      `SELECT id, status FROM event_signups WHERE event_id = ?1 AND LOWER(email) = ?2`
+      `SELECT id, status FROM event_signups
+       WHERE event_id = ?1 AND LOWER(email) IN (SELECT email FROM user_emails WHERE user_id = ?2)
+       ORDER BY CASE status WHEN 'approved' THEN 0 WHEN 'pending' THEN 1 WHEN 'waitlist' THEN 2 ELSE 3 END, created_at DESC, id DESC`
     )
-      .bind(id, sessionUser.email.toLowerCase())
+      .bind(id, sessionUser.id)
       .first<{ id: number; status: string }>()
   }
 
