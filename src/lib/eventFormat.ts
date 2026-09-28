@@ -1,4 +1,4 @@
-import type { PlayFormat, PublicClubEvent, SkillLevel } from '../types'
+import type { PlayFormat, PublicClubEvent, SignupStatus, SkillLevel } from '../types'
 
 export const EVENT_TYPE_LABELS: Record<string, string> = {
   practice: 'Practice',
@@ -64,6 +64,27 @@ export function getSignupState(event: PublicClubEvent) {
       ? 'RSVP'
       : 'Sign up'
   return { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb }
+}
+
+// The signup button's label; `closedLabel` is what it says once the
+// deadline has passed (each surface words that to fit its space).
+export function signupButtonLabel(
+  { deadlinePassed, joinsWaitlist, blocksSignup, verb }: ReturnType<typeof getSignupState>,
+  closedLabel: string
+): string {
+  return deadlinePassed ? closedLabel : joinsWaitlist ? 'Join waitlist' : blocksSignup ? 'Full' : verb
+}
+
+// Where the viewer's own signup stands. A null status predates approvals
+// and counts as going.
+export function signupStatusLabel(status: SignupStatus | null): string {
+  return status === 'pending'
+    ? 'Request pending'
+    : status === 'denied'
+      ? 'Not approved'
+      : status === 'waitlist'
+        ? 'On the waitlist'
+        : "You’re going"
 }
 
 // Signed difference with a real minus sign ("+12", "−3", "0") for score

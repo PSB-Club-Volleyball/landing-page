@@ -1,5 +1,5 @@
 import type { AuthUser } from '../../types'
-import { logout } from '../../lib/adminApi'
+import { logout } from '../../lib/api'
 
 function AdminNotAdmin({ user }: { user: AuthUser }) {
   return (

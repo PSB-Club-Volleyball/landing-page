@@ -10,6 +10,7 @@ import {
   formatSignupDeadline,
   formatTimeRange,
   getSignupState,
+  signupButtonLabel,
 } from '../lib/eventFormat'
 import { plainTextPreview } from '../lib/markdown'
 import type { AuthUser, PublicClubEvent, SignupStatus } from '../types'
@@ -27,7 +28,8 @@ function EventCard({
 }) {
   const navigate = useNavigate()
   const detailHref = `/events/${event.id}`
-  const { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb } = getSignupState(event)
+  const signupState = getSignupState(event)
+  const { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb } = signupState
   const tags = event.tags
     ? event.tags.split(',').map((t) => t.trim()).filter(Boolean)
     : []
@@ -134,7 +136,7 @@ function EventCard({
                 onOpenSignup(event)
               }}
             >
-              {deadlinePassed ? 'Deadline for registration passed' : joinsWaitlist ? 'Join waitlist' : blocksSignup ? 'Full' : verb}
+              {signupButtonLabel(signupState, 'Deadline for registration passed')}
             </button>
           )}
         </div>
@@ -142,6 +144,45 @@ function EventCard({
       {event.status !== 'cancelled' && event.signup_enabled && !mySignupId && !deadlinePassed && event.signup_deadline && (
         <p className="event-card-deadline">Signup closes {formatSignupDeadline(event.signup_deadline)}</p>
       )}
+    </div>
+  )
+}
+
+// Buckets events by the date part of start_time, keeping list order.
+function groupByDay(events: PublicClubEvent[]): [string, PublicClubEvent[]][] {
+  const groups = new Map<string, PublicClubEvent[]>()
+  for (const event of events) {
+    const dayKey = event.start_time.slice(0, 10)
+    if (!groups.has(dayKey)) groups.set(dayKey, [])
+    groups.get(dayKey)!.push(event)
+  }
+  return [...groups.entries()]
+}
+
+function DayGroup({
+  dayKey,
+  events,
+  onOpenSignup,
+  onManageSignup,
+}: {
+  dayKey: string
+  events: PublicClubEvent[]
+  onOpenSignup: (e: PublicClubEvent) => void
+  onManageSignup: (e: PublicClubEvent, signupId: number, status: SignupStatus | null) => void
+}) {
+  return (
+    <div className="day-group">
+      <div className="day-label">
+        {formatEventDate(`${dayKey}T00:00`)}{' '}
+        <span className="day-label-count">
+          {events.length} event{events.length === 1 ? '' : 's'}
+        </span>
+      </div>
+      <div className="card-grid">
+        {events.map((event) => (
+          <EventCard key={event.id} event={event} onOpenSignup={onOpenSignup} onManageSignup={onManageSignup} />
+        ))}
+      </div>
     </div>
   )
 }
@@ -203,19 +244,8 @@ function Events() {
       .finally(() => setPastLoading(false))
   }
 
-  const groups = new Map<string, PublicClubEvent[]>()
-  for (const event of events ?? []) {
-    const dayKey = event.start_time.slice(0, 10)
-    if (!groups.has(dayKey)) groups.set(dayKey, [])
-    groups.get(dayKey)!.push(event)
-  }
-
-  const pastGroups = new Map<string, PublicClubEvent[]>()
-  for (const event of pastEvents ?? []) {
-    const dayKey = event.start_time.slice(0, 10)
-    if (!pastGroups.has(dayKey)) pastGroups.set(dayKey, [])
-    pastGroups.get(dayKey)!.push(event)
-  }
+  const onManageSignup = (e: PublicClubEvent, signupId: number, status: SignupStatus | null) =>
+    setManage({ event: e, signupId, status })
 
   return (
     <main id="main-content" tabIndex={-1}>
@@ -244,25 +274,14 @@ function Events() {
           <>
             <p className="events-page-note">RSVP or sign up below &mdash; no account needed.</p>
 
-            {[...groups.entries()].map(([dayKey, dayEvents]) => (
-              <div className="day-group" key={dayKey}>
-                <div className="day-label">
-                  {formatEventDate(`${dayKey}T00:00`)}{' '}
-                  <span className="day-label-count">
-                    {dayEvents.length} event{dayEvents.length === 1 ? '' : 's'}
-                  </span>
-                </div>
-                <div className="card-grid">
-                  {dayEvents.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onOpenSignup={setSignupEvent}
-                      onManageSignup={(e, signupId, status) => setManage({ event: e, signupId, status })}
-                    />
-                  ))}
-                </div>
-              </div>
+            {groupByDay(events).map(([dayKey, dayEvents]) => (
+              <DayGroup
+                key={dayKey}
+                dayKey={dayKey}
+                events={dayEvents}
+                onOpenSignup={setSignupEvent}
+                onManageSignup={onManageSignup}
+              />
             ))}
           </>
         )}
@@ -285,25 +304,14 @@ function Events() {
             )}
             {!pastLoading &&
               !pastError &&
-              [...pastGroups.entries()].map(([dayKey, dayEvents]) => (
-                <div className="day-group" key={dayKey}>
-                  <div className="day-label">
-                    {formatEventDate(`${dayKey}T00:00`)}{' '}
-                    <span className="day-label-count">
-                      {dayEvents.length} event{dayEvents.length === 1 ? '' : 's'}
-                    </span>
-                  </div>
-                  <div className="card-grid">
-                    {dayEvents.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        onOpenSignup={setSignupEvent}
-                        onManageSignup={(e, signupId, status) => setManage({ event: e, signupId, status })}
-                      />
-                    ))}
-                  </div>
-                </div>
+              groupByDay(pastEvents ?? []).map(([dayKey, dayEvents]) => (
+                <DayGroup
+                  key={dayKey}
+                  dayKey={dayKey}
+                  events={dayEvents}
+                  onOpenSignup={setSignupEvent}
+                  onManageSignup={onManageSignup}
+                />
               ))}
           </div>
         )}

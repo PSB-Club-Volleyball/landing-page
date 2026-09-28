@@ -1,11 +1,6 @@
+import { scoreLine } from '../lib/matchFormat'
 import type { EventMatch } from '../types'
 import { BracketColumns } from './BracketColumns'
-
-function scoreLine(m: EventMatch): string | null {
-  if (m.forfeit_team_id != null) return 'Forfeit'
-  if (!m.scores || m.scores.length === 0) return null
-  return m.scores.map(([a, b]) => `${a}–${b}`).join(', ')
-}
 
 // The champion is the winner of the last decided grand-final game (double
 // elim) or the last winners-bracket round (single elim).

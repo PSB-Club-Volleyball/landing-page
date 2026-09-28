@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { buildPages, FieldInput } from '../../lib/formFields'
-import type { PreviewableField } from '../../lib/formFields'
+import { FieldInput } from '../../lib/formFields'
+import { buildPages } from '../../lib/formPages'
+import type { PreviewableField } from '../../lib/formPages'
 import { linkifyText } from '../../lib/markdown'
 import { useTopmostEscape } from './modalStack'
 

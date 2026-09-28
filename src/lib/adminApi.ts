@@ -22,6 +22,7 @@ import type {
   TeamsResponse,
   UserRole,
 } from '../types'
+import { clearAuthCaches } from './api'
 
 interface FormInput {
   name: string
@@ -36,6 +37,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { 'content-type': 'application/json' },
     ...init,
   })
+  if (init?.method && init.method !== 'GET') clearAuthCaches()
   if (!res.ok) {
     const body = await res.json().catch(() => ({}) as { error?: string })
     throw new Error(body.error || `${path} responded ${res.status}`)
@@ -177,8 +179,4 @@ export const adminApi = {
     update: (input: LoginSettings) =>
       request<{ ok: true }>('/api/admin/settings', { method: 'PUT', body: JSON.stringify(input) }),
   },
-}
-
-export function logout(): Promise<{ ok: true }> {
-  return request('/api/auth/logout', { method: 'POST' })
 }
