@@ -60,13 +60,23 @@ export function validateBracketMatches(matches: unknown, teamIds: Set<number>): 
   }
 
   const fedSides = new Set<string>()
+  const roundTeams = new Set<string>() // "bracket/round/team" for elimination matches
   for (const m of list) {
     for (const key of ['team_a_id', 'team_b_id'] as const) {
       const v = m[key]
       if (v !== null && (typeof v !== 'number' || !teamIds.has(v))) return 'a match references a team that is not on this event'
     }
     if (m.team_a_id != null && m.team_a_id === m.team_b_id) return 'a match has the same team on both sides'
+    if (m.bracket !== 'pool') {
+      for (const t of [m.team_a_id, m.team_b_id]) {
+        if (t == null) continue
+        const rk = `${m.bracket}/${m.round}/${t}`
+        if (roundTeams.has(rk)) return 'a team appears twice in the same bracket round'
+        roundTeams.add(rk)
+      }
+    }
     if (m.pool != null && (typeof m.pool !== 'string' || m.pool.length > 4)) return 'pool label must be a short string'
+    if (m.court != null && (typeof m.court !== 'string' || m.court.length > 8)) return 'court label must be a short string'
 
     for (const wire of ['winner_to', 'loser_to'] as const) {
       if (!validTarget(m[wire], keys)) return 'a match is wired to a slot that does not exist'
@@ -125,7 +135,7 @@ export function insertMatchStatement(env: Env, eventId: number, m: WireMatch) {
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)`
   ).bind(
     eventId,
-    m.bracket || 'pool',
+    m.bracket,
     m.pool ?? null,
     m.round,
     m.slot,

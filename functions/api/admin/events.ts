@@ -4,6 +4,7 @@ import type { AdminData } from './_lib/types'
 import { logAudit } from './_lib/audit'
 import { expandOccurrences, validateRecurrence } from './_lib/recurrence'
 import { eventCutoff } from '../_lib/time'
+import { validateEventInput } from './_lib/events'
 
 // GET /api/admin/events -> every event regardless of status (drafts included),
 // joined with the attached form's name and signup count for the table.
@@ -52,16 +53,16 @@ interface EventInput {
   allowed_skill_levels?: string | null
 }
 
-// POST /api/admin/events -> create an event (defaults to draft). When
-// recurrence_days + recurrence_until are given, this creates one real row
-// per weekly occurrence instead of a single recurring row — each occurrence
-// is an independent event with its own signups, sharing a series_id purely
-// so the admin table can show them as a group.
+// Allowed values mirror src/types.ts (EventStatus / EventVisibility) and the
+// event-type <select> in src/pages/admin/eventForm.tsx.
 export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ request, env, data }) => {
   const body = await request.json<Partial<EventInput>>().catch(() => null)
   if (!body || !body.title || !body.event_type || !body.start_time) {
     return badRequest('title, event_type, and start_time are required')
   }
+
+  const inputError = await validateEventInput(env, body)
+  if (inputError) return badRequest(inputError)
 
   const recurrenceError = validateRecurrence(body.recurrence_days, body.recurrence_until)
   if (recurrenceError) return badRequest(recurrenceError)
@@ -77,41 +78,45 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
     occurrences = [{ start_time: body.start_time, end_time: body.end_time ?? null }]
   }
 
-  const insertOne = (start_time: string, end_time: string | null, seriesId: number | null) =>
+  // `seriesIdSql` is a SQL expression, not a bound value, so a series can be
+  // written in one batch (one transaction — a failure or retry can't leave a
+  // partial series): the root is inserted, points series_id at itself, and
+  // each later occurrence copies series_id from the row inserted just before
+  // it (last_insert_rowid() tracks the previous INSERT within the batch).
+  const insertOne = (start_time: string, end_time: string | null, seriesIdSql: string) =>
     env.DB.prepare(
       `INSERT INTO events (title, description, event_type, start_time, end_time, location_name, location_address, status, visibility, signup_enabled, rsvp_gated, form_id, capacity, series_id, tags, signup_deadline, allowed_skill_levels)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)`
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ${seriesIdSql}, ?14, ?15, ?16)`
+    ).bind(
+      body.title,
+      body.description ?? null,
+      body.event_type,
+      start_time,
+      end_time,
+      body.location_name ?? null,
+      body.location_address ?? null,
+      body.status ?? 'draft',
+      body.visibility ?? 'public',
+      body.signup_enabled ? 1 : 0,
+      body.rsvp_gated ? 1 : 0,
+      body.form_id ?? null,
+      body.capacity ?? null,
+      body.tags?.trim() || null,
+      body.signup_deadline || null,
+      body.allowed_skill_levels?.trim() || null
     )
-      .bind(
-        body.title,
-        body.description ?? null,
-        body.event_type,
-        start_time,
-        end_time,
-        body.location_name ?? null,
-        body.location_address ?? null,
-        body.status ?? 'draft',
-        body.visibility ?? 'public',
-        body.signup_enabled ? 1 : 0,
-        body.rsvp_gated ? 1 : 0,
-        body.form_id ?? null,
-        body.capacity ?? null,
-        seriesId,
-        body.tags?.trim() || null,
-        body.signup_deadline || null,
-        body.allowed_skill_levels?.trim() || null
-      )
-      .run()
 
-  const first = await insertOne(occurrences[0].start_time, occurrences[0].end_time, null)
-  const id = Number(first.meta.last_row_id)
-
+  const statements = [insertOne(occurrences[0].start_time, occurrences[0].end_time, 'NULL')]
   if (occurrences.length > 1) {
-    await env.DB.prepare(`UPDATE events SET series_id = ?1 WHERE id = ?1`).bind(id).run()
+    statements.push(env.DB.prepare(`UPDATE events SET series_id = id WHERE id = last_insert_rowid()`))
     for (const occ of occurrences.slice(1)) {
-      await insertOne(occ.start_time, occ.end_time, id)
+      statements.push(
+        insertOne(occ.start_time, occ.end_time, '(SELECT series_id FROM events WHERE id = last_insert_rowid())')
+      )
     }
   }
+  const results = await env.DB.batch(statements)
+  const id = Number(results[0].meta.last_row_id)
 
   await logAudit(env, data.user.id, 'create', 'events', id, { ...body, occurrence_count: occurrences.length })
   return json({ id, occurrence_count: occurrences.length }, { status: 201 })

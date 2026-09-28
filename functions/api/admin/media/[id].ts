@@ -15,6 +15,15 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 
   const updates = FIELDS.filter((field) => field in body)
   if (updates.length === 0) return badRequest('No recognized fields to update')
+  if ('caption' in body && body.caption !== null && typeof body.caption !== 'string') {
+    return badRequest('caption must be a string or null')
+  }
+  if ('sort_order' in body && !Number.isInteger(body.sort_order)) return badRequest('sort_order must be an integer')
+  if ('event_id' in body && body.event_id !== null) {
+    if (!Number.isInteger(body.event_id)) return badRequest('event_id must be an event id or null')
+    const event = await env.DB.prepare(`SELECT 1 FROM events WHERE id = ?1`).bind(body.event_id).first()
+    if (!event) return badRequest('event_id does not match an existing event')
+  }
 
   const setClause = updates.map((field, i) => `${field} = ?${i + 1}`).join(', ')
   const values = updates.map((field) => body[field])

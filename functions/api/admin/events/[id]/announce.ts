@@ -36,14 +36,31 @@ export const onRequestPost: PagesFunction<Env, 'id', AdminData> = async ({ reque
   const message = body.message.trim()
   const eventInfo = { title: event.title, start_time: event.start_time, location_name: event.location_name }
 
-  for (const r of recipients.results ?? []) {
-    await sendEventAnnouncementEmail(env, r.email, r.name, eventInfo, subject, message)
+  const list = recipients.results ?? []
+  let sent = 0
+  for (const r of list) {
+    if (await sendEventAnnouncementEmail(env, r.email, r.name, eventInfo, subject, message)) sent++
   }
+  const failed = list.length - sent
 
   await logAudit(env, data.user.id, 'create', 'event_announcements', eventId, {
     subject,
-    recipient_count: recipients.results?.length ?? 0,
+    recipient_count: list.length,
+    sent_count: sent,
   })
 
-  return json({ ok: true, recipient_count: recipients.results?.length ?? 0 })
+  // Nothing went out: an error, and resending is safe. A partial failure is
+  // reported with counts instead, because resending would re-email the
+  // people who already got it.
+  if (list.length > 0 && sent === 0) {
+    return json(
+      {
+        error: `Sent to ${sent} of ${list.length} recipients — ${failed} failed (see the server logs)`,
+        recipient_count: list.length,
+        sent_count: sent,
+      },
+      { status: 502 }
+    )
+  }
+  return json({ ok: true, recipient_count: list.length, sent_count: sent, failed_count: failed })
 }
