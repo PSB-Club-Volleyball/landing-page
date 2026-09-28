@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import SignupModal from '../components/SignupModal'
+import { GROUPME_URL } from '../constants'
 import { getEvents, getMe } from '../lib/api'
 import {
   directionsUrl,
@@ -167,14 +168,21 @@ function Events() {
   function refresh() {
     getEvents()
       .then((res) => setEvents(res.events))
-      .catch(() => setError(true))
+      .catch((err: unknown) => {
+        console.error('Failed to load events', err)
+        setError(true)
+      })
   }
 
   useEffect(refresh, [])
   useEffect(() => {
     getMe()
       .then((res) => setUser(res.user))
-      .catch(() => setUser(null))
+      .catch((err: unknown) => {
+        // Past events are a signed-in extra; an auth outage just hides it.
+        console.error('Failed to load session', err)
+        setUser(null)
+      })
   }, [])
 
   function togglePast() {
@@ -188,7 +196,10 @@ function Events() {
     setPastError(false)
     getEvents({ past: true })
       .then((res) => setPastEvents(res.events))
-      .catch(() => setPastError(true))
+      .catch((err: unknown) => {
+        console.error('Failed to load past events', err)
+        setPastError(true)
+      })
       .finally(() => setPastLoading(false))
   }
 
@@ -212,14 +223,21 @@ function Events() {
         <h1>Events</h1>
         {error && (
           <p className="placeholder-note">
-            Couldn&rsquo;t load events right now &mdash; try refreshing, or check our GroupMe below.
+            Couldn&rsquo;t load events right now &mdash; try refreshing, or check our{' '}
+            <a className="inline-link" href={GROUPME_URL} target="_blank" rel="noreferrer">
+              GroupMe
+            </a>
+            .
           </p>
         )}
         {!error && events !== null && events.length === 0 && (
           <p className="placeholder-note">
             There are no practices right now while the board decides on tryouts. In the meantime,
-            we&rsquo;re holding weekly open gyms &mdash; join our GroupMe below for times and
-            details. Tournament dates will be posted here once the season is set.
+            we&rsquo;re holding weekly open gyms &mdash; join our{' '}
+            <a className="inline-link" href={GROUPME_URL} target="_blank" rel="noreferrer">
+              GroupMe
+            </a>{' '}
+            for times and details. Tournament dates will be posted here once the season is set.
           </p>
         )}
         {!error && events !== null && events.length > 0 && (

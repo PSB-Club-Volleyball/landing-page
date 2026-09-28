@@ -5,6 +5,7 @@ import MenuIcon from './MenuIcon'
 import { getMe, getLoginProviders } from '../lib/api'
 import { initials } from '../lib/initials'
 import { signInOptions, DEFAULT_PROVIDERS } from '../lib/signInOptions'
+import { focusableIn } from '../lib/useModalFocus'
 import type { AuthUser } from '../types'
 
 const PAGES = [
@@ -36,10 +37,15 @@ function Navbar() {
   useEffect(() => {
     getMe()
       .then((res) => setUser(res.user))
-      .catch(() => setUser(null))
+      .catch((e) => {
+        // Falls back to showing "Sign in"; log so an auth outage isn't
+        // mistaken for being signed out.
+        console.error('getMe failed; showing signed-out nav', e)
+        setUser(null)
+      })
     getLoginProviders()
       .then(setProviders)
-      .catch(() => {})
+      .catch((e) => console.error('getLoginProviders failed; using default sign-in options', e))
   }, [])
 
   // While the mobile menu is open it's a modal surface: trap Tab inside it,
@@ -64,11 +70,9 @@ function Navbar() {
       // The toggle (the X while open) is the first stop in the cycle so it
       // stays keyboard-reachable; the panel's own controls follow.
       const toggle = toggleRef.current
-      const inPanel = Array.from(
-        panel.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])',
-        ),
-      )
+      // Only rendered controls: links inside a closed <details> (Community,
+      // Sign in) are in the DOM but not tabbable, and would break the cycle.
+      const inPanel = focusableIn(panel)
       const focusable = toggle ? [toggle, ...inPanel] : inPanel
       if (focusable.length === 0) return
       const first = focusable[0]

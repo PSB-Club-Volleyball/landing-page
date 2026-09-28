@@ -14,7 +14,8 @@ function Photos() {
       .then((res) => {
         if (!cancelled) setMedia(res.media)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.error('Failed to load photos', err)
         if (!cancelled) setError(true)
       })
 

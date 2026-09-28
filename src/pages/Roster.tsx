@@ -27,7 +27,8 @@ function Roster() {
         setRosterVisible(rosterRes.visible)
         setBoard(boardRes.board)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.error('Failed to load roster', err)
         if (!cancelled) setError(true)
       })
 

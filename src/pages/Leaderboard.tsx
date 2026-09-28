@@ -78,6 +78,9 @@ function Leaderboard() {
   const podium = !q && ranked ? ranked.slice(0, 3) : []
   const tableRows = q ? rows : rows.slice(3)
   const shownUnranked = unranked?.filter(matches) ?? []
+  // Judged on the unfiltered lists, so a search never turns "no matches"
+  // into "no results yet" (or shows both).
+  const noResults = ranked !== null && unranked !== null && ranked.length === 0 && unranked.length === 0
 
   return (
     <main id="main-content" tabIndex={-1} className="lb-page">
@@ -124,10 +127,10 @@ function Leaderboard() {
 
         {members && view === 'record' && (
           <>
-            {ranked && ranked.length === 0 && shownUnranked.length === 0 && (
+            {noResults && (
               <p className="placeholder-note">No results yet — check back once matches have been played.</p>
             )}
-            {q && rows.length === 0 && shownUnranked.length === 0 && (
+            {!noResults && q && rows.length === 0 && shownUnranked.length === 0 && (
               <p className="placeholder-note">No one matches that search.</p>
             )}
 

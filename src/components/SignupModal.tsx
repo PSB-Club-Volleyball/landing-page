@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { WAIVER_URL } from '../constants'
 import { cancelSignup, getForm, getLoginProviders, getMe, submitSignup } from '../lib/api'
+import { getSignupState } from '../lib/eventFormat'
 import { signInOptions } from '../lib/signInOptions'
 import OAuthButton from './OAuthButton'
 import { buildPages, FieldInput } from '../lib/formFields'
 import { linkifyText } from '../lib/markdown'
 import { useModalFocus } from '../lib/useModalFocus'
-import type { FormWithFields, PublicClubEvent, SignupStatus } from '../types'
+import type { FieldType, FormWithFields, PublicClubEvent, SignupStatus } from '../types'
+
+const GROUP_FIELD_TYPES = new Set<FieldType>(['radio', 'checkbox_group', 'linear_scale'])
 
 function SignupModal({
   event,
@@ -55,7 +58,7 @@ function SignupModal({
   useEffect(() => {
     getLoginProviders()
       .then(setProviders)
-      .catch(() => {})
+      .catch((e) => console.error('getLoginProviders failed; hiding sign-in options', e))
   }, [])
 
   useEffect(() => {
@@ -65,7 +68,8 @@ function SignupModal({
       .then((res) => {
         if (!cancelled) setForm(res.form)
       })
-      .catch(() => {
+      .catch((e) => {
+        console.error('getForm failed', e)
         if (!cancelled) setLoadError("Couldn't load the signup form — try again in a moment.")
       })
     return () => {
@@ -103,7 +107,11 @@ function SignupModal({
     return null
   }
 
-  function goNext() {
+  function goNext(formEl: HTMLFormElement | null) {
+    if (!formEl) throw new Error('Next button is outside the signup form')
+    // "Next" isn't a submit, so the browser won't check this page's native
+    // constraints (page 0's name/email, patterns, min/max) on its own.
+    if (!formEl.reportValidity()) return
     const missing = currentPageMissingField()
     if (missing) {
       setPageError(`"${missing}" is required`)
@@ -149,13 +157,7 @@ function SignupModal({
     }
   }
 
-  const spotsLeft = event.capacity !== null ? event.capacity - event.signup_count : null
-  const deadlinePassed = event.signup_deadline !== null && new Date(event.signup_deadline) < new Date()
-  const verb = event.rsvp_gated
-    ? 'Request'
-    : event.event_type === 'game' || event.event_type === 'tournament'
-      ? 'RSVP'
-      : 'Sign up'
+  const { spotsLeft, deadlinePassed, verb } = getSignupState(event)
 
   return (
     <div className="signup-overlay">
@@ -348,20 +350,34 @@ function SignupModal({
                   </div>
                 )}
 
-                {pages[pageIndex]?.fields.map((field) => (
-                  <label className="field" key={field.id}>
-                    <span>
-                      {field.required && <span className="req" aria-hidden="true">* </span>}
-                      {field.label}
-                    </span>
-                    {field.description && <span className="field-desc">{linkifyText(field.description)}</span>}
-                    <FieldInput
-                      field={field}
-                      value={answers[field.id] ?? ''}
-                      onChange={(v) => setAnswers({ ...answers, [field.id]: v })}
-                    />
-                  </label>
-                ))}
+                {pages[pageIndex]?.fields.map((field) => {
+                  const question = (
+                    <>
+                      <span id={`field-${field.id}-label`}>
+                        {field.required && <span className="req" aria-hidden="true">* </span>}
+                        {field.label}
+                      </span>
+                      {field.description && <span className="field-desc">{linkifyText(field.description)}</span>}
+                      <FieldInput
+                        field={field}
+                        value={answers[field.id] ?? ''}
+                        onChange={(v) => setAnswers({ ...answers, [field.id]: v })}
+                      />
+                    </>
+                  )
+                  // Choice groups hold their own per-option labels, so the
+                  // question can't be a <label> too (nested labels are invalid,
+                  // and clicking the question would pick the first option).
+                  return GROUP_FIELD_TYPES.has(field.field_type) ? (
+                    <div className="field" role="group" aria-labelledby={`field-${field.id}-label`} key={field.id}>
+                      {question}
+                    </div>
+                  ) : (
+                    <label className="field" key={field.id}>
+                      {question}
+                    </label>
+                  )
+                })}
 
                 {pageError && <p className="admin-error" role="alert">{pageError}</p>}
                 {submitError && <p className="admin-error" role="alert">{submitError}</p>}
@@ -388,7 +404,7 @@ function SignupModal({
                         {submitting ? 'Submitting…' : `Confirm ${verb}`}
                       </button>
                     ) : (
-                      <button className="btn btn-ace" type="button" onClick={goNext}>
+                      <button className="btn btn-ace" type="button" onClick={(e) => goNext(e.currentTarget.form)}>
                         Next
                       </button>
                     )}
