@@ -3,6 +3,7 @@ import { badRequest, json, notFound, unauthorized } from '../_lib/http'
 import { getSessionUser } from '../_lib/session'
 import { getPlayerResults, getPlayerSummary } from '../_lib/playerResults'
 import { getMemberStripes } from '../_lib/stripes'
+import { getLoginSettings } from '../auth/_lib/settings'
 
 // GET /api/members/:id -> one account's public profile — name, public-safe
 // roster info (position/team/jersey/class year), and match record. Never
@@ -28,11 +29,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     }>()
   if (!user) return notFound('Member not found')
 
-  const rosterRow = await env.DB.prepare(
-    `SELECT jersey_number, class_year FROM roster WHERE user_id = ?1 ORDER BY season DESC LIMIT 1`
-  )
-    .bind(id)
-    .first<{ jersey_number: number | null; class_year: string | null }>()
+  // Roster-derived fields follow the owner's hide-roster setting, like /api/roster.
+  const { roster_visible } = await getLoginSettings(env)
+  const rosterRow = !roster_visible
+    ? null
+    : await env.DB.prepare(
+        `SELECT jersey_number, class_year FROM roster WHERE user_id = ?1 ORDER BY season DESC LIMIT 1`
+      )
+        .bind(id)
+        .first<{ jersey_number: number | null; class_year: string | null }>()
 
   const results = await getPlayerResults(env, user)
   const summary = getPlayerSummary(results)

@@ -473,6 +473,12 @@ export interface MemberSummary {
   setsLost: number
   winPct: number
   currentStreak: number
+  position: string | null
+  classYear: string | null
+  // Only skills with at least one stripe are present.
+  stripes: Partial<Record<StripeSkill, number>>
+  // Events where this account was on the viewer's team (0 for the viewer).
+  sharedEvents: number
 }
 
 // GET /api/members/:id — one account's public profile.
