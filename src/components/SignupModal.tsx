@@ -47,7 +47,10 @@ function SignupModal({
   // signup has no way to know, so it defaults to showing the download link.
   const [waiverOnFile, setWaiverOnFile] = useState(false)
   const [loggedIn, setLoggedIn] = useState(false)
+  // Until getMe answers we don't know whether to show the guest sign-in nudge.
+  const [meChecked, setMeChecked] = useState(false)
   const [providers, setProviders] = useState({ google: false, microsoft: false, microsoft_other: false })
+  const [nudgeDismissed, setNudgeDismissed] = useState(false)
 
   useEffect(() => {
     getLoginProviders()
@@ -72,13 +75,17 @@ function SignupModal({
 
   useEffect(() => {
     let cancelled = false
-    getMe().then((res) => {
-      if (cancelled || !res.user) return
-      setLoggedIn(true)
-      setName((prev) => prev || res.user!.name || '')
-      setEmail((prev) => prev || res.user!.email)
-      setWaiverOnFile(res.user!.waiverSignedYear === new Date().getFullYear())
-    })
+    getMe()
+      .then((res) => {
+        if (cancelled) return
+        setMeChecked(true)
+        if (!res.user) return
+        setLoggedIn(true)
+        setName((prev) => prev || res.user!.name || '')
+        setEmail((prev) => prev || res.user!.email)
+        setWaiverOnFile(res.user!.waiverSignedYear === new Date().getFullYear())
+      })
+      .catch((e) => console.error('getMe failed; hiding the sign-in nudge', e))
     return () => {
       cancelled = true
     }
@@ -223,6 +230,30 @@ function SignupModal({
                 </p>
               </>
             )}
+            {/* A guest RSVP is matched to an account by email: the profile's
+                upcoming RSVPs and tournament results both look it up that way,
+                so signing in with the same email picks this one up. */}
+            {meChecked &&
+              !loggedIn &&
+              !existingSignupId &&
+              !nudgeDismissed &&
+              !signupCancelled &&
+              (signupStatus === 'approved' || signupStatus === 'pending') &&
+              signInOptions(providers).length > 0 && (
+                <div className="signup-google-prompt">
+                  <p>
+                    Want your wins and stripes to count? Sign in with the same email and this RSVP joins your profile.
+                  </p>
+                  <div className="signup-oauth-options">
+                    {signInOptions(providers).map((opt) => (
+                      <OAuthButton key={opt.id} option={opt} redirect={`/events/${event.id}`} />
+                    ))}
+                  </div>
+                  <button className="link-btn" type="button" onClick={() => setNudgeDismissed(true)}>
+                    Not now
+                  </button>
+                </div>
+              )}
             {!signupCancelled && signupStatus !== 'denied' && (
               <p className="waiver-download-note">
                 Don&rsquo;t forget to{' '}

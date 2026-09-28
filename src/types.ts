@@ -86,6 +86,9 @@ export type PlayFormat = 'none' | 'round_robin' | 'pool_bracket' | 'single_elim'
 export interface PublicEventTeamMember {
   name: string
   is_captain: boolean
+  // The linked account (links to /members/:id), or null for a walk-in or
+  // unlinked member.
+  user_id: number | null
 }
 export interface PublicEventTeam {
   id: number
@@ -347,6 +350,8 @@ export interface EventSignup {
   status: SignupStatus
   checked_in_at: string | null
   created_at: string
+  // The account with this signup's email, or null for a guest.
+  user_id: number | null
 }
 
 export type MediaType = 'photo' | 'video'
