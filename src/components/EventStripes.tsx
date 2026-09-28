@@ -6,6 +6,19 @@ import type { EventStripes as EventStripesData, StripeSkill } from '../types'
 
 const timeFormatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
 const dayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+const weekdayFormatter = new Intl.DateTimeFormat('en-US', { weekday: 'short' })
+
+// When the open window closes, with the day unless it's today:
+// "11:28 AM", "11:28 AM tomorrow", or "Sat 11:28 AM".
+function formatCloseTime(closes: Date, now: Date): string {
+  const time = timeFormatter.format(closes)
+  const midnight = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  // Rounded: a DST change makes one calendar day 23 or 25 hours long.
+  const days = Math.round((midnight(closes) - midnight(now)) / 86_400_000)
+  if (days === 0) return time
+  if (days === 1) return `${time} tomorrow`
+  return `${weekdayFormatter.format(closes)} ${time}`
+}
 
 function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60)
@@ -157,7 +170,7 @@ export default function EventStripes({ eventId }: { eventId: number }) {
       <div className="stripes-banner" role="status">
         <b>Award your teammates stripes</b>
         <span>
-          Closes in {formatDuration(minutesLeft)} ({timeFormatter.format(closes)}). After that, stripes lock.
+          Closes in {formatDuration(minutesLeft)} ({formatCloseTime(closes, new Date())}). After that, stripes lock.
         </span>
       </div>
       <p className="muted-sub">
@@ -172,20 +185,24 @@ export default function EventStripes({ eventId }: { eventId: number }) {
             const expanded = openMate === t.user_id
             return (
               <li key={t.user_id} className={expanded ? 'is-open' : undefined}>
-                <button
-                  type="button"
-                  className="stripes-mate-head"
-                  aria-expanded={expanded}
-                  onClick={() => setOpenMate(expanded ? null : t.user_id)}
-                >
-                  <span className="stripes-mate-name">{t.name || 'Teammate'}</span>
-                  <span className="muted-sub">{t.given.length > 0 ? stripeCount(t.given.length) : 'No stripes yet'}</span>
-                </button>
-                {expanded && (
-                  <div className="stripes-mate-body">
+                <div className="stripes-mate-row">
+                  <button
+                    type="button"
+                    className="stripes-mate-head"
+                    aria-expanded={expanded}
+                    onClick={() => setOpenMate(expanded ? null : t.user_id)}
+                  >
+                    <span className="stripes-mate-name">{t.name || 'Teammate'}</span>
+                    <span className="muted-sub">{t.given.length > 0 ? stripeCount(t.given.length) : 'No stripes yet'}</span>
+                  </button>
+                  {expanded && (
                     <Link to={`/members/${t.user_id}`} className="stripes-profile-link">
                       View profile
                     </Link>
+                  )}
+                </div>
+                {expanded && (
+                  <div className="stripes-mate-body">
                     <div className="stripes-chips" role="group" aria-label={`Stripes for ${t.name || 'teammate'}`}>
                       {[...STRIPE_SKILLS, ...STRIPE_TRAITS].map((skill) => {
                         const on = t.given.includes(skill)

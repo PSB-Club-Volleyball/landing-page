@@ -88,6 +88,8 @@ function AdminLayout({ user }: { user: AuthUser }) {
   // (e.g. an event) lives at its own path. The sidebar always returns to the
   // console — the tab state persists because AdminLayout never unmounts.
   const onConsole = location.pathname === '/admin' || location.pathname === '/admin/'
+  // An event sub-page belongs to the Events tab, so keep that one lit there.
+  const onEventPage = location.pathname.startsWith('/admin/events/')
 
   function pickTab(next: Tab) {
     if (onConsole && next === tab) {
@@ -148,7 +150,9 @@ function AdminLayout({ user }: { user: AuthUser }) {
             <button
               key={t.key}
               type="button"
-              className={onConsole && tab === t.key ? 'active' : undefined}
+              className={
+                (onConsole && tab === t.key) || (onEventPage && t.key === 'events') ? 'active' : undefined
+              }
               onClick={() => pickTab(t.key)}
             >
               {t.label}

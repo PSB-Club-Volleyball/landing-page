@@ -170,7 +170,9 @@ function SignupModal({
         ref={dialogRef}
       >
         {confirmed ? (
-          <div className="signup-confirm">
+          // Focus lands on the message itself, not its first control — that
+          // would be the destructive cancel/withdraw link.
+          <div className="signup-confirm" tabIndex={-1} data-autofocus>
             <div className="signup-confirm-tick">&#10003;</div>
             {signupCancelled ? (
               <>
@@ -265,7 +267,7 @@ function SignupModal({
                 and bring the signed copy to the event.
               </p>
             )}
-            <button className="btn btn-outline btn-sm" type="button" onClick={onClose}>
+            <button className="btn btn-outline" type="button" onClick={onClose}>
               Close
             </button>
           </div>

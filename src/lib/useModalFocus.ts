@@ -26,7 +26,8 @@ export function focusableIn(node: HTMLElement): HTMLElement[] {
 
 /**
  * Wires up the accessibility contract for an open modal dialog:
- * moves focus into the dialog on open, traps Tab within it, closes on
+ * moves focus into the dialog on open (to a `[data-autofocus]` descendant if
+ * there is one, else its first control), traps Tab within it, closes on
  * Escape, locks background scroll for as long as it's open, and restores
  * focus to the triggering element on close.
  *
@@ -49,7 +50,7 @@ export function useModalFocus<T extends HTMLElement>(onClose: () => void) {
     document.body.style.overflow = 'hidden'
 
     const previouslyFocused = document.activeElement as HTMLElement | null
-    const initial = focusableIn(node)[0] ?? node
+    const initial = node.querySelector<HTMLElement>('[data-autofocus]') ?? focusableIn(node)[0] ?? node
     initial.focus()
 
     function onKeyDown(e: KeyboardEvent) {
@@ -67,11 +68,13 @@ export function useModalFocus<T extends HTMLElement>(onClose: () => void) {
       const first = items[0]
       const last = items[items.length - 1]
       const active = document.activeElement as HTMLElement | null
-      const outside = !active || (active !== node && !node.contains(active))
-      if (e.shiftKey && (active === first || active === node || outside)) {
+      // Not on one of the controls: outside the dialog, or on the dialog or
+      // its [data-autofocus] target, from which native Shift+Tab would leave.
+      const offItems = !active || !items.includes(active)
+      if (e.shiftKey && (active === first || offItems)) {
         e.preventDefault()
         last.focus()
-      } else if (!e.shiftKey && (active === last || outside)) {
+      } else if (!e.shiftKey && (active === last || offItems)) {
         e.preventDefault()
         first.focus()
       }

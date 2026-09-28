@@ -28,6 +28,10 @@ function Navbar() {
   const toggleRef = useRef<HTMLButtonElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDetailsElement>(null)
+  // Whether the menu was opened from the keyboard (a keyboard "click" has
+  // detail 0): only then does focus go to the first item, since its focus
+  // ring would otherwise sit on top of the active-page underline.
+  const openedByKeyboard = useRef(false)
 
   useEffect(() => {
     setOpen(false)
@@ -50,12 +54,13 @@ function Navbar() {
 
   // While the mobile menu is open it's a modal surface: trap Tab inside it,
   // close on Escape (returning focus to the toggle), lock body scroll, and
-  // move focus to the first item on open.
+  // move focus into it on open (first item from the keyboard, else the panel).
   useEffect(() => {
     if (!open) return
 
     const panel = panelRef.current
-    panel?.querySelector<HTMLElement>('a, button, summary')?.focus()
+    if (openedByKeyboard.current) panel?.querySelector<HTMLElement>('a, button, summary')?.focus()
+    else panel?.focus()
 
     const { overflow } = document.body.style
     document.body.style.overflow = 'hidden'
@@ -118,7 +123,10 @@ function Navbar() {
         aria-label={open ? 'Close menu' : 'Open menu'}
         aria-expanded={open}
         aria-controls="nav-panel"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={(e) => {
+          openedByKeyboard.current = e.detail === 0
+          setOpen((prev) => !prev)
+        }}
       >
         <MenuIcon open={open} />
       </button>
@@ -135,6 +143,7 @@ function Navbar() {
         id="nav-panel"
         ref={panelRef}
         className={open ? 'nav-panel open' : 'nav-panel'}
+        tabIndex={-1}
       >
         <nav className="nav-links" aria-label="Primary">
           {PAGES.map((page) => (
@@ -199,9 +208,16 @@ function Navbar() {
                   Admin
                 </Link>
               )}
-              <Link to="/profile" className="nav-profile-link" onClick={() => setOpen(false)}>
-                <span className="nav-avatar">{initials(user.name || user.email)}</span>
-                My account
+              <Link
+                to="/profile"
+                className="nav-profile-link"
+                aria-label="My account"
+                onClick={() => setOpen(false)}
+              >
+                <span className="nav-avatar" aria-hidden="true">
+                  {initials(user.name || user.email)}
+                </span>
+                <span className="nav-profile-label">My account</span>
               </Link>
             </span>
           )}

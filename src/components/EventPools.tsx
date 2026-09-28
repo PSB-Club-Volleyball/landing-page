@@ -1,3 +1,4 @@
+import { formatSigned } from '../lib/eventFormat'
 import type { EventMatch, PoolStanding } from '../types'
 
 const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
@@ -30,28 +31,25 @@ export default function EventPools({ pools, matches }: { pools: PoolStanding[]; 
                 <table>
                   <thead>
                     <tr>
-                      <th>#</th>
+                      <th className="num">#</th>
                       <th>Team</th>
-                      <th>W</th>
-                      <th>L</th>
-                      <th>Sets</th>
-                      <th>Pts</th>
+                      <th className="num">W</th>
+                      <th className="num">L</th>
+                      <th className="num">Sets</th>
+                      <th className="num" aria-label="Point differential">+/&minus;</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pool.standings.map((r, i) => (
                       <tr key={r.team_id}>
-                        <td>{i + 1}</td>
+                        <td className="num">{i + 1}</td>
                         <td>{r.name}</td>
-                        <td>{r.wins}</td>
-                        <td>{r.losses}</td>
-                        <td>
+                        <td className="num">{r.wins}</td>
+                        <td className="num">{r.losses}</td>
+                        <td className="num">
                           {r.sets_won}&ndash;{r.sets_lost}
                         </td>
-                        <td>
-                          {r.points_for - r.points_against > 0 ? '+' : ''}
-                          {r.points_for - r.points_against}
-                        </td>
+                        <td className="num">{formatSigned(r.points_for - r.points_against)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -69,7 +67,7 @@ export default function EventPools({ pools, matches }: { pools: PoolStanding[]; 
                     </span>
                     <span className="pm-teams">
                       <span className={m.winner_id === m.team_a_id ? 'pm-team win' : 'pm-team'}>{m.team_a_name}</span>
-                      <span className="pm-v">v</span>
+                      <span className="pm-v">vs</span>
                       <span className={m.winner_id === m.team_b_id ? 'pm-team win' : 'pm-team'}>{m.team_b_name}</span>
                     </span>
                     <span className="pm-score">{score ?? '—'}</span>

@@ -18,6 +18,7 @@
   font-size: 0.95rem;
   text-decoration: none;
   color: var(--chalk);
+  white-space: nowrap;
 }
 .navbar .brand svg {
   flex-shrink: 0;
@@ -80,6 +81,10 @@
 }
 .nav-panel {
   display: contents;
+}
+/* Focus target when the phone menu opens from a tap; not a control. */
+.nav-panel:focus {
+  outline: none;
 }
 .nav-account {
   display: flex;
@@ -209,6 +214,7 @@
   font-weight: 700;
   color: var(--chalk);
   text-decoration: none;
+  white-space: nowrap;
 }
 .nav-profile-link:hover {
   color: var(--ace);
@@ -367,18 +373,20 @@ h1 span:nth-child(2) {
   grid-template-columns: repeat(2, 1fr);
   border-top: 1px solid var(--hairline);
 }
-.scoreboard div {
+/* Child combinator: .label/.value are divs too, and must not pick up the
+   cell's padding, rule, and entrance animation. */
+.scoreboard > div {
   padding: 1.6rem 6vw;
   border-left: 1px solid var(--hairline);
   opacity: 0;
   transform: translateY(10px);
   animation: rise 0.5s ease forwards;
 }
-.scoreboard div:first-child {
+.scoreboard > div:first-child {
   border-left: none;
   animation-delay: 0.7s;
 }
-.scoreboard div:nth-child(2) {
+.scoreboard > div:nth-child(2) {
   animation-delay: 0.78s;
 }
 .scoreboard .label {
@@ -507,6 +515,11 @@ main {
   overflow-y: hidden;
   touch-action: pan-x;
   overscroll-behavior-y: contain;
+  /* Swipeable, with the edge cue (below) instead of a scrollbar. */
+  scrollbar-width: none;
+}
+.profile-tabs::-webkit-scrollbar {
+  display: none;
 }
 .profile-tab {
   font: inherit;
@@ -574,6 +587,7 @@ main {
   flex-wrap: wrap;
 }
 .skill-select {
+  min-height: 40px;
   font: inherit;
   font-size: 0.9rem;
   font-weight: 600;
@@ -665,11 +679,22 @@ main {
   gap: 1.25rem;
   margin: 0 0 1.75rem;
 }
+.mp-stripes.is-solo {
+  grid-template-columns: minmax(0, 1fr);
+}
 .mp-stripes-main,
 .mp-stripes-side {
   border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   border-radius: var(--radius-sm);
   padding: 1.25rem;
+}
+/* The head's explanation stacks under the title once the card itself is
+   narrow (beside the sidebar at tablet widths), not just the viewport. */
+.mp-stripes-main {
+  container-type: inline-size;
+}
+.mp-stripes-side {
+  align-self: start;
 }
 /* Doubled class so it outranks .legal-page h2/ul/li, which come later. */
 .mp-stripes .mp-stripes-head h2 {
@@ -681,9 +706,14 @@ main {
 }
 .mp-stripes-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   margin-bottom: 1rem;
+}
+.mp-stripes-head > div {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 .mp-stripes-head p {
   margin: 0;
@@ -691,6 +721,12 @@ main {
 .mp-stripes-how {
   max-width: 16rem;
   text-align: right;
+}
+@container (max-width: 32rem) {
+  .mp-stripes-how {
+    max-width: none;
+    text-align: left;
+  }
 }
 .mp-stripes .mp-stripe-bars {
   list-style: none;
@@ -743,10 +779,11 @@ main {
   letter-spacing: 0.06em;
   color: var(--muted);
 }
+/* A flat tag (like .mp-tag), not an outlined chip — it isn't clickable. */
 .mp-stripe-trait {
-  padding: 0.3rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  padding: 0.2rem 0.55rem;
   border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--page-fg) 8%, transparent);
   font-size: 0.82rem;
   font-weight: 700;
 }
@@ -766,6 +803,17 @@ main {
   padding-bottom: 0.6rem;
   border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 8%, transparent);
 }
+.mp-stripes .mp-stripes-side li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.mp-stripes-award {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
 .mp-stripes-side a {
   font-weight: 700;
   color: var(--ace-fg);
@@ -773,12 +821,6 @@ main {
 @media (max-width: 760px) {
   .mp-stripes {
     grid-template-columns: 1fr;
-  }
-  .mp-stripes-head {
-    flex-direction: column;
-  }
-  .mp-stripes-how {
-    text-align: left;
   }
 }
 
@@ -828,11 +870,19 @@ main {
 .stripes-mates > li.is-open {
   border: 2px solid var(--page-fg);
 }
+/* The open teammate's "View profile" link sits beside the toggle button (a
+   link can't nest inside it). */
+.stripes-mate-row {
+  display: flex;
+  align-items: center;
+}
 .stripes-mate-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  flex: 1 1 auto;
+  min-width: 0;
   width: 100%;
   min-height: 52px;
   padding: 0 0.9rem;
@@ -853,7 +903,11 @@ main {
   padding: 0 0.9rem 0.9rem;
 }
 .stripes-profile-link {
-  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-right: 0.9rem;
+  white-space: nowrap;
   font-size: 0.85rem;
   font-weight: 700;
   color: var(--ace-fg);
@@ -996,9 +1050,10 @@ main {
 .person-card:hover {
   border-color: var(--ace-fg);
 }
+/* Top-aligned so the avatar stays put when a long name wraps. */
 .person-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
 }
 .person-avatar {
@@ -1056,6 +1111,10 @@ main {
   --ace-fg: var(--ace);
   background: var(--page-bg);
   color: var(--page-fg);
+}
+/* A little more dark runway before the light footer. */
+.lb-page .board {
+  padding-bottom: 6.5rem;
 }
 .lb-controls {
   display: flex;
@@ -1313,13 +1372,16 @@ main {
 .directory-toggle {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.4rem;
+  margin-top: 0.75rem;
 }
 .directory-toggle a,
 .directory-toggle span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   font-size: 0.8rem;
   font-weight: 700;
-  padding: 0.3rem 0.7rem;
+  padding: 0 0.7rem;
   border-radius: var(--radius-xs);
   border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
   text-decoration: none;
@@ -1338,6 +1400,14 @@ main {
   color: var(--page-fg);
   font-size: 0.9rem;
   min-width: 220px;
+}
+/* Holds the Record view's search slot on the Stripe leaders view so the
+   view toggle doesn't jump sideways; not shown or focusable. */
+.directory-search.is-reserved {
+  visibility: hidden;
+}
+.chip-record {
+  white-space: nowrap;
 }
 .chip-flow {
   list-style: none;
@@ -1723,6 +1793,29 @@ main {
   color: var(--muted);
 }
 
+/* Horizontal-scroll cue for wide tables and tab strips: a soft shadow on
+   whichever edge still has content past it. The two page-colored covers
+   scroll with the content (local) and hide each shadow (scroll) once that
+   edge is reached, so a strip that fits shows nothing. Children must not
+   paint an opaque background over it (see the translucent .data-table
+   header in admin.css). */
+.data-table,
+.lb-table-wrap,
+.profile-tabs,
+.event-page-tabbar,
+.admin-subtabs {
+  background:
+    linear-gradient(to right, var(--page-bg) 40%, transparent) left center / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--page-bg) 40%, transparent) right center / 2rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, color-mix(in srgb, var(--page-fg) 28%, transparent), transparent)
+      left center / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, color-mix(in srgb, var(--page-fg) 28%, transparent), transparent)
+      right center / 0.75rem 100% no-repeat scroll;
+}
+.nowrap {
+  white-space: nowrap;
+}
+
 .btn {
   font: inherit;
   font-size: 0.82rem;
@@ -1731,6 +1824,9 @@ main {
   padding: 0.4rem 0.85rem;
   border: 1px solid transparent;
   cursor: pointer;
+  /* Comfortable hit area; 44px on phones (below). Admin tables opt out on
+     desktop to keep rows compact — see admin.css. */
+  min-height: 40px;
 }
 .btn-ace {
   background: var(--ace);
@@ -1748,15 +1844,19 @@ main {
   border-color: color-mix(in srgb, var(--page-fg) 25%, transparent);
   color: var(--page-fg);
 }
-.btn-outline:hover {
+.btn-outline:hover:not(:disabled) {
   border-color: var(--ace-fg);
   color: var(--ace-fg);
+}
+.btn-outline:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .btn-outline.danger {
   color: var(--danger);
   border-color: color-mix(in srgb, var(--danger) 35%, transparent);
 }
-.btn-outline.danger:hover {
+.btn-outline.danger:hover:not(:disabled) {
   border-color: var(--danger);
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 8%, transparent);
@@ -2305,6 +2405,11 @@ main {
 .public-team li.captain .public-team-player {
   font-weight: 700;
 }
+/* Captain badge sits right after the name, not pinned to the row's end. */
+.public-team-player .captain-tag {
+  margin-left: 0.4rem;
+  vertical-align: 0.1em;
+}
 /* A name that links to the member's profile (team rosters, admin signups):
    body-colored text with an Ace underline. */
 .profile-link {
@@ -2346,8 +2451,18 @@ main {
 .public-standings {
   margin-bottom: 0.4rem;
 }
-.public-standings table {
+/* Fits a phone when it can (no 520px floor); a long row scrolls instead,
+   with the edge cue from .data-table. Number columns hug their content and
+   right-align; the name column takes the rest. */
+/* Doubled class to outrank admin.css's .data-table table (loaded later). */
+.data-table.public-standings table {
   font-variant-numeric: tabular-nums;
+  min-width: 0;
+}
+.public-standings .num {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
 }
 .public-pool + .public-pool {
   margin-top: 2rem;
@@ -2413,15 +2528,18 @@ main {
   gap: 0.45rem;
   min-width: 0;
 }
+/* Each name is capped at half the row, so a long name truncates itself
+   instead of squeezing the short one; two long names split it evenly. */
 .pm-team {
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: calc(50% - 1rem);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .pm-v {
   color: var(--muted);
-  font-size: 0.74rem;
   flex: 0 0 auto;
 }
 .pm-team.win {
@@ -2604,7 +2722,7 @@ main {
 
 .signup-confirm {
   text-align: center;
-  padding: 1rem 0.5rem;
+  padding: 0.5rem 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2622,6 +2740,10 @@ main {
   font-size: 1.1rem;
   font-weight: 700;
 }
+/* Programmatic focus target on open (see SignupModal), not a control. */
+.signup-confirm:focus {
+  outline: none;
+}
 .signup-confirm h4 {
   margin: 0;
   font-size: 1.05rem;
@@ -2630,7 +2752,6 @@ main {
   margin: 0;
   font-size: 0.85rem;
   color: var(--muted);
-  max-width: 28ch;
 }
 .cancel-note {
   margin: 0.4rem 0 0;
@@ -2639,7 +2760,6 @@ main {
   font-size: 0.76rem;
   color: var(--muted);
   line-height: 1.5;
-  max-width: 30ch;
 }
 .link-btn {
   background: none;
@@ -2775,15 +2895,21 @@ footer {
   font-weight: 700;
   color: var(--page-fg);
 }
+/* Links get a 44px-tall hit area; the trimmed padding keeps the text where
+   it sat before. */
 .footer-legal {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem 1.1rem;
-  padding-top: 0.9rem;
+  gap: 0 1.1rem;
+  padding-top: 0.2rem;
+  margin-bottom: -0.7rem;
   border-top: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
   font-size: 0.76rem;
 }
 .footer-legal a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: var(--muted);
   text-decoration: none;
 }
@@ -2791,8 +2917,40 @@ footer {
   color: var(--ace-fg);
 }
 
+/* Tablet: the one-line wordmark, links, Admin, and avatar only fit once the
+   "My account" text goes (the link keeps it as its aria-label) and the
+   gaps tighten; below ~740px the wordmark drops to the compact mark, as on
+   phones. */
+@media (min-width: 641px) and (max-width: 900px) {
+  .navbar {
+    gap: 1rem;
+    padding-left: 4vw;
+    padding-right: 4vw;
+  }
+  .nav-links {
+    gap: 1.1rem;
+  }
+  /* Community is the last link and now sits near the right edge; open its
+     menu leftward so it stays on screen. */
+  .nav-dropdown-menu {
+    left: auto;
+    right: 0;
+  }
+  .nav-profile-label {
+    display: none;
+  }
+}
+@media (min-width: 641px) and (max-width: 740px) {
+  .brand-full {
+    display: none;
+  }
+  .brand-short {
+    display: inline;
+  }
+}
+
 @media (max-width: 760px) {
-  .scoreboard div {
+  .scoreboard > div {
     /* Two short values ("Erie Hall", "Fall & Spring") stay side by side —
        stacking them left a tall near-empty band between hero and content. */
     padding: 1.1rem 6vw;
@@ -2869,13 +3027,44 @@ footer {
   .nav-panel.open {
     display: flex;
   }
+  /* Menu rows are 44px tall; gap 0 so the padding is the spacing. */
+  .nav-panel {
+    gap: 0.4rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.9rem;
+  }
   .nav-panel .nav-links {
     flex-direction: column;
-    gap: 0.9rem;
+    gap: 0;
+  }
+  .nav-panel .nav-links a,
+  .nav-panel .nav-dropdown summary {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .nav-panel .nav-links a::after {
+    bottom: 0.45rem;
+  }
+  .nav-panel .nav-dropdown-menu a {
+    padding: 0 0.6rem;
   }
   .nav-panel .nav-account {
-    padding-top: 0.9rem;
+    padding-top: 0.6rem;
     border-top: 1px solid var(--hairline);
+  }
+  .nav-panel .nav-admin-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 1rem;
+  }
+  .nav-panel .nav-profile-link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
   }
   .nav-panel .nav-signin-options {
     left: 0;
@@ -2898,6 +3087,36 @@ footer {
     justify-content: center;
     text-align: center;
   }
+  .btn,
+  .skill-select {
+    min-height: 44px;
+  }
+  .signup-overlay {
+    padding: 0.75rem;
+  }
+  .signup-modal {
+    padding: 1.1rem 1rem 1.2rem;
+  }
+  .data-table.public-standings th,
+  .data-table.public-standings td {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+  .profile-tabs {
+    gap: 1.1rem;
+  }
+  /* Search drops to its own full-width row under the heading. */
+  .lb-controls {
+    flex: 1 1 100%;
+  }
+  .directory-search {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+  .directory-search.is-reserved {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2905,7 +3124,7 @@ footer {
   h1 span,
   .tagline,
   .cta,
-  .scoreboard div,
+  .scoreboard > div,
   .board-list li {
     animation: none;
     opacity: 1;

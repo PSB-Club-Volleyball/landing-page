@@ -66,6 +66,13 @@ export function getSignupState(event: PublicClubEvent) {
   return { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb }
 }
 
+// Signed difference with a real minus sign ("+12", "−3", "0") for score
+// columns; a hyphen reads as a dash in tabular figures.
+export function formatSigned(n: number): string {
+  if (!Number.isFinite(n)) throw new Error(`formatSigned: not a number (${n})`)
+  return n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0'
+}
+
 export function formatSignupDeadline(deadline: string) {
   return `${dateFormatter.format(new Date(deadline))} at ${timeFormatter.format(new Date(deadline))}`
 }

@@ -183,7 +183,7 @@ function UserRow({
       </td>
       <td>
         <input
-          className="mini-input"
+          className="mini-input user-name-input"
           placeholder="Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -541,7 +541,12 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
               </option>
             ))}
           </select>
-          <button className="danger" type="button" disabled={!transferTo} onClick={transferOwnership}>
+          <button
+            className="btn btn-outline btn-sm danger"
+            type="button"
+            disabled={!transferTo}
+            onClick={transferOwnership}
+          >
             Transfer ownership
           </button>
         </div>

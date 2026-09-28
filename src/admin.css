@@ -100,6 +100,25 @@
   background: var(--page-bg);
   color: var(--page-fg);
 }
+/* Public .btn carries a 40px min-height for touch; admin keeps its compact
+   buttons on desktop and gets the larger target on phones (see bottom). */
+.admin-shell .btn {
+  min-height: 0;
+}
+/* A disabled field (e.g. Board's "Set a season first") must not look
+   editable. */
+.admin-shell input:disabled,
+.admin-shell select:disabled,
+.admin-shell textarea:disabled {
+  background: color-mix(in srgb, var(--page-fg) 7%, var(--page-bg));
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.admin-shell input::placeholder,
+.admin-shell textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
 .admin-topbar {
   display: flex;
   align-items: center;
@@ -657,6 +676,8 @@
 .admin-form input,
 .admin-form select {
   flex: 1 1 140px;
+  min-width: 0;
+  max-width: 100%;
   padding: 0.45rem 0.6rem;
   border-radius: var(--radius-xs);
   border: 1px solid color-mix(in srgb, var(--page-fg) 20%, transparent);
@@ -1200,8 +1221,19 @@
 .data-table-fixed {
   overflow-x: hidden;
 }
-.data-table-fixed table {
+/* Fixed layout with one label width, so stacked key-value tables (profile
+   Club details / Account status) line their values up. Doubled class so the
+   min-width reset outranks .data-table table below; otherwise the 520px
+   floor wins and overflow: hidden clips the value column. */
+.data-table.data-table-fixed table {
   min-width: 0;
+  table-layout: fixed;
+}
+.data-table-fixed tbody td:first-child {
+  width: 7.5rem;
+}
+.data-table-fixed tbody td {
+  overflow-wrap: anywhere;
 }
 .data-table table {
   border-collapse: collapse;
@@ -1217,7 +1249,10 @@
   color: var(--muted);
   padding: 0.6rem 0.9rem;
   border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
-  background: color-mix(in srgb, var(--page-fg) 5%, var(--page-bg));
+  /* Translucent (not mixed into --page-bg) so the scroll cue behind the
+     table shows through the header row too. */
+  background: color-mix(in srgb, var(--page-fg) 5%, transparent);
+  white-space: nowrap;
 }
 .data-table tbody td {
   padding: 0.55rem 0.9rem;
@@ -1228,7 +1263,20 @@
   border-bottom: none;
 }
 .data-table tbody tr:hover {
-  background: color-mix(in srgb, var(--page-fg) 4%, var(--page-bg));
+  background: color-mix(in srgb, var(--page-fg) 4%, transparent);
+}
+/* Row buttons stay on one line (the table scrolls instead of growing each
+   row three buttons tall). */
+.data-table .row-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.data-table .link-btn {
+  text-align: left;
+}
+.data-table .user-name-input {
+  width: 160px;
 }
 .data-table input,
 .data-table select {
@@ -1281,6 +1329,7 @@
 }
 
 .status-chip {
+  white-space: nowrap;
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1328,6 +1377,7 @@
 }
 
 .role-chip {
+  white-space: nowrap;
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1390,6 +1440,7 @@
 }
 
 .waiver-chip {
+  white-space: nowrap;
   font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1410,11 +1461,11 @@
   letter-spacing: 0.06em;
   font-weight: 700;
   color: var(--muted);
-  background: color-mix(in srgb, var(--page-fg) 5%, var(--page-bg));
+  background: color-mix(in srgb, var(--page-fg) 5%, transparent);
   padding: 0.5rem 0.9rem;
 }
 .data-table tbody tr.role-group-header:hover {
-  background: color-mix(in srgb, var(--page-fg) 5%, var(--page-bg));
+  background: none;
 }
 
 @media (max-width: 700px) {
@@ -1456,6 +1507,16 @@
 }
 .media-upload-bar .field {
   flex: 1 1 200px;
+  min-width: 0;
+}
+/* A long event title must not stretch its select past the card. */
+.media-upload-bar select,
+.media-admin-event {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  text-overflow: ellipsis;
 }
 .media-select-all {
   display: inline-block;
@@ -1503,6 +1564,11 @@
   border-radius: var(--radius-xs);
   background: var(--page-bg);
   color: var(--page-fg);
+}
+/* Room for the native chevron so a long title ellipsizes before it. */
+.media-upload-bar select,
+.media-admin-event {
+  padding-right: 1.8rem;
 }
 .media-admin-delete {
   align-self: flex-start;
@@ -2272,4 +2338,44 @@
   background: var(--page-bg);
   color: var(--page-fg);
   font-size: 0.8rem;
+}
+
+/* Phone tap targets: sidebar/drawer links, header and row buttons, and the
+   search box get a ~44px hit area; checkboxes grow and get room around
+   them so a row is easy to select. */
+@media (max-width: 640px) {
+  .admin-nav-toggle {
+    width: 40px;
+    height: 40px;
+  }
+  .admin-sidebar button {
+    min-height: 44px;
+  }
+  .admin-shell .btn,
+  .add-btn,
+  .row-actions button,
+  .board-role-clear,
+  .users-search {
+    min-height: 40px;
+  }
+  .row-actions button {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+  }
+  .row-actions button.link-btn {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .data-table .select-col {
+    padding-left: 0.7rem;
+    padding-right: 0.4rem;
+  }
+  .data-table .select-col input,
+  .media-admin-select input {
+    width: 20px;
+    height: 20px;
+  }
+  .media-admin-select {
+    min-height: 40px;
+  }
 }

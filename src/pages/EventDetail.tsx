@@ -38,6 +38,12 @@ import type { PublicClubEvent, SignupStatus, SkillLevel } from '../types'
 // so an event is shareable and back-button friendly. Teams / bracket / score
 // tabs land in later PRs; for now the page is just the detail view, and a
 // tab strip only appears once there's more than one tab.
+// "Junker Center Main Gymnasium" -> ["Junker Center Main ", "Gymnasium"].
+function splitLastWord(s: string): [string, string] {
+  const i = s.lastIndexOf(' ') + 1
+  return [s.slice(0, i), s.slice(i)]
+}
+
 function EventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
   const id = Number(eventId)
@@ -196,6 +202,8 @@ function EventDetail() {
   const meterPct =
     e.capacity && e.capacity > 0 ? Math.min(100, Math.round((e.signup_count / e.capacity) * 100)) : null
   const formatLabel = playFormatLabel(e.play_format)
+  // Only rendered when there's a location name (see the Location row).
+  const [locationHead, locationTail] = e.location_name ? splitLastWord(e.location_name) : ['', '']
   const myStatusClass =
     e.my_signup_status === 'waitlist'
       ? 'is-waitlist'
@@ -287,18 +295,22 @@ function EventDetail() {
               <div>
                 <dt>Location</dt>
                 <dd>
-                  {e.location_name}
+                  {e.location_address ? locationHead : e.location_name}
                   {e.location_address && (
                     <>
-                      {' · '}
-                      <a
-                        href={directionsUrl(e.location_address)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="directions-link"
-                      >
-                        Directions
-                      </a>
+                      {/* The name's last word wraps together with "· Directions"
+                          so the link never starts a line on its own. */}
+                      <span className="nowrap">
+                        {locationTail} &middot;{' '}
+                        <a
+                          href={directionsUrl(e.location_address)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="directions-link"
+                        >
+                          Directions
+                        </a>
+                      </span>
                     </>
                   )}
                 </dd>
