@@ -109,16 +109,14 @@ function Leaderboard() {
                 Stripe leaders
               </button>
             </div>
-            {view === 'record' && (
-              <input
-                type="search"
-                className="directory-search"
-                placeholder="Search by name…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                aria-label="Search leaderboard by name"
-              />
-            )}
+            <input
+              type="search"
+              className={view === 'record' ? 'directory-search' : 'directory-search is-reserved'}
+              placeholder="Search by name…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search leaderboard by name"
+            />
           </div>
         </div>
 
@@ -205,7 +203,12 @@ function Leaderboard() {
                     <li key={m.id}>
                       <Link to={`/members/${m.id}`} className="chip">
                         <span className="chip-avatar">{initials(m.name)}</span>
-                        {m.name || 'Member'} &middot; {m.wins}&ndash;{m.losses}
+                        <span>
+                          {m.name || 'Member'}{' '}
+                          <span className="chip-record">
+                            &middot; {m.wins}&ndash;{m.losses}
+                          </span>
+                        </span>
                       </Link>
                     </li>
                   ))}

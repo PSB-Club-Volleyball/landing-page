@@ -403,7 +403,7 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
                   </td>
                   <td>{p.position ?? '—'}</td>
                   <td>{p.class_year ?? '—'}</td>
-                  <td>{p.season}</td>
+                  <td className="nowrap">{p.season}</td>
                   <td>
                     <span className="row-actions">
                       <button

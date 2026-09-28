@@ -276,7 +276,7 @@ function Profile() {
                 <span className="locked-note">
                   Change requested: {SKILL_LEVEL_LABELS[status.skillLevelChangeRequested]} — pending admin approval.
                 </span>
-                <button type="button" disabled={skillSaving} onClick={cancelSkillLevelRequest}>
+                <button type="button" className="btn btn-outline btn-sm" disabled={skillSaving} onClick={cancelSkillLevelRequest}>
                   {skillSaving ? '…' : 'Cancel request'}
                 </button>
               </div>
@@ -294,7 +294,12 @@ function Profile() {
                     </option>
                   ))}
                 </select>
-                <button type="button" disabled={!skillDirty || skillSaving} onClick={saveSkillLevel}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={!skillDirty || skillSaving}
+                  onClick={saveSkillLevel}
+                >
                   {skillSaving
                     ? status.skillLevel === null
                       ? 'Saving…'
@@ -360,9 +365,9 @@ function Profile() {
                     <tr>
                       <th>Event</th>
                       <th>Team</th>
-                      <th>W</th>
-                      <th>L</th>
-                      <th>Sets</th>
+                      <th className="num">W</th>
+                      <th className="num">L</th>
+                      <th className="num">Sets</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -371,10 +376,10 @@ function Profile() {
                         <td>
                           <Link to={`/events/${r.eventId}`}>{r.title}</Link>
                         </td>
-                        <td>{r.teamName}</td>
-                        <td>{r.wins}</td>
-                        <td>{r.losses}</td>
-                        <td>
+                        <td className="nowrap">{r.teamName}</td>
+                        <td className="num">{r.wins}</td>
+                        <td className="num">{r.losses}</td>
+                        <td className="num">
                           {r.setsWon}&ndash;{r.setsLost}
                         </td>
                       </tr>

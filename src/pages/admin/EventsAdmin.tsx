@@ -7,6 +7,7 @@ import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { useSelection } from '../../lib/useSelection'
 import { emptyDraft, eventToDraft, shiftDateTime, toInput, VISIBILITY_LABELS, type Draft } from './eventDraft'
 import { EventFormFields } from './eventForm'
+import { EVENT_TYPE_LABELS } from '../../lib/eventFormat'
 import type { AdminEventRow, EventStatus, FormTemplate } from '../../types'
 
 // Bulk-editing several events at once can only ever set every selected
@@ -583,7 +584,7 @@ function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChan
                     {ev.title}
                   </button>
                 </td>
-                <td>{ev.event_type}</td>
+                <td>{EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}</td>
                 <td>{new Date(ev.start_time).toLocaleString()}</td>
                 <td>
                   {ev.status !== 'cancelled' && ev.is_past ? (

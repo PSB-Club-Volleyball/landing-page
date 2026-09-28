@@ -5,6 +5,9 @@ import {
   LOCATION_NAME,
 } from '../constants'
 
+// Split so a narrow card wraps the address before the @, not mid-domain.
+const [EMAIL_USER, EMAIL_DOMAIN] = CONTACT_EMAIL.split('@')
+
 function Home() {
   return (
     <main id="main-content" tabIndex={-1}>
@@ -74,7 +77,8 @@ function Home() {
           <p className="or-note">
             or email{' '}
             <a className="inline-link" href={`mailto:${CONTACT_EMAIL}`}>
-              {CONTACT_EMAIL}
+              {EMAIL_USER}
+              <wbr />@{EMAIL_DOMAIN}
             </a>
           </p>
         </div>

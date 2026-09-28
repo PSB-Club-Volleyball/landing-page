@@ -196,7 +196,11 @@ function MediaAdmin() {
                   </option>
                 ))}
               </select>
-              <button type="button" className="danger media-admin-delete" onClick={() => handleDelete(item.id)}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm danger media-admin-delete"
+                onClick={() => handleDelete(item.id)}
+              >
                 Delete
               </button>
             </li>

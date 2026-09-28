@@ -102,9 +102,9 @@ function MemberProfile() {
                     <tr>
                       <th>Event</th>
                       <th>Team</th>
-                      <th>W</th>
-                      <th>L</th>
-                      <th>Sets</th>
+                      <th className="num">W</th>
+                      <th className="num">L</th>
+                      <th className="num">Sets</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -113,10 +113,10 @@ function MemberProfile() {
                         <td>
                           <Link to={`/events/${r.eventId}`}>{r.title}</Link>
                         </td>
-                        <td>{r.teamName}</td>
-                        <td>{r.wins}</td>
-                        <td>{r.losses}</td>
-                        <td>
+                        <td className="nowrap">{r.teamName}</td>
+                        <td className="num">{r.wins}</td>
+                        <td className="num">{r.losses}</td>
+                        <td className="num">
                           {r.setsWon}&ndash;{r.setsLost}
                         </td>
                       </tr>
@@ -144,7 +144,11 @@ function MemberStripesSection({ stripes }: { stripes: PublicMemberProfile['strip
   const eventCount = new Set(stripes.awards.map((a) => a.event_id)).size
 
   return (
-    <section className="mp-stripes" aria-labelledby="mp-stripes-title">
+    // Without an "Awarded by" sidebar the stripes card takes the full row.
+    <section
+      className={stripes.awards.length > 0 ? 'mp-stripes' : 'mp-stripes is-solo'}
+      aria-labelledby="mp-stripes-title"
+    >
       <div className="mp-stripes-main">
         <div className="mp-stripes-head">
           <div>
@@ -197,7 +201,7 @@ function MemberStripesSection({ stripes }: { stripes: PublicMemberProfile['strip
                 ) : (
                   <Link to={`/members/${a.giver_id}`}>{a.giver_name || 'Member'}</Link>
                 )}
-                <span className="muted-sub">
+                <span className="muted-sub mp-stripes-award" title={a.event_title}>
                   {a.skills.map((s) => STRIPE_LABELS[s]).join(', ')} &middot; {a.event_title}
                 </span>
               </li>

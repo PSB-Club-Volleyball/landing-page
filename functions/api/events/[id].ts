@@ -75,9 +75,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
     const ids = teamList.map((t) => t.id)
     const placeholders = ids.map((_, i) => `?${i + 1}`).join(', ')
     const memberRes = await env.DB.prepare(
-      `SELECT m.team_id, m.is_captain, m.user_id, COALESCE(m.display_name, s.name) AS name
+      `SELECT m.team_id, m.is_captain, m.user_id, COALESCE(m.display_name, s.name, u.name) AS name
        FROM event_team_members m
        LEFT JOIN event_signups s ON s.id = m.signup_id
+       LEFT JOIN users u ON u.id = m.user_id
        WHERE m.team_id IN (${placeholders})
        ORDER BY m.id`
     )

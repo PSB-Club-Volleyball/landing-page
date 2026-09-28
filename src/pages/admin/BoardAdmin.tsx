@@ -395,7 +395,7 @@ function BoardAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChang
                     {m.first_name} {m.last_name}
                   </td>
                   <td>{m.email ?? '—'}</td>
-                  <td>{m.season}</td>
+                  <td className="nowrap">{m.season}</td>
                   <td>
                     <span className="row-actions">
                       <button

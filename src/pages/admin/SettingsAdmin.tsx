@@ -109,7 +109,7 @@ function SettingsAdmin() {
           <label className="field season-field">
             Current season
             <input
-              placeholder="2025-2026"
+              placeholder="e.g. 2026-2027"
               value={seasonDraft}
               disabled={saving}
               onChange={(e) => setSeasonDraft(e.target.value)}

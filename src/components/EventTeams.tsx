@@ -30,8 +30,8 @@ export default function EventTeams({ teams }: { teams: PublicEventTeam[] }) {
                     ) : (
                       m.name
                     )}
+                    {m.is_captain && <span className="captain-tag">C</span>}
                   </span>
-                  {m.is_captain && <span className="captain-tag">C</span>}
                 </li>
               ))}
               {team.members.length === 0 && <li className="public-team-empty">No players listed</li>}
