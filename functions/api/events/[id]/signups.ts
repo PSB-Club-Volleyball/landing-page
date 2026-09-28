@@ -105,7 +105,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
       .map((s) => s.trim())
       .filter(Boolean)
     if (allowed.length > 0) {
-      const account = await env.DB.prepare(`SELECT skill_level FROM users WHERE LOWER(email) = ?1`)
+      const account = await env.DB.prepare(
+        `SELECT u.skill_level FROM user_emails ue JOIN users u ON u.id = ue.user_id WHERE ue.email = ?1`
+      )
         .bind(email)
         .first<{ skill_level: string | null }>()
       if (account?.skill_level && !allowed.includes(account.skill_level)) {
@@ -140,7 +142,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   // means the waitlist, same as anyone else.
   const restricted = event.rsvp_gated
     ? null
-    : await env.DB.prepare(`SELECT 1 FROM users WHERE LOWER(email) = ?1 AND rsvp_restricted = 1`)
+    : await env.DB.prepare(
+        `SELECT 1 FROM user_emails ue JOIN users u ON u.id = ue.user_id WHERE ue.email = ?1 AND u.rsvp_restricted = 1`
+      )
         .bind(email)
         .first()
 
@@ -157,6 +161,18 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env, params }
   const filteredAnswers = Object.fromEntries(
     fields.filter((f) => answers[f.id] !== undefined).map((f) => [f.id, String(answers[f.id])])
   )
+
+  // One seat per person: an account can hold several emails, and the unique
+  // (event, email) index only stops the same address twice.
+  const sameAccount = await env.DB.prepare(
+    `SELECT s.email FROM event_signups s
+     JOIN user_emails ue ON ue.email = LOWER(s.email)
+     WHERE s.event_id = ?1 AND LOWER(s.email) <> ?2
+       AND ue.user_id = (SELECT user_id FROM user_emails WHERE email = ?2)`
+  )
+    .bind(eventId, email)
+    .first<{ email: string }>()
+  if (sameAccount) return badRequest(`You're already signed up for this event as ${sameAccount.email}`)
 
   const cancelToken = randomToken(24)
   let inserted: { id: number; status: 'pending' | 'approved' | 'waitlist' } | null

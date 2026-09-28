@@ -36,7 +36,7 @@ function listedEventIds(viewerRole: string): string {
 
 // Cross-event W/L/sets per account. A team member counts as an account when
 // it's linked to it (event_team_members.user_id, see migration 0031), or — if
-// unlinked — when its signup email is the account's email and the account
+// unlinked — when its signup email is one of the account's emails and the account
 // isn't linked elsewhere in that event, so someone who makes an account after
 // playing still gets credit. Newest event first.
 //
@@ -45,7 +45,7 @@ function listedEventIds(viewerRole: string): string {
 // matter how many accounts are asked for (GET /api/members asks for all).
 export async function getPlayerResultsByUser(
   env: Env,
-  users: { id: number; email: string }[],
+  users: { id: number }[],
   viewerRole: string
 ): Promise<Map<number, PlayerResult[]>> {
   const LISTED_EVENT_IDS = listedEventIds(viewerRole)
@@ -54,11 +54,13 @@ export async function getPlayerResultsByUser(
     // Every team, published or not: a link on an unpublished team still
     // blocks email attribution for that event.
     env.DB.prepare(
-      `SELECT etm.user_id, LOWER(es.email) AS email, et.id AS team_id, et.event_id,
+      `SELECT etm.user_id, ue.user_id AS email_user_id, et.id AS team_id, et.event_id,
               (et.published = 1 AND et.event_id IN (${LISTED_EVENT_IDS})) AS counted
        FROM event_team_members etm
        JOIN event_teams et ON et.id = etm.team_id
-       LEFT JOIN event_signups es ON es.id = etm.signup_id`
+       LEFT JOIN event_signups es ON es.id = etm.signup_id
+       LEFT JOIN user_emails ue ON ue.email = LOWER(es.email)
+       ORDER BY etm.id`
     ),
     env.DB.prepare(`SELECT id, name, event_id FROM event_teams WHERE published = 1 AND event_id IN (${LISTED_EVENT_IDS})`),
     env.DB.prepare(
@@ -72,7 +74,8 @@ export async function getPlayerResultsByUser(
   ])
   const members = memberRows.results as {
     user_id: number | null
-    email: string | null
+    // The account that holds the member's signup email, if any.
+    email_user_id: number | null
     team_id: number
     event_id: number
     counted: number
@@ -126,22 +129,23 @@ export async function getPlayerResultsByUser(
     set.add(m.event_id)
     linkedEvents.set(m.user_id, set)
   }
-  const usersByEmail = new Map<string, number[]>()
-  for (const u of users) {
-    const email = u.email.toLowerCase()
-    usersByEmail.set(email, [...(usersByEmail.get(email) ?? []), u.id])
-  }
 
-  // Distinct (event, team) pairs each account played on.
+  // Distinct (event, team) pairs each account played on. An unlinked member
+  // counts by email at most once per account per event (the earliest), since
+  // two of one person's emails can both be on teams in the same event.
+  const emailCredited = new Set<string>()
   const played = new Map<number, Map<string, { eventId: number; teamId: number }>>(users.map((u) => [u.id, new Map()]))
   for (const m of members) {
     if (m.counted !== 1) continue
     const owners =
       m.user_id != null
         ? [m.user_id]
-        : m.email
-          ? (usersByEmail.get(m.email) ?? []).filter((id) => !linkedEvents.get(id)?.has(m.event_id))
+        : m.email_user_id != null &&
+            !linkedEvents.get(m.email_user_id)?.has(m.event_id) &&
+            !emailCredited.has(`${m.event_id}:${m.email_user_id}`)
+          ? [m.email_user_id]
           : []
+    if (m.user_id == null && owners.length > 0) emailCredited.add(`${m.event_id}:${owners[0]}`)
     for (const id of owners) played.get(id)?.set(`${m.event_id}:${m.team_id}`, { eventId: m.event_id, teamId: m.team_id })
   }
 
@@ -183,7 +187,7 @@ function parseScores(raw: string, matchId: number, eventId: number): [number, nu
 
 export async function getPlayerResults(
   env: Env,
-  user: { id: number; email: string },
+  user: { id: number },
   viewerRole: string
 ): Promise<PlayerResult[]> {
   const results = (await getPlayerResultsByUser(env, [user], viewerRole)).get(user.id)

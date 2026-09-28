@@ -25,7 +25,7 @@ export const onRequestGet: PagesFunction<Env, 'id', AdminData> = async ({ env, p
 
   const signups = await env.DB.prepare(
     `SELECT s.id, s.event_id, s.name, s.email, s.answers, s.status, s.checked_in_at, s.created_at,
-            (SELECT u.id FROM users u WHERE LOWER(u.email) = LOWER(s.email)) AS user_id
+            (SELECT ue.user_id FROM user_emails ue WHERE ue.email = LOWER(s.email)) AS user_id
      FROM event_signups s WHERE s.event_id = ?1 ORDER BY s.created_at ASC`
   )
     .bind(eventId)

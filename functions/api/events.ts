@@ -69,8 +69,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
   const mySignupsByEvent = new Map<number, { id: number; status: string }>()
   if (sessionUser) {
-    const mine = await env.DB.prepare(`SELECT id, event_id, status FROM event_signups WHERE LOWER(email) = ?1`)
-      .bind(sessionUser.email.toLowerCase())
+    // Signups under any of the account's emails. If two of its emails signed
+    // up for one event (e.g. before the accounts were merged), the one that
+    // matters most is shown: approved, then pending, then waitlist, newest
+    // first — rows arrive least important first, so the last write wins.
+    const mine = await env.DB.prepare(
+      `SELECT id, event_id, status FROM event_signups
+       WHERE LOWER(email) IN (SELECT email FROM user_emails WHERE user_id = ?1)
+       ORDER BY CASE status WHEN 'approved' THEN 0 WHEN 'pending' THEN 1 WHEN 'waitlist' THEN 2 ELSE 3 END DESC, created_at ASC, id ASC`
+    )
+      .bind(sessionUser.id)
       .all<{ id: number; event_id: number; status: string }>()
     for (const row of mine.results ?? []) mySignupsByEvent.set(row.event_id, { id: row.id, status: row.status })
   }

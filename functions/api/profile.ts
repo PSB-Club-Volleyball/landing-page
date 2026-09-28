@@ -68,11 +68,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const rsvpRows = await env.DB.prepare(
     `SELECT s.id AS signup_id, s.status, e.id AS event_id, e.title, e.start_time, e.location_name
      FROM event_signups s JOIN events e ON e.id = s.event_id
-     WHERE LOWER(s.email) = ?1 AND s.status IN ('approved', 'pending')
+     WHERE LOWER(s.email) IN (SELECT email FROM user_emails WHERE user_id = ?1)
+       AND s.status IN ('approved', 'pending')
        AND ${EVENT_END_SQL} >= ?2
      ORDER BY e.start_time ASC`
   )
-    .bind(sessionUser.email.toLowerCase(), eventCutoff(2))
+    .bind(sessionUser.id, eventCutoff(2))
     .all<{
       signup_id: number
       status: string

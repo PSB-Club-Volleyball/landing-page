@@ -8,7 +8,7 @@ export const AUTH_ERROR_MESSAGES: Record<string, string> = {
   profile_fetch_failed: "Couldn't read your account details from that provider. Try again.",
   missing_profile_fields: 'That account is missing an email address, which we need to sign you in.',
   account_exists:
-    'An account with that email already exists under a different sign-in provider. Use the provider you signed up with.',
+    'That email already belongs to an account that signs in another way. Use the sign-in you used before, or ask a club admin to link the two.',
   email_unverified: "Google hasn't verified that account's email address. Verify it with Google, then try again.",
   personal_accounts_only:
     'This option is for personal Microsoft accounts (Outlook, Hotmail, Live) only. Work or school accounts cannot sign in here; Penn State accounts use the PSU Microsoft option.',
