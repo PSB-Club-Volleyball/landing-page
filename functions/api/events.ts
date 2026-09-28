@@ -2,7 +2,7 @@ import type { Env } from './_lib/env'
 import { json } from './_lib/http'
 import { getSessionUser } from './_lib/session'
 import { isAtLeast } from './_lib/roles'
-import { eventCutoff } from './_lib/time'
+import { eventCutoff, EVENT_END_SQL } from './_lib/time'
 
 // GET /api/events -> published + cancelled events (drafts stay admin-only), soonest
 // first. Two things are filtered out here rather than in the admin table, since
@@ -46,7 +46,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
        FROM events e
        WHERE e.status IN ('published', 'cancelled')
          AND e.visibility IN (${visibilityPlaceholders})
-         AND COALESCE(e.end_time, e.start_time) < ?${allowedVisibilities.length + 1}
+         AND ${EVENT_END_SQL} < ?${allowedVisibilities.length + 1}
        ORDER BY e.start_time DESC`
     : `SELECT e.id, e.title, e.description, e.event_type, e.start_time, e.end_time,
               e.location_name, e.location_address, e.status, e.visibility,
@@ -55,7 +55,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
        FROM events e
        WHERE e.status IN ('published', 'cancelled')
          AND e.visibility IN (${visibilityPlaceholders})
-         AND COALESCE(e.end_time, e.start_time) >= ?${allowedVisibilities.length + 1}
+         AND ${EVENT_END_SQL} >= ?${allowedVisibilities.length + 1}
          AND (e.series_id IS NULL OR e.released_early = 1 OR date(e.start_time) <= date(?${allowedVisibilities.length + 2}, '+7 days'))
        ORDER BY e.start_time ASC`
 

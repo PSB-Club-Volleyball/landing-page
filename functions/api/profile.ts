@@ -1,7 +1,7 @@
 import type { Env } from './_lib/env'
 import { badRequest, forbidden, json, unauthorized } from './_lib/http'
 import { getSessionUser } from './_lib/session'
-import { eventCutoff } from './_lib/time'
+import { eventCutoff, EVENT_END_SQL } from './_lib/time'
 import { getPlayerResults } from './_lib/playerResults'
 
 const SKILL_LEVELS = ['beginner', 'intermediate', 'advanced'] as const
@@ -69,7 +69,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     `SELECT s.id AS signup_id, s.status, e.id AS event_id, e.title, e.start_time, e.location_name
      FROM event_signups s JOIN events e ON e.id = s.event_id
      WHERE LOWER(s.email) = ?1 AND s.status IN ('approved', 'pending')
-       AND COALESCE(e.end_time, e.start_time) >= ?2
+       AND ${EVENT_END_SQL} >= ?2
      ORDER BY e.start_time ASC`
   )
     .bind(sessionUser.email.toLowerCase(), eventCutoff(2))

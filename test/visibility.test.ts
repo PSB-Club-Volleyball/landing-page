@@ -173,7 +173,6 @@ test('series occurrences more than a week out are held back from the list unless
 // starts. The same raw COALESCE drives ?past=1 and admin is_past.
 test(
   'an overnight event under way stays in the upcoming list',
-  { todo: 'BUG: events.ts compares the raw overnight end_time instead of eventEndWallClock' },
   async (t) => {
     t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-06-10T23:00:00-04:00') })
     const { db, env } = setup()

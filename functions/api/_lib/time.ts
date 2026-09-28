@@ -41,3 +41,13 @@ export function eventEndWallClock(event: { start_time: string; end_time: string 
   if (Number.isNaN(ms)) throw new Error(`Bad event end_time: ${event.end_time}`)
   return new Date(ms + 24 * 3_600_000).toISOString().slice(0, 16)
 }
+
+// SQL twin of eventEndWallClock for an events row aliased `e`, so list
+// queries agree with it: an end before the start is the next day, and no
+// end time means the event ends when it starts.
+export const EVENT_END_SQL = `(CASE
+    WHEN e.end_time IS NULL THEN substr(e.start_time, 1, 16)
+    WHEN substr(e.end_time, 1, 16) < substr(e.start_time, 1, 16)
+      THEN strftime('%Y-%m-%dT%H:%M', substr(e.end_time, 1, 16), '+1 day')
+    ELSE substr(e.end_time, 1, 16)
+  END)`
