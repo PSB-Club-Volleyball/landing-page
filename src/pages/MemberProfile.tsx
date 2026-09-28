@@ -126,15 +126,15 @@ function MemberStripesSection({ stripes }: { stripes: PublicMemberProfile['strip
       <div className="mp-stripes-main">
         <div className="mp-stripes-head">
           <div>
-            <h2 id="mp-stripes-title">Stripes</h2>
+            <h2 id="mp-stripes-title">Kudos</h2>
             <p className="muted-sub">
               {stripes.total > 0
                 ? `${stripeCount(stripes.total)} from ${stripes.giver_count} ${stripes.giver_count === 1 ? 'teammate' : 'teammates'} across ${eventCount} ${eventCount === 1 ? 'event' : 'events'}`
-                : 'No stripes yet.'}
+                : 'No kudos yet.'}
             </p>
           </div>
           <p className="muted-sub mp-stripes-how">
-            Earned at events: teammates award stripes within 12 hours of the final whistle.
+            Earned at events: teammates give kudos within 12 hours of the final whistle.
           </p>
         </div>
         {stripes.total > 0 && (

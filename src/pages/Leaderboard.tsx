@@ -18,7 +18,7 @@ function Leaderboard() {
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [searchParams, setSearchParams] = useSearchParams()
-  const view = searchParams.get('view') === 'stripes' ? 'stripes' : 'record'
+  const view = searchParams.get('view') === 'kudos' ? 'stripes' : 'record'
 
   useEffect(() => {
     getMembers()
@@ -33,7 +33,7 @@ function Leaderboard() {
       (prev) => {
         const p = new URLSearchParams(prev)
         if (next === 'record') p.delete('view')
-        else p.set('view', next)
+        else p.set('view', 'kudos')
         return p
       },
       { replace: true }
@@ -88,7 +88,7 @@ function Leaderboard() {
               <p className="directory-count">
                 {view === 'record'
                   ? `${ranked?.length ?? 0} ranked (${MIN_RANKED_GAMES}+ games) · ${unranked?.length ?? 0} not yet ranked · all-time`
-                  : 'Most stripes per skill · awarded only by teammates, right after an event'}
+                  : 'Most kudos per skill · given only by teammates, right after an event'}
               </p>
             )}
             <nav className="directory-toggle" aria-label="Community directory">
@@ -102,7 +102,7 @@ function Leaderboard() {
                 Record
               </button>
               <button type="button" aria-pressed={view === 'stripes'} onClick={() => setView('stripes')}>
-                Stripe leaders
+                Kudos leaders
               </button>
             </div>
             <input
@@ -230,7 +230,7 @@ function Leaderboard() {
                     ))}
                   </ol>
                 ) : (
-                  <p className="muted-sub">No stripes yet.</p>
+                  <p className="muted-sub">No kudos yet.</p>
                 )}
               </li>
             ))}

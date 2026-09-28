@@ -165,7 +165,7 @@ export function getEventStripes(eventId: number): Promise<EventStripes> {
 // Award (award=true) or take back one stripe. Throws with the server's
 // reason (window locked, not a teammate, …) so the page can show it.
 export async function setStripe(eventId: number, receiverId: number, skill: StripeSkill, award: boolean): Promise<void> {
-  await send(award ? 'POST' : 'DELETE', `/api/events/${eventId}/stripes`, { receiver_id: receiverId, skill }, 'Stripe update failed')
+  await send(award ? 'POST' : 'DELETE', `/api/events/${eventId}/stripes`, { receiver_id: receiverId, skill }, 'Kudos update failed')
 }
 
 export function getMemberProfile(id: number): Promise<{ member: PublicMemberProfile }> {

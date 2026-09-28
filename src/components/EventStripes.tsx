@@ -51,7 +51,7 @@ export default function EventStripes({ eventId }: { eventId: number }) {
       })
       .catch((e: Error) => {
         if (cancelled) return
-        setLoadError(e instanceof ApiError && e.status === 401 ? 'Sign in to award stripes to your teammates.' : e.message)
+        setLoadError(e instanceof ApiError && e.status === 401 ? 'Sign in to give your teammates kudos.' : e.message)
       })
     return () => {
       cancelled = true
@@ -97,7 +97,7 @@ export default function EventStripes({ eventId }: { eventId: number }) {
   if (!team) {
     return (
       <p className="placeholder-note">
-        Stripes are awarded between teammates. You weren&rsquo;t listed on a team for this event.
+        Kudos are given between teammates. You weren&rsquo;t listed on a team for this event.
       </p>
     )
   }
@@ -105,8 +105,8 @@ export default function EventStripes({ eventId }: { eventId: number }) {
   if (win.state === 'upcoming') {
     return (
       <p className="placeholder-note">
-        Stripes open when the event starts. You&rsquo;ll have until {timeFormatter.format(closes)},{' '}
-        {dayFormatter.format(closes)} to award them.
+        Kudos open when the event starts. You&rsquo;ll have until {timeFormatter.format(closes)},{' '}
+        {dayFormatter.format(closes)} to give them.
       </p>
     )
   }
@@ -122,7 +122,7 @@ export default function EventStripes({ eventId }: { eventId: number }) {
     return (
       <div className="stripes-panel">
         <div className="stripes-banner is-locked" role="status">
-          <b>Stripes are locked</b>
+          <b>Kudos are locked</b>
           <span>
             Closed {timeFormatter.format(closes)}, {dayFormatter.format(closes)}, 12 hours after the event ended.
           </span>
@@ -168,13 +168,13 @@ export default function EventStripes({ eventId }: { eventId: number }) {
   return (
     <div className="stripes-panel">
       <div className="stripes-banner" role="status">
-        <b>Award your teammates stripes</b>
+        <b>Give your teammates kudos</b>
         <span>
-          Closes in {formatDuration(minutesLeft)} ({formatCloseTime(closes, new Date())}). After that, stripes lock.
+          Closes in {formatDuration(minutesLeft)} ({formatCloseTime(closes, new Date())}). After that, kudos lock.
         </span>
       </div>
       <p className="muted-sub">
-        Your team: <b>{team.name}</b> &middot; tap a skill to award a stripe, tap again to take it back
+        Your team: <b>{team.name}</b> &middot; tap a skill to give kudos, tap again to take it back
       </p>
       {actionError && <p className="admin-error">{actionError}</p>}
       {teammates.length === 0 ? (
@@ -193,7 +193,7 @@ export default function EventStripes({ eventId }: { eventId: number }) {
                     onClick={() => setOpenMate(expanded ? null : t.user_id)}
                   >
                     <span className="stripes-mate-name">{t.name || 'Teammate'}</span>
-                    <span className="muted-sub">{t.given.length > 0 ? stripeCount(t.given.length) : 'No stripes yet'}</span>
+                    <span className="muted-sub">{t.given.length > 0 ? stripeCount(t.given.length) : 'No kudos yet'}</span>
                   </button>
                   {expanded && (
                     <Link to={`/members/${t.user_id}`} className="stripes-profile-link">
@@ -203,7 +203,7 @@ export default function EventStripes({ eventId }: { eventId: number }) {
                 </div>
                 {expanded && (
                   <div className="stripes-mate-body">
-                    <div className="stripes-chips" role="group" aria-label={`Stripes for ${t.name || 'teammate'}`}>
+                    <div className="stripes-chips" role="group" aria-label={`Kudos for ${t.name || 'teammate'}`}>
                       {[...STRIPE_SKILLS, ...STRIPE_TRAITS].map((skill) => {
                         const on = t.given.includes(skill)
                         return (
@@ -228,8 +228,8 @@ export default function EventStripes({ eventId }: { eventId: number }) {
         </ul>
       )}
       <p className="muted-sub">
-        One stripe per skill per teammate per event. Your name shows on their profile. Guests without an account
-        can&rsquo;t receive stripes.
+        Kudos can be given once per skill per teammate per event. Your name shows on their profile. Guests without an
+        account can&rsquo;t receive kudos.
       </p>
     </div>
   )
