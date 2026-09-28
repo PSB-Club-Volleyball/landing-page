@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import { ApiError } from '../../lib/api'
 import { distributeTeams } from '../../lib/teamBuilder'
 import { clampPoolCount, poolLabelAt } from '../../lib/pool'
 import type { PlayFormat, TeamParticipant, TeamsResponse } from '../../types'
@@ -34,6 +35,15 @@ type Loc = 'bench' | number
 let keySeq = 0
 const nextKey = () => `m${keySeq++}`
 
+// What decides whether a teams save keeps the schedule: team count, format,
+// each team's pool, and the bracket stage. Mirrors keepSchedule in
+// functions/api/admin/events/[id]/teams.ts.
+function structureKey(format: PlayFormat, pools: (string | null)[], bracketStage: 'single' | 'double'): string {
+  // Stage only exists for pool play; see stageOf in teams.ts.
+  const stage = format === 'pool_bracket' ? bracketStage : format === 'double_elim' ? 'double' : null
+  return JSON.stringify([format, pools, stage])
+}
+
 function participantToMember(p: TeamParticipant): DraftMember {
   return { key: nextKey(), signup_id: p.signup_id, display_name: null, name: p.name, is_captain: false, user_id: null }
 }
@@ -65,6 +75,12 @@ export default function TeamsAdmin({
   const [newWalkIn, setNewWalkIn] = useState('')
   const [published, setPublished] = useState(false)
   const [hasSchedule, setHasSchedule] = useState(false)
+  // The saved team structure. Saving the same structure edits teams in place
+  // and keeps the schedule; changing it rebuilds the teams (see teams.ts PUT).
+  const [savedStructure, setSavedStructure] = useState<string | null>(null)
+  // Set by Generate: a full reshuffle would hand every recorded score to a
+  // new roster, so it clears the schedule like a structural change.
+  const [reshuffled, setReshuffled] = useState(false)
   const [poolCount, setPoolCount] = useState('2')
   const [advanceCount, setAdvanceCount] = useState('2')
   const [bracketStage, setBracketStage] = useState<'single' | 'double'>('single')
@@ -109,6 +125,14 @@ export default function TeamsAdmin({
     setExcluded([])
     setPublished(data.published)
     setHasSchedule(data.has_schedule)
+    setReshuffled(false)
+    setSavedStructure(
+      structureKey(
+        (data.play_format as PlayFormat) ?? 'none',
+        data.teams.map((t) => t.pool),
+        data.format_config?.bracket_stage === 'double' ? 'double' : 'single'
+      )
+    )
     const cfgCount =
       data.format_config && typeof data.format_config.team_count === 'number' ? data.format_config.team_count : null
     const fallbackCount = data.teams.length || Math.max(2, Math.ceil(data.participants.length / 4)) || 2
@@ -236,6 +260,7 @@ export default function TeamsAdmin({
       count
     )
     setTeams(buckets.map((members, i) => ({ name: teams[i]?.name || `Team ${i + 1}`, members })))
+    setReshuffled(true)
     setBench([])
     setError(null)
     setNote(null)
@@ -256,16 +281,27 @@ export default function TeamsAdmin({
     )
   }
 
+  const draftStructure = structureKey(
+    format,
+    teams.map((_, i) =>
+      format === 'pool_bracket' ? poolLabelAt(i, clampPoolCount(Number(poolCount) || 2, teams.length)) : null
+    ),
+    bracketStage
+  )
+  const schedulePending = hasSchedule && (reshuffled || draftStructure !== savedStructure)
+
   async function save() {
     if (published && teams.some((t) => t.members.length === 0)) {
       setError('Every team needs at least one player before you can publish. Fill or remove the empty team.')
       return
     }
-    // The server rebuilds the teams from scratch on every save, which deletes
-    // every match and recorded score for the event.
+    // Only a structural change rebuilds the teams, which deletes every match
+    // and recorded score; renames and roster moves keep the schedule.
     if (
-      hasSchedule &&
-      !confirm('Saving teams deletes the current schedule and every recorded score for this event. Save anyway?')
+      schedulePending &&
+      !confirm(
+        'Reshuffling, or changing the number of teams, the format, or the pools, rebuilds the teams and deletes the current schedule and every recorded score. Save anyway?'
+      )
     )
       return
     setSaving(true)
@@ -282,6 +318,10 @@ export default function TeamsAdmin({
           bracket_stage: format === 'double_elim' ? 'double' : bracketStage,
         },
         published,
+        // Only true when the admin just confirmed the rebuild prompt; the
+        // server refuses to delete a schedule otherwise.
+        rebuild_ok: schedulePending,
+        force_rebuild: reshuffled,
         teams: teams.map((t, i) => ({
           name: t.name.trim() || `Team ${i + 1}`,
           seed: i + 1,
@@ -301,14 +341,21 @@ export default function TeamsAdmin({
       load()
       onFormatChange?.()
     } catch (e) {
-      setError((e as Error).message)
+      if (e instanceof ApiError && e.status === 409) {
+        // The server saw a schedule this page didn't know about (another tab
+        // or admin). Reload so the prompt reflects it; the draft is lost.
+        setError('The schedule changed since this page loaded. Teams reloaded — review and save again.')
+        load()
+      } else {
+        setError((e as Error).message)
+      }
     } finally {
       setSaving(false)
     }
   }
 
-  // Account links save immediately, per member, against the saved teams —
-  // never through "Save teams", which would wipe the schedule and scores.
+  // Account links save immediately, per member, against the saved teams, so
+  // linking never needs a teams save.
   // The draft is patched too so the next teams save carries the link.
   async function linkMember(memberId: number, userId: number | null) {
     if (!resp) return
@@ -686,10 +733,11 @@ export default function TeamsAdmin({
           </div>
         </div>
 
-        {hasSchedule && (
+        {schedulePending && (
           <p className="field-hint">
-            Saving these teams deletes the current schedule and every recorded score &mdash; you&rsquo;ll
-            regenerate it on the Schedule &amp; scores tab.
+            This reshuffles the teams or changes their number, format, or pools, so saving deletes the current
+            schedule and every recorded score &mdash; you&rsquo;ll regenerate it on the Schedule &amp; scores tab. Renaming teams
+            or moving players keeps the schedule.
           </p>
         )}
         {error && <p className="admin-error">{error}</p>}

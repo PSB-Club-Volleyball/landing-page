@@ -4,6 +4,7 @@ import { onRequestPost as createEvent } from '../functions/api/admin/events.ts'
 import { onRequestDelete as deleteEvent, onRequestPut as updateEvent } from '../functions/api/admin/events/[id].ts'
 import { onRequestPatch as scoreMatch } from '../functions/api/admin/events/[id]/matches/[matchId].ts'
 import { onRequestPost as createForm } from '../functions/api/admin/forms.ts'
+import { onRequestPut as saveTeams } from '../functions/api/admin/events/[id]/teams.ts'
 import {
   body,
   callAdmin,
@@ -263,4 +264,134 @@ test('form create rejects an invalid regex pattern with 400', async () => {
   assert.equal(res.status, 400)
   assert.equal((await body(res)).error, '"Code" has an invalid pattern')
   assert.equal(sql(w.db, `SELECT COUNT(*) AS n FROM forms`)[0].n, forms)
+})
+
+// --- teams save vs. schedule --------------------------------------------------
+function scheduledRoundRobin(w: ReturnType<typeof adminWorld>) {
+  const eventId = seedEvent(w.db, { play_format: 'round_robin', format_config: '{"sets_per_match":1,"team_count":2}' })
+  const a = seedTeam(w.db, eventId, { name: 'Block Party', seed: 1 })
+  const b = seedTeam(w.db, eventId, { name: 'Net Gains', seed: 2 })
+  const match = seedMatch(w.db, eventId, { round: 1, slot: 0, team_a_id: a, team_b_id: b, scores: '[[25,20]]', winner_id: a })
+  return { eventId, a, b, match }
+}
+const walkIns = (...names: string[]) => names.map((n) => ({ signup_id: null, display_name: n, is_captain: false }))
+const teamsBody = (
+  format: string,
+  teams: { name: string; members: ReturnType<typeof walkIns> }[],
+  extra: Record<string, unknown> = {}
+) => ({
+  play_format: format,
+  // What the admin client always sends, even for formats without a bracket.
+  format_config: { team_count: teams.length, bracket_stage: 'single' },
+  published: true,
+  ...extra,
+  teams: teams.map((t, i) => ({ ...t, seed: i + 1, pool: null })),
+})
+
+test('renaming teams and moving players keeps the schedule and its scores', async () => {
+  const w = adminWorld()
+  const { eventId, a, b, match } = scheduledRoundRobin(w)
+  const res = await callAdmin(saveTeams, w.env, {
+    cookie: w.admin.cookie,
+    params: { id: eventId },
+    body: teamsBody('round_robin', [
+      { name: 'Block Party II', members: walkIns('Ana', 'Ben') },
+      { name: 'Net Gains', members: walkIns('Cy') },
+    ]),
+  })
+  assert.equal(res.status, 200)
+  assert.equal((await body(res)).schedule_kept, true)
+  assert.deepEqual(sql(w.db, `SELECT id, name FROM event_teams WHERE event_id = ? ORDER BY seed`, eventId), [
+    { id: a, name: 'Block Party II' },
+    { id: b, name: 'Net Gains' },
+  ])
+  assert.deepEqual(sql(w.db, `SELECT team_a_id, team_b_id, scores, winner_id FROM event_matches WHERE id = ?`, match), [
+    { team_a_id: a, team_b_id: b, scores: '[[25,20]]', winner_id: a },
+  ])
+  assert.deepEqual(
+    sql(w.db, `SELECT display_name FROM event_team_members WHERE team_id = ? ORDER BY id`, a).map((r) => r.display_name),
+    ['Ana', 'Ben']
+  )
+})
+
+test('changing the number of teams rebuilds them and clears the schedule', async () => {
+  const w = adminWorld()
+  const { eventId } = scheduledRoundRobin(w)
+  const res = await callAdmin(saveTeams, w.env, {
+    cookie: w.admin.cookie,
+    params: { id: eventId },
+    body: teamsBody('round_robin', [
+      { name: 'A', members: walkIns('Ana') },
+      { name: 'B', members: walkIns('Ben') },
+      { name: 'C', members: walkIns('Cy') },
+    ], { rebuild_ok: true }),
+  })
+  assert.equal(res.status, 200)
+  assert.equal((await body(res)).schedule_kept, false)
+  assert.equal(sql(w.db, `SELECT COUNT(*) AS n FROM event_matches WHERE event_id = ?`, eventId)[0].n, 0)
+  assert.equal(sql(w.db, `SELECT COUNT(*) AS n FROM event_teams WHERE event_id = ?`, eventId)[0].n, 3)
+})
+
+test('changing the format rebuilds the teams and clears the schedule', async () => {
+  const w = adminWorld()
+  const { eventId } = scheduledRoundRobin(w)
+  const res = await callAdmin(saveTeams, w.env, {
+    cookie: w.admin.cookie,
+    params: { id: eventId },
+    body: teamsBody('single_elim', [
+      { name: 'Block Party', members: walkIns('Ana') },
+      { name: 'Net Gains', members: walkIns('Ben') },
+    ], { rebuild_ok: true }),
+  })
+  assert.equal((await body(res)).schedule_kept, false)
+  assert.equal(sql(w.db, `SELECT COUNT(*) AS n FROM event_matches WHERE event_id = ?`, eventId)[0].n, 0)
+})
+
+test('a rebuild the admin did not confirm is refused and the schedule survives', async () => {
+  const w = adminWorld()
+  const { eventId, match } = scheduledRoundRobin(w)
+  const res = await callAdmin(saveTeams, w.env, {
+    cookie: w.admin.cookie,
+    params: { id: eventId },
+    body: teamsBody('single_elim', [
+      { name: 'Block Party', members: walkIns('Ana') },
+      { name: 'Net Gains', members: walkIns('Ben') },
+    ]),
+  })
+  assert.equal(res.status, 409)
+  assert.equal(sql(w.db, `SELECT COUNT(*) AS n FROM event_matches WHERE id = ?`, match)[0].n, 1)
+})
+
+test('a reshuffle with the same structure still rebuilds when forced', async () => {
+  const w = adminWorld()
+  const { eventId, a } = scheduledRoundRobin(w)
+  const res = await callAdmin(saveTeams, w.env, {
+    cookie: w.admin.cookie,
+    params: { id: eventId },
+    body: teamsBody('round_robin', [
+      { name: 'Block Party', members: walkIns('Cy') },
+      { name: 'Net Gains', members: walkIns('Ana') },
+    ], { rebuild_ok: true, force_rebuild: true }),
+  })
+  assert.equal((await body(res)).schedule_kept, false)
+  assert.equal(sql(w.db, `SELECT COUNT(*) AS n FROM event_matches WHERE event_id = ?`, eventId)[0].n, 0)
+  assert.equal(sql(w.db, `SELECT COUNT(*) AS n FROM event_teams WHERE id = ?`, a)[0].n, 0)
+})
+
+test('bracket stage only counts for pool play', async () => {
+  const w = adminWorld()
+  const { eventId } = scheduledRoundRobin(w)
+  const res = await callAdmin(saveTeams, w.env, {
+    cookie: w.admin.cookie,
+    params: { id: eventId },
+    body: {
+      ...teamsBody('round_robin', [
+        { name: 'Block Party', members: walkIns('Ana') },
+        { name: 'Net Gains', members: walkIns('Ben') },
+      ]),
+      format_config: { team_count: 2, bracket_stage: 'double' },
+    },
+  })
+  assert.equal(res.status, 200)
+  assert.equal((await body(res)).schedule_kept, true)
 })

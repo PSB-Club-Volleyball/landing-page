@@ -112,6 +112,13 @@ interface TeamsInput {
   play_format: PlayFormat
   format_config: Record<string, unknown>
   published: boolean
+  // True when the admin confirmed that this save may delete the schedule.
+  // Without it a save that would have to rebuild the teams is refused (409),
+  // so a client/server disagreement can never silently wipe scores.
+  rebuild_ok?: boolean
+  // A full reshuffle: rebuild even though the structure is the same, so old
+  // scores don't end up credited to new rosters.
+  force_rebuild?: boolean
   teams: {
     name: string
     seed: number
@@ -128,6 +135,8 @@ function validateShape(body: unknown): TeamsInput | string {
   if (!FORMATS.includes(b.play_format as PlayFormat)) return 'Unknown play_format'
   if (b.format_config == null || typeof b.format_config !== 'object') return 'format_config must be an object'
   if (typeof b.published !== 'boolean') return 'published must be a boolean'
+  if (b.rebuild_ok !== undefined && typeof b.rebuild_ok !== 'boolean') return 'rebuild_ok must be a boolean'
+  if (b.force_rebuild !== undefined && typeof b.force_rebuild !== 'boolean') return 'force_rebuild must be a boolean'
   if (!Array.isArray(b.teams)) return 'teams must be an array'
   for (const t of b.teams as Record<string, unknown>[]) {
     if (typeof t.name !== 'string' || !t.name.trim()) return 'Every team needs a name'
@@ -142,16 +151,19 @@ function validateShape(body: unknown): TeamsInput | string {
   return body as TeamsInput
 }
 
-// PUT /api/admin/events/:id/teams -> replace the event's format + full team
-// set. The client owns team-building (shuffle, manual moves); the server
-// persists the desired state wholesale, in one atomic batch.
+// PUT /api/admin/events/:id/teams -> save the event's format + full team set,
+// in one atomic batch. The client owns team-building (shuffle, manual moves).
+// If the structure is unchanged (same number of teams, format, pools, and
+// bracket stage) the teams are updated in place — names, members, captains,
+// published — so their ids, and the schedule and scores that reference them,
+// survive. Any structural change rebuilds the teams and clears the schedule.
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
   const eventId = Number(params.id)
   if (!Number.isInteger(eventId)) return badRequest('Invalid id')
 
-  const event = await env.DB.prepare(`SELECT format_config FROM events WHERE id = ?1`)
+  const event = await env.DB.prepare(`SELECT play_format, format_config FROM events WHERE id = ?1`)
     .bind(eventId)
-    .first<{ format_config: string | null }>()
+    .first<{ play_format: string | null; format_config: string | null }>()
   if (!event) return notFound('Event not found')
 
   const parsed = validateShape(await request.json().catch(() => null))
@@ -193,6 +205,33 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     if ((found?.n ?? 0) !== linkedIds.length) return badRequest('A linked account no longer exists')
   }
 
+  const existing = await env.DB.prepare(`SELECT seed, pool FROM event_teams WHERE event_id = ?1 ORDER BY seed`)
+    .bind(eventId)
+    .all<{ seed: number; pool: string | null }>()
+  const existingTeams = existing.results ?? []
+  // Bracket stage only exists for pool play (defaults to single);
+  // double_elim is always double, other formats have none.
+  const stageOf = (format: string | null, cfg: Record<string, unknown>) =>
+    format === 'pool_bracket' ? (cfg.bracket_stage === 'double' ? 'double' : 'single') : format === 'double_elim' ? 'double' : null
+  const keepSchedule =
+    parsed.force_rebuild !== true &&
+    existingTeams.length > 0 &&
+    existingTeams.length === parsed.teams.length &&
+    event.play_format === parsed.play_format &&
+    stageOf(event.play_format, existingConfig) === stageOf(parsed.play_format, mergedConfig) &&
+    existingTeams.every((t, i) => t.seed === i + 1 && t.pool === (parsed.teams[i].pool ?? null))
+  if (!keepSchedule && parsed.rebuild_ok !== true) {
+    const scheduled = await env.DB.prepare(`SELECT 1 FROM event_matches WHERE event_id = ?1 LIMIT 1`)
+      .bind(eventId)
+      .first()
+    if (scheduled) {
+      return json(
+        { error: 'This change rebuilds the teams, which deletes the schedule and its scores. Confirm to continue.' },
+        { status: 409 }
+      )
+    }
+  }
+
   const publishedFlag = parsed.published ? 1 : 0
   const statements = [
     env.DB.prepare(
@@ -201,20 +240,28 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     env.DB.prepare(
       `DELETE FROM event_team_members WHERE team_id IN (SELECT id FROM event_teams WHERE event_id = ?1)`
     ).bind(eventId),
-    // Teams are re-created with fresh ids on every save, so any existing
-    // schedule is invalidated — clear it explicitly (don't rely on FK
-    // cascade) and let the admin regenerate.
-    env.DB.prepare(`DELETE FROM event_matches WHERE event_id = ?1`).bind(eventId),
-    env.DB.prepare(`DELETE FROM event_teams WHERE event_id = ?1`).bind(eventId),
   ]
+  if (!keepSchedule) {
+    // A rebuild gives the teams fresh ids, which invalidates any schedule —
+    // clear it explicitly (don't rely on FK cascade) and let the admin
+    // regenerate.
+    statements.push(
+      env.DB.prepare(`DELETE FROM event_matches WHERE event_id = ?1`).bind(eventId),
+      env.DB.prepare(`DELETE FROM event_teams WHERE event_id = ?1`).bind(eventId)
+    )
+  }
   // Seeds are assigned here (1..N), not trusted from the client, so members
   // can be inserted against their team by (event_id, seed) within the batch.
   parsed.teams.forEach((t, i) => {
     const seed = i + 1
     statements.push(
-      env.DB.prepare(
-        `INSERT INTO event_teams (event_id, name, seed, pool, published) VALUES (?1, ?2, ?3, ?4, ?5)`
-      ).bind(eventId, t.name.trim(), seed, t.pool ?? null, publishedFlag)
+      keepSchedule
+        ? env.DB.prepare(
+            `UPDATE event_teams SET name = ?1, published = ?2 WHERE event_id = ?3 AND seed = ?4`
+          ).bind(t.name.trim(), publishedFlag, eventId, seed)
+        : env.DB.prepare(
+            `INSERT INTO event_teams (event_id, name, seed, pool, published) VALUES (?1, ?2, ?3, ?4, ?5)`
+          ).bind(eventId, t.name.trim(), seed, t.pool ?? null, publishedFlag)
     )
     for (const m of t.members) {
       statements.push(
@@ -240,6 +287,7 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     play_format: parsed.play_format,
     team_count: parsed.teams.length,
     published: parsed.published,
+    schedule_kept: keepSchedule,
   })
-  return json({ ok: true })
+  return json({ ok: true, schedule_kept: keepSchedule })
 }

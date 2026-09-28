@@ -133,6 +133,8 @@ export interface TeamsInput {
   play_format: PlayFormat
   format_config: Record<string, unknown>
   published: boolean
+  rebuild_ok?: boolean
+  force_rebuild?: boolean
   teams: {
     name: string
     seed: number
