@@ -199,14 +199,39 @@
   flex: 1;
 }
 .admin-sidebar {
-  width: 180px;
+  width: 200px;
   flex-shrink: 0;
   background: color-mix(in srgb, var(--page-fg) 5%, var(--page-bg));
   border-right: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   padding: 1rem 0.6rem;
   display: flex;
   flex-direction: column;
+  gap: 1.1rem;
+}
+.admin-nav-group {
+  display: flex;
+  flex-direction: column;
   gap: 0.15rem;
+}
+.admin-nav-heading {
+  padding: 0 0.75rem 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+.admin-nav-badge {
+  min-width: 1.25rem;
+  padding: 0.05rem 0.4rem;
+  box-sizing: border-box;
+  border-radius: var(--radius-xs);
+  background: var(--ace);
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .admin-sidebar button {
   display: flex;
@@ -254,6 +279,12 @@
   font-size: 1.3rem;
   font-weight: 800;
 }
+.admin-page-desc {
+  margin: 0.25rem 0 0;
+  max-width: 44rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
 .admin-head-actions {
   display: flex;
   align-items: center;
@@ -279,18 +310,17 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.admin-event-eyebrow {
-  margin: 0 0 0.2rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ace-fg);
-}
 .admin-event-sub {
-  margin: 0.3rem 0 0;
+  margin: 0.35rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.45rem;
   font-size: 0.85rem;
   color: var(--muted);
+}
+.admin-event-sub .admin-status-pill {
+  margin-left: 0;
 }
 .admin-subtabs {
   display: flex;
@@ -656,7 +686,9 @@
 
 .add-btn {
   background: var(--ace);
-  color: #fff;
+  /* Ink, not white: white on --ace is only 3.1:1, short of the 4.5:1 this
+     small text needs. */
+  color: var(--ink);
   border: none;
   font-weight: 700;
   font-size: 0.82rem;
@@ -2092,61 +2124,36 @@
 }
 
 /* ---- Dashboard tab ---- */
-.dash-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 0.75rem;
-}
-.dash-stat {
-  border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
-  border-radius: var(--radius-sm);
-  padding: 0.9rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-.dash-stat.attn {
-  border-color: color-mix(in srgb, var(--ace) 45%, transparent);
-  background: color-mix(in srgb, var(--ace) 6%, transparent);
-}
-.dash-stat-num {
-  font-size: 1.7rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.dash-stat.attn .dash-stat-num {
-  color: var(--ace);
-}
-.dash-stat-label {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.dash-grid {
+.dash-layout {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.25rem;
+  align-items: start;
 }
-@media (min-width: 760px) {
-  .dash-grid.cols-2 {
-    grid-template-columns: 1fr 1fr;
+@media (min-width: 960px) {
+  .dash-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
   }
+}
+.dash-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
 }
 
 .dash-panel {
   border: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
   border-radius: var(--radius-sm);
   overflow: hidden;
+  min-width: 0;
 }
 .dash-panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.6rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
   padding: 0.7rem 0.9rem;
   background: color-mix(in srgb, var(--page-fg) 5%, var(--page-bg));
   border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 12%, transparent);
@@ -2156,17 +2163,31 @@
   font-size: 0.95rem;
   font-weight: 800;
 }
-.dash-panel-count {
-  font-size: 0.72rem;
-  font-weight: 700;
-  background: color-mix(in srgb, var(--ace) 16%, transparent);
-  color: var(--ace);
-  border-radius: 999px;
-  padding: 0.05rem 0.5rem;
+.dash-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
 }
-.dash-panel-count.zero {
-  background: color-mix(in srgb, var(--page-fg) 12%, transparent);
-  color: var(--muted);
+.dash-filters button,
+.admin-chips button {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  background: transparent;
+  color: var(--page-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* Inverted page colors, so the active state stays distinct in dark mode
+   too (there --page-bg is --ink). */
+.dash-filters button.active,
+.admin-chips button.active {
+  background: var(--page-fg);
+  border-color: var(--page-fg);
+  color: var(--page-bg);
 }
 .dash-empty {
   padding: 1.2rem 0.9rem;
@@ -2187,12 +2208,34 @@
 .dash-row:last-child {
   border-bottom: none;
 }
+.dash-kind {
+  flex: 0 0 4.2rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: center;
+  padding: 0.15rem 0.3rem;
+  border-radius: var(--radius-xs);
+}
+.dash-kind.kind-rsvp {
+  background: color-mix(in srgb, var(--page-fg) 10%, transparent);
+  color: var(--page-fg);
+}
+.dash-kind.kind-skill {
+  background: var(--gold-tint);
+  color: var(--gold-fg);
+}
+.dash-kind.kind-waitlist {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
 .dash-row-main {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
   min-width: 0;
-  flex: 1 1 220px;
+  flex: 1 1 200px;
 }
 .dash-row-title {
   font-weight: 700;
@@ -2204,9 +2247,27 @@
 .dash-row-sub {
   font-size: 0.78rem;
   color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.dash-row-sub a {
+  color: inherit;
 }
 .dash-row-actions {
   margin-left: auto;
+}
+.dash-more {
+  display: block;
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 8%, transparent);
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ace-fg);
+  text-align: left;
+  cursor: pointer;
 }
 
 .dash-event-row {
@@ -2230,6 +2291,9 @@
   align-items: center;
   justify-content: center;
   min-width: 3rem;
+  padding: 0.2rem 0;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 18%, transparent);
+  border-radius: var(--radius-xs);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -2250,7 +2314,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.15rem;
 }
 .dash-event-title {
   font-weight: 700;
@@ -2263,11 +2327,26 @@
   font-size: 0.78rem;
   color: var(--muted);
 }
-.dash-event-meta {
+.dash-fill {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-shrink: 0;
+  margin-top: 0.15rem;
+}
+.dash-fill-track {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--page-fg) 10%, transparent);
+  overflow: hidden;
+}
+.dash-fill-bar {
+  display: block;
+  height: 100%;
+  background: var(--page-fg);
+}
+.dash-fill-bar.full {
+  background: var(--ace);
 }
 .cap-chip {
   font-size: 0.72rem;
@@ -2276,8 +2355,33 @@
   white-space: nowrap;
 }
 .cap-chip.full {
-  color: var(--ace);
+  color: var(--ace-fg);
   font-weight: 700;
+}
+.dash-count-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 8%, transparent);
+  background: none;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--page-fg);
+  text-align: left;
+  cursor: pointer;
+}
+.dash-count-row:last-child {
+  border-bottom: none;
+}
+.dash-count-row:hover {
+  background: color-mix(in srgb, var(--page-fg) 4%, var(--page-bg));
+}
+.dash-count-row b {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (max-width: 480px) {
@@ -2285,8 +2389,428 @@
     width: 100%;
     margin-left: 0;
   }
-  .dash-event-row {
+  .dash-row-actions button {
+    flex: 1;
+  }
+}
+
+/* ---- Shared page pieces: toolbar, segmented views, chips, cards ---- */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.admin-muted {
+  color: var(--muted);
+}
+.admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+.admin-toolbar-search {
+  flex: 0 1 16rem;
+  min-width: 0;
+}
+.admin-toolbar select {
+  max-width: 100%;
+}
+.admin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.admin-chips button {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.7rem;
+}
+.admin-segmented {
+  display: inline-flex;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 28%, transparent);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.admin-segmented button {
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 0.4rem 0.8rem;
+  border: none;
+  background: transparent;
+  color: var(--page-fg);
+  cursor: pointer;
+}
+.admin-segmented button + button {
+  border-left: 1px solid color-mix(in srgb, var(--page-fg) 28%, transparent);
+}
+.admin-segmented button.active {
+  background: var(--page-fg);
+  color: var(--page-bg);
+}
+.admin-segmented-count {
+  margin-left: 0.3rem;
+  font-weight: 600;
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+.admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  border-radius: var(--radius-sm);
+}
+.admin-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.admin-card p {
+  margin: 0;
+}
+.admin-card .btn {
+  align-self: flex-start;
+}
+.admin-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
+}
+
+/* Row "more" menu (RowMenu). */
+.row-menu {
+  display: inline-flex;
+}
+.row-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
+  border-radius: var(--radius-xs);
+  background: var(--page-bg);
+  color: var(--page-fg);
+  cursor: pointer;
+}
+/* Fixed, placed by RowMenu from its button's rect, so a table's
+   overflow-x scroller can't clip it. */
+.row-menu-list {
+  position: fixed;
+  z-index: 60;
+  min-width: 12rem;
+  display: flex;
+  flex-direction: column;
+  padding: 0.3rem;
+  background: var(--page-bg);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 18%, transparent);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 16%, transparent);
+}
+.row-menu-list button {
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--page-fg);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.row-menu-list button:hover {
+  background: color-mix(in srgb, var(--page-fg) 7%, var(--page-bg));
+}
+.row-menu-list button.danger {
+  color: var(--danger);
+}
+
+/* ---- Events list ---- */
+.events-table td {
+  vertical-align: middle;
+}
+.events-when,
+.events-title {
+  min-width: 0;
+}
+.events-when b,
+.events-title .link-btn {
+  display: block;
+  font-weight: 700;
+}
+.events-when {
+  white-space: nowrap;
+}
+.events-when span,
+.events-title span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.events-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.events-actions {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+}
+
+/* ---- Event page, Details tab: form on the left, publishing on the right ---- */
+.event-details {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (min-width: 1000px) {
+  .event-details {
+    grid-template-columns: minmax(0, 1fr) 18rem;
+  }
+  .event-details-side {
+    position: sticky;
+    top: 1rem;
+  }
+}
+.event-details-main {
+  min-width: 0;
+}
+.event-details-side {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+.event-details > .admin-note {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+/* One column: Publishing goes above the long form, Delete below it. */
+@media (max-width: 999px) {
+  .event-details-side {
+    display: contents;
+  }
+  .event-details-side > .admin-card:first-child {
+    order: -1;
+  }
+  .event-details-side > .admin-card + .admin-card,
+  .admin-savebar,
+  .event-details > .admin-note {
+    order: 1;
+  }
+}
+/* Shown only while the Details form differs from what's saved. */
+.admin-savebar {
+  grid-column: 1 / -1;
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1rem;
+  padding: 0.7rem 1rem;
+  /* Inverted page colors: stands out on a light or a dark page. */
+  background: var(--page-fg);
+  color: var(--page-bg);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--ink) 25%, transparent);
+  font-size: 0.88rem;
+}
+.admin-savebar-error {
+  margin: 0;
+  font-weight: 700;
+}
+.admin-savebar-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+.admin-savebar .btn-outline {
+  color: var(--page-bg);
+  border-color: color-mix(in srgb, var(--page-bg) 45%, transparent);
+  background: transparent;
+}
+
+/* ---- Users: compact rows, editor opens below a row ---- */
+.users-table td {
+  vertical-align: middle;
+}
+.user-person b,
+.user-person span {
+  display: block;
+}
+.user-person span {
+  font-size: 0.75rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.user-skill,
+.user-status {
+  white-space: nowrap;
+}
+.user-skill .lock-chip {
+  margin-left: 0.35rem;
+}
+.lock-chip.requested {
+  background: var(--gold-tint);
+  color: var(--gold-fg);
+}
+.user-status .waiver-chip + .waiver-chip {
+  margin-left: 0.25rem;
+}
+.user-edit {
+  text-align: right;
+}
+.btn-ink {
+  background: var(--page-fg);
+  color: var(--page-bg);
+  border: 1px solid var(--page-fg);
+}
+.user-row.editing,
+.user-editor-row {
+  background: color-mix(in srgb, var(--ace) 6%, var(--page-bg));
+}
+.data-table tbody tr.user-editor-row:hover {
+  background: color-mix(in srgb, var(--ace) 6%, var(--page-bg));
+}
+.user-editor {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.9rem;
+  padding: 1rem;
+  background: var(--page-bg);
+  border: 1px solid color-mix(in srgb, var(--page-fg) 15%, transparent);
+  border-radius: var(--radius-sm);
+}
+.user-editor .field {
+  min-width: 0;
+}
+.user-editor-skill {
+  grid-column: span 2;
+}
+.user-editor-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+.user-editor-request {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-xs);
+  background: var(--gold-tint);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+.field-static {
+  padding: 0.45rem 0;
+  font-weight: 400;
+}
+.user-editor-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
+}
+@media (max-width: 900px) {
+  .user-editor {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Phones: user and event rows become cards: checkbox, name and the row's
+   button on top, the other cells wrapping underneath. No sideways scroll. */
+@media (max-width: 700px) {
+  .users-table table,
+  .events-table table {
+    min-width: 0;
+  }
+  .users-table thead,
+  .events-table thead {
+    display: none;
+  }
+  .users-table tr.user-row,
+  .events-table tr.event-row {
+    position: relative;
+    display: flex;
     flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.5rem;
+    padding: 0.7rem 0.6rem 0.7rem 2.6rem;
+    border-bottom: 1px solid color-mix(in srgb, var(--page-fg) 10%, transparent);
+  }
+  .users-table tr.user-row td,
+  .events-table tr.event-row td {
+    display: block;
+    border: none;
+    padding: 0;
+    font-size: 0.8rem;
+  }
+  .users-table tr.user-row td.select-col,
+  .events-table tr.event-row td.select-col {
+    position: absolute;
+    left: 0.7rem;
+    top: 0.75rem;
+  }
+  /* Name plus the row's button fill the first line; the rest wraps below. */
+  .users-table td.user-person,
+  .events-table td.events-title {
+    flex: 1 1 calc(100% - 8.5rem);
+    min-width: 0;
+    font-size: 0.9rem;
+  }
+  .users-table td.user-edit,
+  .events-table td.events-row-actions {
+    order: 1;
+  }
+  .users-table td.user-role,
+  .users-table td.user-pos,
+  .users-table td.user-skill,
+  .users-table td.user-status,
+  .events-table td.events-when,
+  .events-table td.events-type,
+  .events-table td.events-signups,
+  .events-table td.events-status-cell {
+    order: 2;
+  }
+  .events-table td.events-when {
+    display: flex;
+    gap: 0.35rem;
+    flex-basis: 100%;
+  }
+  .users-table tr.user-editor-row,
+  .users-table tr.user-editor-row td {
+    display: block;
+  }
+  .user-editor {
+    grid-template-columns: 1fr;
+  }
+  .user-editor-skill {
+    grid-column: auto;
+  }
+  .user-editor-actions .btn {
+    flex: 1 1 auto;
   }
 }
 

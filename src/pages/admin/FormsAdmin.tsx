@@ -555,12 +555,14 @@ function FormsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChang
   return (
     <>
       <div className="admin-main-head">
-        <h2>Forms</h2>
+        <div>
+          <h2>Signup forms</h2>
+          <p className="admin-page-desc">Extra questions for an event&rsquo;s signup. Build a form once, then pick it on any event.</p>
+        </div>
         <button className="add-btn" type="button" onClick={startCreate}>
-          + New form
+          New form
         </button>
       </div>
-      <p className="admin-note">Build a form once, then attach it to any event from the Events tab.</p>
       {error && <p className="admin-error">{error}</p>}
 
       {editingId !== null && (

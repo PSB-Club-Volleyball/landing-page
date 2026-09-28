@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../../types'
 import { logout } from '../../lib/api'
@@ -14,18 +14,39 @@ import UsersAdmin from './UsersAdmin'
 import AuditLogAdmin from './AuditLogAdmin'
 import SettingsAdmin from './SettingsAdmin'
 
+// What a cross-tab link asks the destination tab to open with.
+export type TabIntent = 'create' | 'waiver-missing' | 'dues-unpaid'
+
 type Tab = 'dashboard' | 'roster' | 'board' | 'events' | 'forms' | 'media' | 'users' | 'audit-log' | 'settings'
 
-const TABS: { key: Tab; label: string; ownerOnly?: boolean }[] = [
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'roster', label: 'Roster' },
-  { key: 'board', label: 'Board' },
-  { key: 'events', label: 'Events' },
-  { key: 'forms', label: 'Forms' },
-  { key: 'media', label: 'Media' },
-  { key: 'users', label: 'Users' },
-  { key: 'audit-log', label: 'Audit log', ownerOnly: true },
-  { key: 'settings', label: 'Settings', ownerOnly: true },
+// Sidebar sections, grouped by what the admin is doing: running events,
+// managing people, the public site's content, and owner-only settings.
+const GROUPS: { title: string | null; ownerOnly?: boolean; tabs: { key: Tab; label: string }[] }[] = [
+  { title: null, tabs: [{ key: 'dashboard', label: 'Dashboard' }] },
+  {
+    title: 'Events',
+    tabs: [
+      { key: 'events', label: 'Events' },
+      { key: 'forms', label: 'Signup forms' },
+    ],
+  },
+  {
+    title: 'People',
+    tabs: [
+      { key: 'users', label: 'Users' },
+      { key: 'roster', label: 'Roster' },
+      { key: 'board', label: 'Board' },
+    ],
+  },
+  { title: 'Site', tabs: [{ key: 'media', label: 'Media' }] },
+  {
+    title: 'Owner',
+    ownerOnly: true,
+    tabs: [
+      { key: 'settings', label: 'Settings' },
+      { key: 'audit-log', label: 'Audit log' },
+    ],
+  },
 ]
 
 function initials(user: AuthUser) {
@@ -44,28 +65,32 @@ function ConsoleTab({
   isOwner,
   onGoTo,
   onDirtyChange,
+  onAttentionChange,
+  intent,
 }: {
   tab: Tab
   user: AuthUser
   isOwner: boolean
-  onGoTo: (tab: Tab) => void
+  onGoTo: (tab: Tab, intent?: TabIntent) => void
   onDirtyChange: (dirty: boolean) => void
+  onAttentionChange: (count: number) => void
+  intent: TabIntent | null
 }) {
   switch (tab) {
     case 'dashboard':
-      return <DashboardAdmin onGoTo={onGoTo} />
+      return <DashboardAdmin onGoTo={onGoTo} onAttentionChange={onAttentionChange} />
     case 'roster':
       return <RosterAdmin onDirtyChange={onDirtyChange} />
     case 'board':
       return <BoardAdmin isOwner={isOwner} onDirtyChange={onDirtyChange} />
     case 'events':
-      return <EventsAdmin isOwner={isOwner} onDirtyChange={onDirtyChange} />
+      return <EventsAdmin isOwner={isOwner} onDirtyChange={onDirtyChange} createOnOpen={intent === 'create'} />
     case 'forms':
       return <FormsAdmin isOwner={isOwner} onDirtyChange={onDirtyChange} />
     case 'media':
       return <MediaAdmin />
     case 'users':
-      return <UsersAdmin currentUser={user} />
+      return <UsersAdmin currentUser={user} onDirtyChange={onDirtyChange} initialFilter={intent === 'waiver-missing' || intent === 'dues-unpaid' ? intent : null} />
     case 'audit-log':
       return isOwner ? <AuditLogAdmin /> : null
     case 'settings':
@@ -83,6 +108,12 @@ function AdminLayout({ user }: { user: AuthUser }) {
   // holds unsaved input — switching tabs unmounts it and loses that input.
   const [dirty, setDirty] = useState(false)
   const [signOutError, setSignOutError] = useState<string | null>(null)
+  // Items waiting on an admin, reported by the dashboard once it loads; null
+  // until then, so the badge never shows a count nobody has computed.
+  const [attention, setAttention] = useState<number | null>(null)
+  // Set by a cross-tab link (the dashboard's "New event" or a paperwork
+  // count) and read once by the tab it lands on.
+  const [intent, setIntent] = useState<TabIntent | null>(null)
 
   // The console's own screens are on the /admin index; a routed sub-page
   // (e.g. an event) lives at its own path. The sidebar always returns to the
@@ -91,12 +122,19 @@ function AdminLayout({ user }: { user: AuthUser }) {
   // An event sub-page belongs to the Events tab, so keep that one lit there.
   const onEventPage = location.pathname.startsWith('/admin/events/')
 
-  function pickTab(next: Tab) {
+  // An intent is for the landing only: leaving the console (e.g. into an
+  // event page) drops it, so coming back doesn't reopen "New event".
+  useEffect(() => {
+    if (!onConsole) setIntent(null)
+  }, [onConsole])
+
+  function pickTab(next: Tab, nextIntent?: TabIntent) {
     if (onConsole && next === tab) {
       setNavOpen(false)
       return
     }
     if (dirty && !confirm('You have unsaved changes. Leave this page and discard them?')) return
+    setIntent(nextIntent ?? null)
     setTab(next)
     setNavOpen(false)
     if (!onConsole) navigate('/admin')
@@ -146,17 +184,27 @@ function AdminLayout({ user }: { user: AuthUser }) {
       )}
       <div className="admin-body">
         <nav id="admin-sidebar" className={navOpen ? 'admin-sidebar open' : 'admin-sidebar'}>
-          {TABS.filter((t) => !t.ownerOnly || isOwner).map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              className={
-                (onConsole && tab === t.key) || (onEventPage && t.key === 'events') ? 'active' : undefined
-              }
-              onClick={() => pickTab(t.key)}
-            >
-              {t.label}
-            </button>
+          {GROUPS.filter((g) => !g.ownerOnly || isOwner).map((g) => (
+            <div className="admin-nav-group" key={g.title ?? 'top'}>
+              {g.title && <span className="admin-nav-heading">{g.title}</span>}
+              {g.tabs.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  className={
+                    (onConsole && tab === t.key) || (onEventPage && t.key === 'events') ? 'active' : undefined
+                  }
+                  onClick={() => pickTab(t.key)}
+                >
+                  <span>{t.label}</span>
+                  {t.key === 'dashboard' && attention !== null && attention > 0 && (
+                    <span className="admin-nav-badge" aria-label={`${attention} waiting`}>
+                      {attention}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="admin-main">
@@ -164,7 +212,15 @@ function AdminLayout({ user }: { user: AuthUser }) {
             <Route
               index
               element={
-                <ConsoleTab tab={tab} user={user} isOwner={isOwner} onGoTo={pickTab} onDirtyChange={setDirty} />
+                <ConsoleTab
+                  tab={tab}
+                  user={user}
+                  isOwner={isOwner}
+                  onGoTo={pickTab}
+                  onDirtyChange={setDirty}
+                  onAttentionChange={setAttention}
+                  intent={intent}
+                />
               }
             />
             <Route path="events/:eventId" element={<AdminEventPage isOwner={isOwner} onDirtyChange={setDirty} />} />

@@ -215,7 +215,10 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
   return (
     <>
       <div className="admin-main-head">
-        <h2>Roster</h2>
+        <div>
+          <h2>Roster</h2>
+          <p className="admin-page-desc">The players listed on the public Roster page, with numbers and positions.</p>
+        </div>
         <span className="admin-head-actions">
           <button className="btn btn-outline btn-sm" type="button" onClick={() => exportRosterCsv(players)}>
             Download CSV
@@ -249,7 +252,7 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
             }}
           />
           <button className="add-btn" type="button" onClick={() => setCreating((v) => !v)}>
-            {creating ? 'Cancel' : '+ Add player'}
+            {creating ? 'Cancel' : 'Add player'}
           </button>
         </span>
       </div>

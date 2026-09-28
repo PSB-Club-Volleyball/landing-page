@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { adminApi } from '../../lib/adminApi'
 import AdminModal from '../../components/admin/AdminModal'
 import BulkActionBar from '../../components/admin/BulkActionBar'
+import RowMenu from '../../components/admin/RowMenu'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { useSelection } from '../../lib/useSelection'
 import { emptyDraft, eventToDraft, shiftDateTime, toInput, VISIBILITY_LABELS, type Draft } from './eventDraft'
 import { EventFormFields } from './eventForm'
-import { EVENT_TYPE_LABELS } from '../../lib/eventFormat'
+import { EVENT_TYPE_LABELS, formatEventDate, formatTimeRange } from '../../lib/eventFormat'
 import type { AdminEventRow, EventStatus, FormTemplate } from '../../types'
 
 // Bulk-editing several events at once can only ever set every selected
@@ -313,13 +314,53 @@ function BulkEditForm({
   )
 }
 
-function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChange?: (dirty: boolean) => void }) {
+type View = 'upcoming' | 'drafts' | 'past'
+
+// Which view an event lists under: past events (cancelled or not) in Past,
+// future drafts in Drafts, everything else (published or cancelled) in
+// Upcoming.
+function viewOf(ev: AdminEventRow): View {
+  if (ev.is_past) return 'past'
+  return ev.status === 'draft' ? 'drafts' : 'upcoming'
+}
+
+// Monday 00:00 local of the week containing `d`.
+function weekStart(d: Date): Date {
+  const start = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+  return start
+}
+
+function weekGroup(startTime: string, now: Date): string {
+  const thisWeek = weekStart(now)
+  const nextWeek = new Date(thisWeek)
+  nextWeek.setDate(nextWeek.getDate() + 7)
+  const weekAfter = new Date(thisWeek)
+  weekAfter.setDate(weekAfter.getDate() + 14)
+  const t = new Date(startTime)
+  if (t < nextWeek) return 'This week'
+  if (t < weekAfter) return 'Next week'
+  return 'Later'
+}
+
+const monthGroupFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' })
+
+function EventsAdmin({
+  isOwner,
+  onDirtyChange,
+  createOnOpen = false,
+}: {
+  isOwner: boolean
+  onDirtyChange?: (dirty: boolean) => void
+  // Open straight into the "New event" form (the dashboard's shortcut).
+  createOnOpen?: boolean
+}) {
   const navigate = useNavigate()
   const [events, setEvents] = useState<AdminEventRow[]>([])
   const [forms, setForms] = useState<FormTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(createOnOpen)
   const [createDraft, setCreateDraft] = useState<Draft>(emptyDraft)
   // The draft as the modal opened (blank, or a duplicate's copy) — closing
   // with anything beyond that asks first.
@@ -336,8 +377,11 @@ function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChan
   // form, Google-Forms-style, instead of every field up front.
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   // Past events clutter the table once a club has run a season of them, so
-  // they're hidden by default — same philosophy as the public events page.
-  const [showPast, setShowPast] = useState(false)
+  // the list opens on upcoming ones — same philosophy as the public events
+  // page.
+  const [view, setView] = useState<View>('upcoming')
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
 
   function refresh() {
     setLoading(true)
@@ -377,8 +421,8 @@ function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChan
   }
 
   async function runSelectedBulk(verb: string, fn: (ev: AdminEventRow) => Promise<unknown>) {
-    // Only rows on screen: selections made with "Show past" on don't carry
-    // over to hidden rows.
+    // Only rows on screen: selections made in another view or before a
+    // search don't carry over to hidden rows.
     const targets = visibleEvents.filter((e) => selection.isSelected(e.id))
     setBulkBusy(true)
     const result = await runBulk(targets, fn)
@@ -426,6 +470,8 @@ function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChan
     setCreateError(null)
     try {
       await adminApi.events.create(toInput(createDraft))
+      // Show the list the new event lands in (a draft isn't in Upcoming).
+      setView(createDraft.status === 'draft' ? 'drafts' : 'upcoming')
       setCreating(false)
       setCreateDraft(emptyDraft)
       refresh()
@@ -460,30 +506,81 @@ function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChan
     if (ev.series_id) seriesCounts.set(ev.series_id, (seriesCounts.get(ev.series_id) ?? 0) + 1)
   }
 
-  const pastCount = events.filter((e) => e.is_past).length
-  const visibleEvents = showPast ? events : events.filter((e) => !e.is_past)
+  const viewCounts = { upcoming: 0, drafts: 0, past: 0 }
+  for (const ev of events) viewCounts[viewOf(ev)]++
+  const query = search.trim().toLowerCase()
+  const visibleEvents = events
+    .filter((e) => viewOf(e) === view)
+    .filter((e) => !typeFilter || e.event_type === typeFilter)
+    .filter(
+      (e) => !query || e.title.toLowerCase().includes(query) || (e.location_name ?? '').toLowerCase().includes(query),
+    )
+    .sort((a, b) => (view === 'past' ? b.start_time.localeCompare(a.start_time) : a.start_time.localeCompare(b.start_time)))
   const selectedCount = visibleEvents.filter((e) => selection.isSelected(e.id)).length
+
+  // Upcoming and draft events group by week; past ones by month.
+  const now = new Date()
+  const groups: { label: string; rows: AdminEventRow[] }[] = []
+  for (const ev of visibleEvents) {
+    const label = view === 'past' ? monthGroupFormatter.format(new Date(ev.start_time)) : weekGroup(ev.start_time, now)
+    const last = groups[groups.length - 1]
+    if (last && last.label === label) last.rows.push(ev)
+    else groups.push({ label, rows: [ev] })
+  }
+
+  const views: { key: View; label: string }[] = [
+    { key: 'upcoming', label: 'Upcoming' },
+    { key: 'drafts', label: 'Drafts' },
+    { key: 'past', label: 'Past' },
+  ]
 
   return (
     <>
       <div className="admin-main-head">
-        <h2>Events</h2>
+        <div>
+          <h2>Events</h2>
+          <p className="admin-page-desc">
+            Practices, games, tournaments and socials. Open one to manage its signups, teams and scores.
+          </p>
+        </div>
         <div className="admin-head-actions">
-          {pastCount > 0 && (
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => setShowPast((v) => !v)}>
-              {showPast ? 'Hide past events' : `Show past events (${pastCount})`}
-            </button>
-          )}
-          <button
-            className="add-btn"
-            type="button"
-            onClick={() => openCreate(emptyDraft)}
-          >
-            + Add event
+          <button className="add-btn" type="button" onClick={() => openCreate(emptyDraft)}>
+            New event
           </button>
         </div>
       </div>
       {error && <p className="admin-error">{error}</p>}
+      <div className="admin-toolbar">
+        <div className="admin-segmented" role="group" aria-label="Show">
+          {views.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              aria-pressed={view === v.key}
+              className={view === v.key ? 'active' : undefined}
+              onClick={() => setView(v.key)}
+            >
+              {v.label} <span className="admin-segmented-count">{viewCounts[v.key]}</span>
+            </button>
+          ))}
+        </div>
+        <input
+          type="search"
+          className="mini-input admin-toolbar-search"
+          aria-label="Search events"
+          placeholder="Search events"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select aria-label="Event type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="">All types</option>
+          {Object.entries(EVENT_TYPE_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </div>
       {creating && (
         <AdminModal title="New event" onClose={cancelCreate} wide>
           <form className="event-form" onSubmit={handleCreate}>
@@ -494,6 +591,7 @@ function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChan
               showMoreOptions={showMoreOptions}
               onToggleMoreOptions={() => setShowMoreOptions((v) => !v)}
               includeRecurrence
+              includePublishing
             />
             {createError && <p className="admin-error">{createError}</p>}
             <div className="form-actions">
@@ -537,107 +635,135 @@ function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChan
           />
         </AdminModal>
       )}
-      <div className="data-table">
+      <div className="data-table events-table">
         <table>
           <thead>
             <tr>
               <th className="select-col">
                 <input
                   type="checkbox"
+                  aria-label="Select all shown events"
                   checked={visibleEvents.length > 0 && visibleEvents.every((e) => selection.isSelected(e.id))}
                   onChange={() => selection.toggleAll(visibleEvents.map((e) => e.id))}
                 />
               </th>
-              <th>Title</th>
+              <th>When</th>
+              <th>Event</th>
               <th>Type</th>
-              <th>Starts</th>
-              <th>Status</th>
-              <th>Visibility</th>
-              <th>Series</th>
               <th>Signups</th>
-              <th>Actions</th>
+              <th>Status</th>
+              <th>
+                <span className="visually-hidden">Actions</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={9}>Loading&hellip;</td>
+                <td colSpan={7}>Loading&hellip;</td>
               </tr>
             )}
-            {!loading && events.length === 0 && (
+            {!loading && visibleEvents.length === 0 && (
               <tr>
-                <td colSpan={9}>No events yet.</td>
+                <td colSpan={7}>
+                  {events.length === 0
+                    ? 'No events yet.'
+                    : query || typeFilter
+                      ? 'No events match.'
+                      : view === 'drafts'
+                        ? 'No drafts.'
+                        : view === 'past'
+                          ? 'No past events.'
+                          : 'Nothing upcoming.'}
+                </td>
               </tr>
             )}
-            {!loading && events.length > 0 && visibleEvents.length === 0 && (
-              <tr>
-                <td colSpan={9}>All events are in the past. &ldquo;Show past events&rdquo; above to see them.</td>
-              </tr>
-            )}
-            {visibleEvents.map((ev) => (
-              <tr key={ev.id}>
-                <td className="select-col">
-                  <input type="checkbox" checked={selection.isSelected(ev.id)} onChange={() => selection.toggle(ev.id)} />
-                </td>
-                <td>
-                  <button type="button" className="link-btn" onClick={() => navigate(`/admin/events/${ev.id}`)}>
-                    {ev.title}
-                  </button>
-                </td>
-                <td>{EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}</td>
-                <td>{new Date(ev.start_time).toLocaleString()}</td>
-                <td>
-                  {ev.status !== 'cancelled' && ev.is_past ? (
-                    <span className="status-chip status-completed">completed</span>
-                  ) : (
-                    <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
-                  )}
-                </td>
-                <td>
-                  <span className={`status-chip visibility-${ev.visibility}`}>{VISIBILITY_LABELS[ev.visibility]}</span>
-                </td>
-                <td>
-                  {ev.series_id ? (
-                    <>
-                      {`Series of ${seriesCounts.get(ev.series_id) ?? 1}`}
-                      <br />
-                      <button type="button" className="signups-toggle" onClick={() => handleToggleReleaseEarly(ev)}>
-                        {ev.released_early ? 'Showing early · hide again' : 'Show now'}
+            {groups.map((g) => (
+              <Fragment key={g.label}>
+                <tr className="role-group-header">
+                  <td colSpan={7}>{g.label}</td>
+                </tr>
+                {g.rows.map((ev) => (
+                  <tr key={ev.id} className="event-row">
+                    <td className="select-col">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${ev.title}`}
+                        checked={selection.isSelected(ev.id)}
+                        onChange={() => selection.toggle(ev.id)}
+                      />
+                    </td>
+                    <td className="events-when">
+                      <b>{formatEventDate(ev.start_time)}</b>
+                      <span>{formatTimeRange(ev)}</span>
+                    </td>
+                    <td className="events-title">
+                      <button type="button" className="link-btn" onClick={() => navigate(`/admin/events/${ev.id}`)}>
+                        {ev.title}
                       </button>
-                    </>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td>
-                  {ev.signup_enabled ? (
-                    <button
-                      type="button"
-                      className="signups-toggle"
-                      onClick={() => navigate(`/admin/events/${ev.id}?tab=signups`)}
-                    >
-                      {ev.signup_count} &middot; {ev.form_name ?? 'name & email'}
-                    </button>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td>
-                  <span className="row-actions">
-                    <button type="button" onClick={() => navigate(`/admin/events/${ev.id}`)}>
-                      Edit
-                    </button>
-                    <button type="button" className="dup-btn" onClick={() => startDuplicate(ev)}>
-                      Duplicate
-                    </button>
-                    {isOwner && (
-                      <button type="button" className="danger" onClick={() => handleDelete(ev.id)}>
-                        Delete
-                      </button>
-                    )}
-                  </span>
-                </td>
-              </tr>
+                      <span>
+                        {[
+                          ev.location_name,
+                          ev.series_id ? `Series of ${seriesCounts.get(ev.series_id) ?? 1}` : null,
+                          ev.series_id && ev.released_early ? 'shown early' : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </span>
+                    </td>
+                    <td className="events-type">{EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type}</td>
+                    <td className="events-signups">
+                      {ev.signup_enabled ? (
+                        <button
+                          type="button"
+                          className="signups-toggle"
+                          onClick={() => navigate(`/admin/events/${ev.id}?tab=signups`)}
+                        >
+                          {ev.capacity !== null ? `${ev.signup_count}/${ev.capacity}` : ev.signup_count}
+                        </button>
+                      ) : (
+                        <span className="admin-muted">Signups off</span>
+                      )}
+                    </td>
+                    <td className="events-status-cell">
+                      <span className="events-status">
+                        {ev.status !== 'cancelled' && ev.is_past ? (
+                          <span className="status-chip status-completed">completed</span>
+                        ) : (
+                          <span className={`status-chip status-${ev.status}`}>{ev.status}</span>
+                        )}
+                        {ev.visibility !== 'public' && (
+                          <span className={`status-chip visibility-${ev.visibility}`}>
+                            {VISIBILITY_LABELS[ev.visibility]}
+                          </span>
+                        )}
+                      </span>
+                    </td>
+                    <td className="events-row-actions">
+                      <span className="row-actions events-actions">
+                        <button type="button" onClick={() => navigate(`/admin/events/${ev.id}`)}>
+                          Open
+                        </button>
+                        <RowMenu label={`More actions for ${ev.title}`}>
+                          <button type="button" onClick={() => startDuplicate(ev)}>
+                            Duplicate
+                          </button>
+                          {ev.series_id && (
+                            <button type="button" onClick={() => handleToggleReleaseEarly(ev)}>
+                              {ev.released_early ? 'Hide until a week before' : 'Show on the site now'}
+                            </button>
+                          )}
+                          {isOwner && (
+                            <button type="button" className="danger" onClick={() => handleDelete(ev.id)}>
+                              Delete
+                            </button>
+                          )}
+                        </RowMenu>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

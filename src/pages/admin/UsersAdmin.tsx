@@ -40,135 +40,188 @@ const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
   advanced: 'Advanced',
 }
 
-function UserRow({
+type Filter = 'everyone' | 'waiver-missing' | 'dues-unpaid' | 'skill-request'
+
+// UTC, matching the server's getUTCFullYear() when it stamps the year.
+const currentYear = () => new Date().getUTCFullYear()
+const paysDues = (role: UserRole) => role === 'club_member' || role === 'admin'
+
+function matchesFilter(u: AdminUser, filter: Filter): boolean {
+  const year = currentYear()
+  switch (filter) {
+    case 'everyone':
+      return true
+    case 'waiver-missing':
+      return u.waiver_signed_year !== year
+    case 'dues-unpaid':
+      return paysDues(u.role) && u.dues_paid_year !== year
+    case 'skill-request':
+      return u.skill_level_change_requested !== null
+  }
+}
+
+// The compact, read-only row. Everything editable lives in UserEditor,
+// opened below the row by Edit.
+function UserSummaryRow({
   user,
-  isOwner,
   selected,
   onToggleSelected,
+  editing,
+  onEdit,
+}: {
+  user: AdminUser
+  selected: boolean | null
+  onToggleSelected: () => void
+  editing: boolean
+  onEdit: (() => void) | null
+}) {
+  const year = currentYear()
+  const waiverCurrent = user.waiver_signed_year === year
+  const duesCurrent = user.dues_paid_year === year
+  const posTeam = [user.position, user.team].filter(Boolean).join(' · ')
+  return (
+    <tr className={editing ? 'user-row editing' : 'user-row'}>
+      <td className="select-col">
+        {selected !== null && (
+          <input
+            type="checkbox"
+            aria-label={`Select ${user.name || user.email}`}
+            checked={selected}
+            onChange={onToggleSelected}
+          />
+        )}
+      </td>
+      <td className="user-person">
+        <b>{user.name || 'No name'}</b>
+        <span>{user.email}</span>
+      </td>
+      <td className="user-role">
+        <span className={`role-chip role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
+      </td>
+      <td className={posTeam ? 'user-pos' : 'user-pos admin-muted'}>{posTeam || 'Not set'}</td>
+      <td className="user-skill">
+        <span className={user.skill_level ? undefined : 'admin-muted'}>
+          {user.skill_level ? SKILL_LEVEL_LABELS[user.skill_level] : 'Not set'}
+        </span>
+        {user.skill_level_change_requested && (
+          <span className="lock-chip requested">Wants {SKILL_LEVEL_LABELS[user.skill_level_change_requested]}</span>
+        )}
+      </td>
+      <td className="user-status">
+        {/* Waivers are required of everyone who sets foot on the court,
+            outsiders included; dues only of club members and admins. */}
+        <span
+          className={waiverCurrent ? 'waiver-chip' : 'waiver-chip no'}
+          title={
+            user.waiver_signed_year
+              ? waiverCurrent
+                ? `Waiver signed ${user.waiver_signed_year}`
+                : `Waiver expired (${user.waiver_signed_year})`
+              : 'Waiver not signed'
+          }
+        >
+          Waiver
+        </span>
+        {paysDues(user.role) && (
+          <span
+            className={duesCurrent ? 'waiver-chip' : 'waiver-chip no'}
+            title={
+              user.dues_paid_year
+                ? duesCurrent
+                  ? `Dues paid ${user.dues_paid_year}`
+                  : `Dues expired (${user.dues_paid_year})`
+                : 'Dues not paid'
+            }
+          >
+            Dues
+          </span>
+        )}
+        {user.rsvp_restricted && <span className="waiver-chip no">RSVP limited</span>}
+      </td>
+      <td className="user-edit">
+        {onEdit && (
+          <button
+            type="button"
+            className={editing ? 'btn btn-sm btn-ink' : 'btn btn-outline btn-sm'}
+            aria-expanded={editing}
+            onClick={onEdit}
+          >
+            {editing ? 'Close' : 'Edit'}
+          </button>
+        )}
+      </td>
+    </tr>
+  )
+}
+
+function UserEditor({
+  user,
+  isOwner,
+  onClose,
   onSaved,
   onError,
   onRemove,
+  onDirtyChange,
 }: {
   user: AdminUser
   isOwner: boolean
-  selected: boolean
-  onToggleSelected: () => void
+  onClose: () => void
+  onDirtyChange: (dirty: boolean) => void
   onSaved: () => void
   onError: (msg: string) => void
   onRemove: () => void
 }) {
+  const year = currentYear()
+  const waiverCurrent = user.waiver_signed_year === year
+  const duesCurrent = user.dues_paid_year === year
   const [role, setRole] = useState<Exclude<UserRole, 'owner'>>(user.role === 'owner' ? 'admin' : user.role)
   const [name, setName] = useState(user.name ?? '')
   const [position, setPosition] = useState(user.position ?? '')
   const [team, setTeam] = useState<Team | ''>(user.team ?? '')
   const [skillLevel, setSkillLevel] = useState<SkillLevel | ''>(user.skill_level ?? '')
+  const [locked, setLocked] = useState(user.skill_level_locked)
+  const [waiver, setWaiver] = useState(waiverCurrent)
+  const [dues, setDues] = useState(duesCurrent)
+  const [restricted, setRestricted] = useState(user.rsvp_restricted)
   const [saving, setSaving] = useState(false)
-  const [waiverSaving, setWaiverSaving] = useState(false)
-  const [duesSaving, setDuesSaving] = useState(false)
-  const [restrictSaving, setRestrictSaving] = useState(false)
-  const [lockSaving, setLockSaving] = useState(false)
-  const [dismissSaving, setDismissSaving] = useState(false)
-
-  // UTC, matching the server's getUTCFullYear() when it stamps the year.
-  const currentYear = new Date().getUTCFullYear()
-  const waiverCurrent = user.waiver_signed_year === currentYear
-  const duesCurrent = user.dues_paid_year === currentYear
-
-  async function toggleWaiver() {
-    setWaiverSaving(true)
-    try {
-      // Signed-but-expired means "renew" (mark again for the current year),
-      // not "unmark" — only a currently-valid waiver toggles off.
-      await adminApi.users.update(user.id, { waiver_signed: !waiverCurrent })
-      onSaved()
-    } catch (e) {
-      onError((e as Error).message)
-    } finally {
-      setWaiverSaving(false)
-    }
-  }
-
-  async function toggleDues() {
-    setDuesSaving(true)
-    try {
-      // Same "expired means renew" logic as the waiver toggle — only a
-      // currently-valid payment toggles off.
-      await adminApi.users.update(user.id, { dues_paid: !duesCurrent })
-      onSaved()
-    } catch (e) {
-      onError((e as Error).message)
-    } finally {
-      setDuesSaving(false)
-    }
-  }
-
-  async function toggleRestricted() {
-    setRestrictSaving(true)
-    try {
-      await adminApi.users.update(user.id, { rsvp_restricted: !user.rsvp_restricted })
-      onSaved()
-    } catch (e) {
-      onError((e as Error).message)
-    } finally {
-      setRestrictSaving(false)
-    }
-  }
-
-  async function toggleSkillLock() {
-    setLockSaving(true)
-    try {
-      await adminApi.users.update(user.id, { skill_level_locked: !user.skill_level_locked })
-      onSaved()
-    } catch (e) {
-      onError((e as Error).message)
-    } finally {
-      setLockSaving(false)
-    }
-  }
-
-  async function dismissSkillLevelRequest() {
-    setDismissSaving(true)
-    try {
-      await adminApi.users.update(user.id, { skill_level_change_requested: null })
-      onSaved()
-    } catch (e) {
-      onError((e as Error).message)
-    } finally {
-      setDismissSaving(false)
-    }
-  }
 
   // Only the owner may re-role a row that's currently admin — even the
-  // admin's own row. Waiver/dues verification and basic profile fields
-  // (name/position/team) are never guarded — any admin can mark another
-  // admin's waiver/dues and edit their basic info, including their own.
+  // admin's own row. Everything else here (name, position, team, skill,
+  // waiver, dues, RSVP limit) any admin can edit, including their own.
   const ownerOnly = !isOwner && user.role === 'admin'
   const roleOptions: Exclude<UserRole, 'owner'>[] = isOwner
     ? ['outsider', 'club_member', 'admin']
     : ['outsider', 'club_member']
+  const member = paysDues(role)
 
-  const dirty =
-    role !== user.role ||
-    name.trim() !== (user.name ?? '') ||
-    position !== (user.position ?? '') ||
-    team !== (user.team ?? '') ||
-    skillLevel !== (user.skill_level ?? '')
+  // Only the fields that changed. skill_level in particular: the server
+  // treats any skill_level write as resolving a pending change request, so
+  // resending the current value alongside a name edit would silently drop
+  // the member's request. Waiver/dues: checking an expired one renews it for
+  // this year, and only a currently valid one unchecks to "not signed".
+  const input = {
+    ...(role !== user.role ? { role } : {}),
+    ...(name.trim() !== (user.name ?? '') ? { name: name.trim() } : {}),
+    ...(position !== (user.position ?? '') ? { position: position || null } : {}),
+    ...(team !== (user.team ?? '') ? { team: team || null } : {}),
+    ...(skillLevel !== (user.skill_level ?? '') ? { skill_level: skillLevel || null } : {}),
+    ...(locked !== user.skill_level_locked ? { skill_level_locked: locked } : {}),
+    ...(waiver !== waiverCurrent ? { waiver_signed: waiver } : {}),
+    ...(member && dues !== duesCurrent ? { dues_paid: dues } : {}),
+    ...(restricted !== user.rsvp_restricted ? { rsvp_restricted: restricted } : {}),
+  }
+  const dirty = Object.keys(input).length > 0
+  useEffect(() => {
+    onDirtyChange(dirty)
+    return () => onDirtyChange(false)
+  }, [dirty, onDirtyChange])
 
-  async function save() {
+  async function run(body: Parameters<typeof adminApi.users.update>[1], close: boolean) {
     setSaving(true)
     try {
-      const trimmedName = name.trim()
-      await adminApi.users.update(user.id, {
-        ...(role !== user.role ? { role } : {}),
-        ...(trimmedName !== (user.name ?? '') ? { name: trimmedName } : {}),
-        position: position || null,
-        team: team || null,
-        // Only when changed: the server treats any skill_level write as
-        // resolving a pending change request, so resending the current value
-        // alongside a name edit would silently drop the member's request.
-        ...(skillLevel !== (user.skill_level ?? '') ? { skill_level: skillLevel || null } : {}),
-      })
+      await adminApi.users.update(user.id, body)
       onSaved()
+      if (close) onClose()
     } catch (e) {
       onError((e as Error).message)
     } finally {
@@ -176,172 +229,179 @@ function UserRow({
     }
   }
 
+  function cancel() {
+    if (dirty && !confirm('Discard your changes to this user?')) return
+    onClose()
+  }
+
+  const requested = user.skill_level_change_requested
+
   return (
-    <tr>
-      <td className="select-col">
-        <input type="checkbox" checked={selected} onChange={onToggleSelected} />
-      </td>
-      <td>
-        <input
-          className="mini-input user-name-input"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </td>
-      <td>{user.email}</td>
-      <td>
-        {ownerOnly ? (
-          <span className={`role-chip role-${user.role}`}>{ROLE_LABELS[user.role]}</span>
-        ) : (
-          <select
-            className="role-select"
-            value={role}
-            onChange={(e) => setRole(e.target.value as Exclude<UserRole, 'owner'>)}
-          >
-            {roleOptions.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r]}
-              </option>
-            ))}
-          </select>
-        )}
-      </td>
-      <td>
-        {role === 'club_member' || role === 'admin' ? (
-          <input
-            className="mini-input"
-            placeholder="Position"
-            value={position}
-            onChange={(e) => setPosition(e.target.value)}
-          />
-        ) : (
-          '—'
-        )}
-      </td>
-      <td>
-        {role === 'club_member' || role === 'admin' ? (
-          <select
-            className="role-select"
-            value={team}
-            onChange={(e) => setTeam(e.target.value as Team | '')}
-          >
-            <option value="">&mdash;</option>
-            <option value="A">A</option>
-            <option value="B">B</option>
-          </select>
-        ) : (
-          '—'
-        )}
-      </td>
-      <td>
-        {/* Self-editable once (from unset) via the member's own profile; a
-            later change lands here as a pending request instead of applying
-            directly — pick the requested value (or anything else) and Save
-            to approve, or Dismiss to reject without changing the current
-            value. Lock a row to take self-editing away entirely and set it
-            here instead; not gated by role since outsiders can self-report a
-            skill level too. */}
-        <span className="row-actions">
-          <select
-            className="role-select"
-            value={skillLevel}
-            onChange={(e) => setSkillLevel(e.target.value as SkillLevel | '')}
-          >
-            <option value="">&mdash;</option>
-            {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
-              <option key={level} value={level}>
-                {SKILL_LEVEL_LABELS[level]}
-              </option>
-            ))}
-          </select>
-          <span className={user.skill_level_locked ? 'lock-chip locked' : 'lock-chip'}>
-            {user.skill_level_locked ? 'Locked' : 'Self-editable'}
-          </span>
-          <button type="button" disabled={lockSaving} onClick={toggleSkillLock}>
-            {lockSaving ? '…' : user.skill_level_locked ? 'Unlock' : 'Lock'}
-          </button>
-        </span>
-        {user.skill_level_change_requested && (
-          <span className="row-actions">
-            <span className="lock-chip">Requested: {SKILL_LEVEL_LABELS[user.skill_level_change_requested]}</span>
-            <button type="button" disabled={dismissSaving} onClick={dismissSkillLevelRequest}>
-              {dismissSaving ? '…' : 'Dismiss'}
-            </button>
-          </span>
-        )}
-      </td>
-      <td>
-        {/* Waivers are required of everyone who sets foot on the court,
-            outsiders included — not just club members and admins. */}
-        <span className="row-actions">
-          <span className={waiverCurrent ? 'waiver-chip' : 'waiver-chip no'}>
-            {user.waiver_signed_year
-              ? waiverCurrent
-                ? `Signed ${user.waiver_signed_year}`
-                : `Expired ${user.waiver_signed_year}`
-              : 'Not signed'}
-          </span>
-          <button type="button" disabled={waiverSaving} onClick={toggleWaiver}>
-            {waiverSaving ? '…' : user.waiver_signed_year ? (waiverCurrent ? 'Unmark' : `Renew`) : 'Mark signed'}
-          </button>
-        </span>
-      </td>
-      <td>
-        {role === 'club_member' || role === 'admin' ? (
-          <span className="row-actions">
-            <span className={duesCurrent ? 'waiver-chip' : 'waiver-chip no'}>
-              {user.dues_paid_year
-                ? duesCurrent
-                  ? `Paid ${user.dues_paid_year}`
-                  : `Expired ${user.dues_paid_year}`
-                : 'Not paid'}
-            </span>
-            <button type="button" disabled={duesSaving} onClick={toggleDues}>
-              {duesSaving ? '…' : user.dues_paid_year ? (duesCurrent ? 'Unmark' : 'Renew') : 'Mark paid'}
-            </button>
-          </span>
-        ) : (
-          '—'
-        )}
-      </td>
-      <td>
-        <span className="row-actions">
-          <span className={user.rsvp_restricted ? 'waiver-chip no' : 'waiver-chip'}>
-            {user.rsvp_restricted ? 'Restricted' : 'Unrestricted'}
-          </span>
-          <button type="button" disabled={restrictSaving} onClick={toggleRestricted}>
-            {restrictSaving ? '…' : user.rsvp_restricted ? 'Unrestrict' : 'Restrict'}
-          </button>
-        </span>
-      </td>
-      <td>
-        <span className="row-actions">
-          <button type="button" disabled={!dirty || saving} onClick={save}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          {!ownerOnly && (
-            <button type="button" className="danger" onClick={onRemove}>
-              Delete
-            </button>
+    <tr className="user-editor-row">
+      <td colSpan={7}>
+        <div className="user-editor">
+          <label className="field">
+            Name
+            <input value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+          <label className="field">
+            Role
+            {ownerOnly ? (
+              <span className="field-static" title="Only the owner can change an admin's role">
+                {ROLE_LABELS[user.role]}
+              </span>
+            ) : (
+              <select value={role} onChange={(e) => setRole(e.target.value as Exclude<UserRole, 'owner'>)}>
+                {roleOptions.map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+          {member && (
+            <>
+              <label className="field">
+                Position
+                <input value={position} onChange={(e) => setPosition(e.target.value)} />
+              </label>
+              <label className="field">
+                Team
+                <select value={team} onChange={(e) => setTeam(e.target.value as Team | '')}>
+                  <option value="">None</option>
+                  <option value="A">A</option>
+                  <option value="B">B</option>
+                </select>
+              </label>
+            </>
           )}
-        </span>
+          <div className="field user-editor-skill">
+            {/* Self-editable once (from unset) on the member's own profile; a
+                later change lands as a pending request instead. Lock takes
+                self-editing away so the value set here sticks. */}
+            <span>Skill level</span>
+            <span className="user-editor-inline">
+              <select
+                aria-label="Skill level"
+                value={skillLevel}
+                onChange={(e) => setSkillLevel(e.target.value as SkillLevel | '')}
+              >
+                <option value="">Not set</option>
+                {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
+                  <option key={level} value={level}>
+                    {SKILL_LEVEL_LABELS[level]}
+                  </option>
+                ))}
+              </select>
+              <label className="switch-row">
+                <input type="checkbox" checked={locked} onChange={(e) => setLocked(e.target.checked)} />
+                Lock (they can&rsquo;t change it)
+              </label>
+            </span>
+            {requested && (
+              <span className="user-editor-request">
+                Requested <b>{SKILL_LEVEL_LABELS[requested]}</b>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={saving}
+                  onClick={() => {
+                    setSkillLevel(requested)
+                    run({ skill_level: requested }, false)
+                  }}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={saving}
+                  onClick={() => run({ skill_level_change_requested: null }, false)}
+                >
+                  Dismiss
+                </button>
+              </span>
+            )}
+          </div>
+          <div className="field">
+            <span>Paperwork ({year})</span>
+            <label className="switch-row">
+              <input type="checkbox" checked={waiver} onChange={(e) => setWaiver(e.target.checked)} />
+              Waiver signed
+              {user.waiver_signed_year !== null && !waiverCurrent && (
+                <span className="field-hint">(expired {user.waiver_signed_year})</span>
+              )}
+            </label>
+            {member && (
+              <label className="switch-row">
+                <input type="checkbox" checked={dues} onChange={(e) => setDues(e.target.checked)} />
+                Dues paid
+                {user.dues_paid_year !== null && !duesCurrent && (
+                  <span className="field-hint">(expired {user.dues_paid_year})</span>
+                )}
+              </label>
+            )}
+          </div>
+          <div className="field">
+            <span>RSVPs</span>
+            <label className="switch-row">
+              <input type="checkbox" checked={restricted} onChange={(e) => setRestricted(e.target.checked)} />
+              Approve each RSVP by hand
+            </label>
+          </div>
+          <div className="user-editor-actions">
+            {!ownerOnly && (
+              <button type="button" className="btn btn-outline btn-sm danger" disabled={saving} onClick={onRemove}>
+                Delete account
+              </button>
+            )}
+            <span className="form-actions-spacer" />
+            <button type="button" className="btn btn-outline btn-sm" disabled={saving} onClick={cancel}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-ace btn-sm"
+              disabled={!dirty || saving}
+              onClick={() => run(input, true)}
+            >
+              {saving ? 'Saving…' : 'Save changes'}
+            </button>
+          </div>
+        </div>
       </td>
     </tr>
   )
 }
 
-// Non-owner rows in the main table are grouped by role, each group under
-// its own header row, so e.g. all club members sit together.
-const ROLE_GROUP_ORDER: UserRole[] = ['admin', 'club_member', 'outsider']
+// Rows are ordered by role, admins first, so e.g. all club members sit
+// together.
+const ROLE_ORDER: UserRole[] = ['admin', 'club_member', 'outsider']
 
-function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
+function UsersAdmin({
+  currentUser,
+  initialFilter,
+  onDirtyChange,
+}: {
+  currentUser: AuthUser
+  initialFilter: Filter | null
+  // Unsaved input in the open editor, so the sidebar asks before leaving.
+  onDirtyChange: (dirty: boolean) => void
+}) {
   const isOwner = currentUser.role === 'owner'
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [transferTo, setTransferTo] = useState('')
   const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<Filter>(initialFilter ?? 'everyone')
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editorDirty, setEditorDirty] = useState(false)
+  useEffect(() => {
+    onDirtyChange(editorDirty)
+    return () => onDirtyChange(false)
+  }, [editorDirty, onDirtyChange])
   const selection = useSelection()
   const [bulkRole, setBulkRole] = useState<Exclude<UserRole, 'owner'>>('club_member')
   const [bulkBusy, setBulkBusy] = useState(false)
@@ -363,15 +423,16 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
     try {
       await adminApi.users.remove(id)
       if (selection.isSelected(id)) selection.toggle(id)
+      setEditingId(null)
       refresh()
     } catch (e) {
       setError((e as Error).message)
     }
   }
 
-  // Only the checked rows the admin can currently see (search hides the
-  // rest); a non-owner can't re-role an admin, so those rows are skipped up
-  // front instead of each failing server-side.
+  // Only the checked rows the admin can currently see (search and filters
+  // hide the rest); a non-owner can't re-role an admin, so those rows are
+  // skipped up front instead of each failing server-side.
   async function applyBulkRole() {
     const skipped = isOwner ? [] : selectedVisible.filter((u) => u.role === 'admin')
     const targets = selectedVisible.filter((u) => !skipped.includes(u))
@@ -401,26 +462,49 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
     }
   }
 
+  function toggleEditor(id: number) {
+    // Closing the editor, or opening another row's, unmounts it: ask first
+    // when it holds unsaved input.
+    if (editorDirty && !confirm('Discard your unsaved changes to this user?')) return
+    setEditingId(editingId === id ? null : id)
+  }
+
   const owner = users.find((u) => u.role === 'owner')
   const query = search.trim().toLowerCase()
+  const matchesQuery = (u: AdminUser) =>
+    !query || (u.name ?? '').toLowerCase().includes(query) || u.email.toLowerCase().includes(query)
+  // The row being edited stays listed even if a search, a filter, or its own
+  // Approve/Dismiss stops it matching, so the editor never vanishes mid-edit.
   const others = users
     .filter((u) => u.role !== 'owner')
-    .filter((u) => !query || (u.name ?? '').toLowerCase().includes(query) || u.email.toLowerCase().includes(query))
-  const roleGroups = ROLE_GROUP_ORDER.map((role) => ({
-    role,
-    members: others.filter((u) => u.role === role),
-  })).filter((g) => g.members.length > 0)
+    .filter((u) => u.id === editingId || (matchesQuery(u) && matchesFilter(u, filter)))
+    .sort(
+      (a, b) =>
+        ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role) ||
+        (a.name ?? a.email).localeCompare(b.name ?? b.email),
+    )
+  const showOwner = owner !== undefined && matchesQuery(owner) && matchesFilter(owner, filter)
   const transferCandidates = users.filter((u) => u.role !== 'owner')
   const selectedVisible = others.filter((u) => selection.isSelected(u.id))
+
+  const filters: { key: Filter; label: string }[] = [
+    { key: 'everyone', label: 'Everyone' },
+    { key: 'waiver-missing', label: 'Waiver missing' },
+    { key: 'dues-unpaid', label: 'Dues unpaid' },
+    { key: 'skill-request', label: 'Skill request' },
+  ]
 
   return (
     <>
       <div className="admin-main-head">
-        <h2>Users</h2>
+        <div>
+          <h2>Users</h2>
+          <p className="admin-page-desc">
+            Everyone who has signed in. New accounts start as outsiders; promote club members and admins here.
+            {!isOwner && ' Only the owner can grant admin or change an admin’s role.'}
+          </p>
+        </div>
         <span className="admin-head-actions">
-          <button className="btn btn-outline btn-sm" type="button" onClick={() => exportUsersCsv(users)}>
-            Download CSV
-          </button>
           <button
             className="btn btn-outline btn-sm"
             type="button"
@@ -429,26 +513,41 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
           >
             Emails only
           </button>
+          <button className="btn btn-outline btn-sm" type="button" onClick={() => exportUsersCsv(users)}>
+            Download CSV
+          </button>
         </span>
       </div>
       {error && <p className="admin-error">{error}</p>}
-      <p className="admin-note">
-        Anyone can create an account by signing in &mdash; new accounts start as outsiders. Promote
-        someone to club member or admin below. Skill level is self-editable by each member; lock a
-        row to take that away and set it yourself instead.
-        {!isOwner &&
-          " Only the owner can grant admin or change another admin's role — anyone's name, position, team, waiver, and dues can still be edited by an admin."}
-      </p>
-      {loading && <p>Loading&hellip;</p>}
+      {loading && users.length === 0 && <p className="admin-loading">Loading&hellip;</p>}
 
-      {!loading && (
-        <input
-          type="text"
-          className="mini-input users-search"
-          placeholder="Search by name or email…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {users.length > 0 && (
+        <div className="admin-toolbar">
+          <input
+            type="search"
+            className="mini-input users-search admin-toolbar-search"
+            aria-label="Search users"
+            placeholder="Search by name or email"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className="admin-chips" role="group" aria-label="Show">
+            {filters.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                aria-pressed={filter === f.key}
+                className={filter === f.key ? 'active' : undefined}
+                onClick={() => setFilter(f.key)}
+              >
+                {f.label}
+                {f.key !== 'everyone' && (
+                  <span className="admin-segmented-count">{users.filter((u) => matchesFilter(u, f.key)).length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       <BulkActionBar count={selectedVisible.length} onClear={selection.clear}>
@@ -462,67 +561,60 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
         </button>
       </BulkActionBar>
 
-      {!loading && (
-        <div className="data-table">
+      {users.length > 0 && (
+        <div className="data-table users-table">
           <table>
             <thead>
               <tr>
                 <th className="select-col">
                   <input
                     type="checkbox"
+                    aria-label="Select all shown users"
                     checked={others.length > 0 && others.every((u) => selection.isSelected(u.id))}
                     onChange={() => selection.toggleAll(others.map((u) => u.id))}
                   />
                 </th>
-                <th>Name</th>
-                <th>Email</th>
+                <th>Person</th>
                 <th>Role</th>
-                <th>Position</th>
-                <th>Team</th>
+                <th>Position &middot; Team</th>
                 <th>Skill</th>
-                <th>Waiver</th>
-                <th>Dues</th>
-                <th>RSVP</th>
-                <th>Actions</th>
+                <th>Status</th>
+                <th>
+                  <span className="visually-hidden">Edit</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {owner && (
-                <tr>
-                  <td />
-                  <td>{owner.name || '—'}</td>
-                  <td>{owner.email}</td>
-                  <td>
-                    <span className="role-chip role-owner">Owner</span>
-                  </td>
-                  <td colSpan={6}>
-                    <span className="admin-note">Transfer ownership to change</span>
-                  </td>
-                  <td />
-                </tr>
+              {showOwner && (
+                // The owner row isn't editable here: its role changes only by
+                // transferring ownership below.
+                <UserSummaryRow user={owner} selected={null} onToggleSelected={() => {}} editing={false} onEdit={null} />
               )}
-              {roleGroups.map((g) => (
-                <Fragment key={g.role}>
-                  <tr className="role-group-header">
-                    <td colSpan={11}>{ROLE_LABELS[g.role]}</td>
-                  </tr>
-                  {g.members.map((u) => (
-                    <UserRow
-                      key={u.id}
+              {others.map((u) => (
+                <Fragment key={u.id}>
+                  <UserSummaryRow
+                    user={u}
+                    selected={selection.isSelected(u.id)}
+                    onToggleSelected={() => selection.toggle(u.id)}
+                    editing={editingId === u.id}
+                    onEdit={() => toggleEditor(u.id)}
+                  />
+                  {editingId === u.id && (
+                    <UserEditor
                       user={u}
                       isOwner={isOwner}
-                      selected={selection.isSelected(u.id)}
-                      onToggleSelected={() => selection.toggle(u.id)}
+                      onClose={() => setEditingId(null)}
                       onSaved={refresh}
                       onError={setError}
                       onRemove={() => remove(u.id, u.name || u.email)}
+                      onDirtyChange={setEditorDirty}
                     />
-                  ))}
+                  )}
                 </Fragment>
               ))}
-              {others.length === 0 && (
+              {others.length === 0 && !showOwner && (
                 <tr>
-                  <td colSpan={11}>{query ? 'No users match this search.' : 'No users yet.'}</td>
+                  <td colSpan={7}>{query || filter !== 'everyone' ? 'No users match.' : 'No users yet.'}</td>
                 </tr>
               )}
             </tbody>
@@ -530,7 +622,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
         </div>
       )}
 
-      {!loading && isOwner && (
+      {isOwner && transferCandidates.length > 0 && (
         <div className="admin-form">
           <span>Transfer ownership to:</span>
           <select value={transferTo} onChange={(e) => setTransferTo(e.target.value)}>

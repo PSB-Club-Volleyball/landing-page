@@ -197,6 +197,37 @@ function SignupFields({
   )
 }
 
+// Status and visibility: whether the event is live and who can see it. The
+// event page shows these in their own side panel; the "New event" modal
+// inlines them via EventFormFields' includePublishing.
+export function PublishingFields({ draft, onChange }: { draft: Draft; onChange: (draft: Draft) => void }) {
+  return (
+    <>
+      <label className="field">
+        Status
+        <select value={draft.status} onChange={(e) => onChange({ ...draft, status: e.target.value as EventStatus })}>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </label>
+      <label className="field">
+        Who can see it
+        <select
+          value={draft.visibility}
+          onChange={(e) => onChange({ ...draft, visibility: e.target.value as EventVisibility })}
+        >
+          {(Object.keys(VISIBILITY_LABELS) as EventVisibility[]).map((v) => (
+            <option key={v} value={v}>
+              {VISIBILITY_LABELS[v]}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
+  )
+}
+
 // The Details form body shared between the "New event" modal and the event
 // page. The caller owns the <form> element, the submit button, and any
 // surrounding actions.
@@ -207,6 +238,7 @@ export function EventFormFields({
   showMoreOptions,
   onToggleMoreOptions,
   includeRecurrence,
+  includePublishing,
 }: {
   draft: Draft
   onChange: (draft: Draft) => void
@@ -216,12 +248,14 @@ export function EventFormFields({
   // Recurrence is only meaningful when creating; an existing event can't grow
   // a series, so the event page hides those checkboxes.
   includeRecurrence: boolean
+  // The modal has no side panel, so it shows status/visibility inline.
+  includePublishing: boolean
 }) {
   const descriptionRef = useAutosizeTextarea(draft.description)
   return (
     <>
       <fieldset>
-        <legend>Details</legend>
+        <legend>Basics</legend>
         <div className="grid2">
           <label className="field">
             <span>
@@ -263,40 +297,20 @@ export function EventFormFields({
         <div className="grid3">
           <EventDateTimeFields draft={draft} onChange={onChange} />
         </div>
-        <div className="grid2">
-          <label className="field">
-            Location
-            <input
-              value={draft.location_name}
-              onChange={(e) => onChange({ ...draft, location_name: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            Status
-            <select
-              value={draft.status}
-              onChange={(e) => onChange({ ...draft, status: e.target.value as EventStatus })}
-            >
-              <option value="draft">Draft</option>
-              <option value="published">Published</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-          </label>
-          <label className="field">
-            Visibility <span className="field-hint">(who can see this event on the public site)</span>
-            <select
-              value={draft.visibility}
-              onChange={(e) => onChange({ ...draft, visibility: e.target.value as EventVisibility })}
-            >
-              {(Object.keys(VISIBILITY_LABELS) as EventVisibility[]).map((v) => (
-                <option key={v} value={v}>
-                  {VISIBILITY_LABELS[v]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+        <label className="field">
+          Location
+          <input value={draft.location_name} onChange={(e) => onChange({ ...draft, location_name: e.target.value })} />
+        </label>
       </fieldset>
+
+      {includePublishing && (
+        <fieldset>
+          <legend>Publishing</legend>
+          <div className="grid2">
+            <PublishingFields draft={draft} onChange={onChange} />
+          </div>
+        </fieldset>
+      )}
 
       <SignupFields draft={draft} onChange={onChange} forms={forms} />
 

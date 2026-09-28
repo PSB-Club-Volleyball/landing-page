@@ -16,6 +16,9 @@ body {
     Arial,
     sans-serif;
   overflow-x: hidden;
+  /* clip, where supported: blocks sideways scroll like hidden, but without
+     making body a scroll container, which breaks position: sticky. */
+  overflow-x: clip;
 }
 a {
   color: inherit;
