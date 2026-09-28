@@ -247,7 +247,7 @@ function SignupModal({
               signInOptions(providers).length > 0 && (
                 <div className="signup-google-prompt">
                   <p>
-                    Want your wins and stripes to count? Sign in with the same email and this RSVP joins your profile.
+                    Want your wins and kudos to count? Sign in with the same email and this RSVP joins your profile.
                   </p>
                   <div className="signup-oauth-options">
                     {signInOptions(providers).map((opt) => (

@@ -87,16 +87,16 @@ async function authorize(
   const receiverId = Number(body.receiver_id)
   if (!Number.isInteger(receiverId)) return badRequest('receiver_id is required')
   if (!isStripeSkill(body.skill)) return badRequest('Unknown skill')
-  if (receiverId === user.id) return badRequest("You can't award yourself a stripe")
+  if (receiverId === user.id) return badRequest("You can't give yourself kudos")
 
   const event = await loadEvent(env, eventId)
   if (!event) return notFound('Event not found')
-  if (event.status !== 'published') return forbidden('Stripes are closed for a cancelled event')
+  if (event.status !== 'published') return forbidden('Kudos are closed for a cancelled event')
   const window = stripeWindow(event)
-  if (window.state === 'upcoming') return forbidden('Stripes open when the event starts')
-  if (window.state === 'closed') return forbidden('Stripes for this event are locked')
+  if (window.state === 'upcoming') return forbidden('Kudos open when the event starts')
+  if (window.state === 'closed') return forbidden('Kudos for this event are locked')
   if (!(await areTeammates(env, eventId, user.id, receiverId))) {
-    return forbidden('You can only award stripes to a teammate from this event')
+    return forbidden('You can only give kudos to a teammate from this event')
   }
   return { eventId, giverId: user.id, receiverId, skill: body.skill }
 }
@@ -125,6 +125,6 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
   )
     .bind(auth.eventId, auth.giverId, auth.receiverId, auth.skill)
     .run()
-  if (result.meta.changes === 0) return notFound('No such stripe')
+  if (result.meta.changes === 0) return notFound('No such kudos')
   return json({ ok: true })
 }

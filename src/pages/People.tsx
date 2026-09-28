@@ -93,7 +93,7 @@ function People() {
             <h1>People</h1>
             {members && (
               <p className="directory-count">
-                {members.length} members &middot; who plays what, and where they&rsquo;ve earned their stripes
+                {members.length} members &middot; who plays what, and what their teammates give them kudos for
               </p>
             )}
             <nav className="directory-toggle" aria-label="Community directory">

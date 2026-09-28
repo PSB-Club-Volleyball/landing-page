@@ -17,5 +17,6 @@ export const STRIPE_LABELS: Record<StripeSkill, string> = {
 }
 
 export function stripeCount(n: number): string {
-  return `${n} ${n === 1 ? 'stripe' : 'stripes'}`
+  // "Kudos" is the same singular and plural.
+  return `${n} kudos`
 }

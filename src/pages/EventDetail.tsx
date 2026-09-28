@@ -166,10 +166,10 @@ function EventDetail() {
   const hasScores = isPool ? bracketStarted : matches.length > 0
   const isBracket = isPool ? bracketStarted : matches.some((m) => m.bracket !== 'pool')
   const scoresLabel = isBracket ? 'Bracket' : timedOnly ? 'Schedule' : 'Scores'
-  // Stripes are awarded between teammates, so the tab rides along with
+  // Kudos are given between teammates, so the tab rides along with
   // published teams.
   const hasStripes = teams.length > 0 && !isCancelled
-  type PageTab = 'details' | 'teams' | 'pools' | 'scores' | 'stripes'
+  type PageTab = 'details' | 'teams' | 'pools' | 'scores' | 'kudos'
   const requested = searchParams.get('tab')
   const tab: PageTab =
     requested === 'teams' && teams.length > 0
@@ -178,8 +178,8 @@ function EventDetail() {
         ? 'pools'
         : requested === 'scores' && hasScores
           ? 'scores'
-          : requested === 'stripes' && hasStripes
-            ? 'stripes'
+          : requested === 'kudos' && hasStripes
+            ? 'kudos'
             : 'details'
   const setTab = (next: PageTab) =>
     setSearchParams(
@@ -404,11 +404,11 @@ function EventDetail() {
               <button
                 type="button"
                 role="tab"
-                aria-selected={tab === 'stripes'}
-                className={tab === 'stripes' ? 'active' : undefined}
-                onClick={() => setTab('stripes')}
+                aria-selected={tab === 'kudos'}
+                className={tab === 'kudos' ? 'active' : undefined}
+                onClick={() => setTab('kudos')}
               >
-                Stripes
+                Kudos
               </button>
             )}
           </div>
@@ -416,7 +416,7 @@ function EventDetail() {
 
         {tab === 'teams' ? (
           <EventTeams teams={teams} />
-        ) : tab === 'stripes' ? (
+        ) : tab === 'kudos' ? (
           <EventStripes eventId={e.id} />
         ) : tab === 'pools' ? (
           <EventPools pools={pools} matches={matches} />

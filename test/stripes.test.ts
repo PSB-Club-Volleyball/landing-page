@@ -81,7 +81,7 @@ test('stripe to someone on another team is forbidden', async () => {
   const f = fixture()
   const res = await send(award, f, f.rival.id, 'serving')
   assert.equal(res.status, 403)
-  assert.equal((await body(res)).error, 'You can only award stripes to a teammate from this event')
+  assert.equal((await body(res)).error, 'You can only give kudos to a teammate from this event')
 })
 
 test('stripe to an unpublished team mate is forbidden', async () => {
@@ -119,7 +119,7 @@ test('stripes before the event starts are forbidden', async () => {
   const f = fixture({ start_time: wallClock(2), end_time: wallClock(4) })
   const res = await send(award, f, f.mate.id, 'serving')
   assert.equal(res.status, 403)
-  assert.equal((await body(res)).error, 'Stripes open when the event starts')
+  assert.equal((await body(res)).error, 'Kudos open when the event starts')
 })
 
 test('locked event (12h+ after end) rejects both award and take-back', async () => {
@@ -129,7 +129,7 @@ test('locked event (12h+ after end) rejects both award and take-back', async () 
     .run(f.eventId, f.giver.id, f.mate.id)
   const awarded = await send(award, f, f.mate.id, 'serving')
   assert.equal(awarded.status, 403)
-  assert.equal((await body(awarded)).error, 'Stripes for this event are locked')
+  assert.equal((await body(awarded)).error, 'Kudos for this event are locked')
   assert.equal((await send(takeBack, f, f.mate.id, 'passing')).status, 403)
   assert.equal(sql(f.db, `SELECT COUNT(*) AS n FROM stripes`)[0].n, 1)
 })
