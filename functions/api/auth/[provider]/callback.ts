@@ -8,15 +8,28 @@ import {
   SESSION_TTL_SECONDS,
 } from '../../_lib/cookies'
 import { randomToken, sha256Hex } from '../../_lib/crypto'
-import { getProvider, normalizeProfile } from '../_lib/providers'
+import { getProvider, isPersonalMicrosoftAccount, normalizeProfile } from '../_lib/providers'
+import { getLoginSettings, isProviderEnabled } from '../_lib/settings'
 
 // GET /api/auth/:provider/callback -> exchanges the auth code, upserts the
 // user (an outsider unless they're in ADMIN_BOOTSTRAP_EMAILS, in which case
 // they land as admin/owner), opens a session.
+//
+// Which provider vouched for the email matters: 'microsoft' is the PSU
+// tenant, 'google' says so via email_verified, and 'microsoft-other' only
+// lets personal accounts through (Microsoft owns those addresses). Only the
+// first two can trigger ADMIN_BOOTSTRAP_EMAILS promotion.
 export const onRequestGet: PagesFunction<Env> = async ({ request, params, env }) => {
   const providerName = String(params.provider)
   const provider = getProvider(providerName, env)
   if (!provider) return new Response('Unknown auth provider', { status: 404 })
+
+  // Re-checked here, not just at /start: a provider switched off while its
+  // consent screen was open must not still complete a sign-in.
+  const settings = await getLoginSettings(env)
+  if (!isProviderEnabled(providerName, settings)) {
+    return new Response('Sign-in with this provider is currently disabled', { status: 404 })
+  }
 
   const url = new URL(request.url)
   const cookies = parseCookies(request.headers.get('cookie'))
@@ -61,7 +74,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
     )
     return toRedirect('error=token_exchange_failed')
   }
-  const tokenData = await tokenResponse.json<{ access_token: string }>()
+  const tokenData = await tokenResponse.json<{ access_token: string; id_token?: string }>()
+
+  // A work/school tenant's admin can set a user's email to any address, so
+  // /common would let someone claim another person's email. Personal accounts
+  // are identified by the consumer tenant ID in the id_token (Graph's
+  // userinfo doesn't carry tid). With the openid scope Microsoft always
+  // returns an id_token, so a missing one is a real fault.
+  if (providerName === 'microsoft-other') {
+    if (!tokenData.id_token) throw new Error('microsoft-other token response had no id_token')
+    if (!isPersonalMicrosoftAccount(tokenData.id_token)) return toRedirect('error=personal_accounts_only')
+  }
 
   const profileResponse = await fetch(provider.userinfoUrl, {
     headers: { authorization: `Bearer ${tokenData.access_token}` },
@@ -76,11 +99,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   }
   const profile = normalizeProfile(await profileResponse.json<Record<string, unknown>>())
   if (!profile) return toRedirect('error=missing_profile_fields')
+  if (providerName === 'google' && profile.emailVerified === false) return toRedirect('error=email_unverified')
 
+  const emailIsAuthoritative =
+    providerName === 'microsoft' || (providerName === 'google' && profile.emailVerified === true)
   const bootstrapEmails = env.ADMIN_BOOTSTRAP_EMAILS.split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean)
-  const isBootstrap = bootstrapEmails.includes(profile.email)
+  const isBootstrap = emailIsAuthoritative && bootstrapEmails.includes(profile.email)
 
   // If a bootstrap email is signing in and nobody holds the owner role yet, this
   // login claims it — self-healing in the same spirit as the approval re-check
@@ -97,87 +123,78 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
     .bind(providerName, profile.sub)
     .first<{ id: number }>()
 
+  // Lost the race to claim the owner role — another concurrent bootstrap
+  // login won it between our "no owner yet" check and this write
+  // (idx_users_single_owner). That login is still otherwise valid, so retry
+  // once as admin instead of failing it. Any other error propagates.
+  const withOwnerRetry = async <T,>(write: () => Promise<T>): Promise<T> => {
+    try {
+      return await write()
+    } catch (e) {
+      if (!assignOwner || !isUniqueViolation(e, 'role')) throw e
+      assignOwner = false
+      return await write()
+    }
+  }
+
   let userId: number
-  if (existing) {
-    userId = existing.id
-    // Re-assert admin rank on every login, not just at account creation —
-    // otherwise a bootstrap email that was demoted before it was added to
-    // (or corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck, with no other
-    // admin able to unstick it. Never downgrades an existing owner.
-    // name is intentionally not synced from the provider on login (either
-    // branch below) — it's the provider's value only at account creation, and
-    // stays editable from the Users tab thereafter without a login clobbering it.
-    if (isBootstrap) {
-      const approve = () =>
-        env.DB.prepare(
-          `UPDATE users SET avatar_url = ?1, email = ?2,
-                  role = ${assignOwner ? `'owner'` : `CASE WHEN role = 'owner' THEN role ELSE 'admin' END`}
-           WHERE id = ?3`
+  try {
+    if (existing) {
+      userId = existing.id
+      // Re-assert admin rank on every login, not just at account creation —
+      // otherwise a bootstrap email that was demoted before it was added to
+      // (or corrected in) ADMIN_BOOTSTRAP_EMAILS stays stuck, with no other
+      // admin able to unstick it. Never downgrades an existing owner.
+      // name is intentionally not synced from the provider on login (either
+      // branch below) — it's the provider's value only at account creation, and
+      // stays editable from the Users tab thereafter without a login clobbering it.
+      if (isBootstrap) {
+        await withOwnerRetry(() =>
+          env.DB.prepare(
+            `UPDATE users SET avatar_url = ?1, email = ?2,
+                    role = ${assignOwner ? `'owner'` : `CASE WHEN role = 'owner' THEN role ELSE 'admin' END`}
+             WHERE id = ?3`
+          )
+            .bind(profile.picture, profile.email, userId)
+            .run()
         )
+      } else {
+        await env.DB.prepare(`UPDATE users SET avatar_url = ?1, email = ?2 WHERE id = ?3`)
           .bind(profile.picture, profile.email, userId)
           .run()
-      try {
-        await approve()
-      } catch (e) {
-        // Lost the race to claim the owner role — another concurrent bootstrap
-        // login won it between our "no owner yet" check and this write. That
-        // login is still otherwise valid, so retry once as admin instead of
-        // failing it; a genuinely different failure will still throw on retry
-        // since assignOwner no longer applies.
-        if (!assignOwner) throw e
-        assignOwner = false
-        await approve()
       }
     } else {
-      await env.DB.prepare(`UPDATE users SET avatar_url = ?1, email = ?2 WHERE id = ?3`)
-        .bind(profile.picture, profile.email, userId)
-        .run()
-    }
-  } else {
-    // A new signup is just an outsider with no admin permissions; an existing
-    // admin/owner promotes them to club_member/admin later from the Users tab.
-    const insert = () =>
-      env.DB.prepare(
-        `INSERT INTO users (email, name, avatar_url, provider, provider_sub, role)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
-      )
-        .bind(
-          profile.email,
-          profile.name,
-          profile.picture,
-          providerName,
-          profile.sub,
-          assignOwner ? 'owner' : isBootstrap ? 'admin' : 'outsider'
+      // A new signup is just an outsider with no admin permissions; an existing
+      // admin/owner promotes them to club_member/admin later from the Users tab.
+      const inserted = await withOwnerRetry(() =>
+        env.DB.prepare(
+          `INSERT INTO users (email, name, avatar_url, provider, provider_sub, role)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
         )
-        .run()
-    const insertWithOwnerRetry = async () => {
-      try {
-        return await insert()
-      } catch (e) {
-        // Same race as above, for a brand-new bootstrap-email user.
-        if (!assignOwner) throw e
-        assignOwner = false
-        return await insert()
-      }
+          .bind(
+            profile.email,
+            profile.name,
+            profile.picture,
+            providerName,
+            profile.sub,
+            assignOwner ? 'owner' : isBootstrap ? 'admin' : 'outsider'
+          )
+          .run()
+      )
+      userId = Number(inserted.meta.last_row_id)
     }
-
-    let inserted
-    try {
-      inserted = await insertWithOwnerRetry()
-    } catch (e) {
-      // users.email is UNIQUE. This fires when the profile's email already
-      // belongs to an account created through a different OAuth provider
-      // (e.g. signed up with Google, now signing in with Microsoft). That's an
-      // expected user-facing situation, not a server fault, so send the same
-      // graceful ?error= redirect the rest of the handler uses instead of
-      // letting a raw D1 constraint error surface as HTTP 500. Kept separate
-      // from the owner-race catch above, which only ever retries.
-      if (e instanceof Error && /UNIQUE constraint failed: users\.email/i.test(e.message)) {
-        return toRedirect('error=account_exists')
-      }
-      throw e
-    }
-    userId = Number(inserted.meta.last_row_id)
+  } catch (e) {
+    // users.email is UNIQUE. This fires when the profile's email already
+    // belongs to an account created through a different OAuth provider
+    // (e.g. signed up with Google, now signing in with Microsoft) — on a new
+    // signup, or when an existing account's provider email changed to one
+    // another account holds. That's an expected user-facing situation, not a
+    // server fault, so send the same graceful ?error= redirect the rest of
+    // the handler uses instead of letting a raw D1 constraint error surface
+    // as HTTP 500.
+    if (isUniqueViolation(e, 'email')) return toRedirect('error=account_exists')
+    console.error(`Sign-in user write failed for ${providerName}`, e)
+    throw e
   }
 
   const sessionToken = randomToken(32)
@@ -191,4 +208,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, params, env })
   headers.append('Set-Cookie', serializeCookie(SESSION_COOKIE, sessionToken, { maxAge: SESSION_TTL_SECONDS, path: '/' }))
   clearOAuthCookies(headers)
   return new Response(null, { status: 302, headers })
+}
+
+function isUniqueViolation(e: unknown, column: 'email' | 'role'): boolean {
+  return e instanceof Error && new RegExp(`UNIQUE constraint failed: users\\.${column}\\b`, 'i').test(e.message)
 }

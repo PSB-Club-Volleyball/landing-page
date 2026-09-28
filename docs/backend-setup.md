@@ -105,8 +105,12 @@ registration:
   (`wrangler.toml`, default `psu.edu`) rather than `/common`. Serves Penn State
   / Behrend accounts.
 - **`microsoft-other`** — a separate registration you own, configured
-  multi-tenant + personal accounts, hardcoded to `/common`. Serves any non-PSU
-  Microsoft account. Off by default (`login_settings.microsoft_other_enabled`);
+  multi-tenant + personal accounts, hardcoded to `/common`. The callback accepts
+  only personal Microsoft accounts (Outlook, Hotmail, Live — the id_token's
+  `tid` is the consumer tenant `9188040d-6c67-4c5b-b112-36a304b66dad`) and
+  rejects every work/school tenant with `?error=personal_accounts_only`, since a
+  tenant admin can set a user's email to any address. It never triggers
+  `ADMIN_BOOTSTRAP_EMAILS` promotion. Off by default (`login_settings.microsoft_other_enabled`);
   the owner turns it on in Admin → Settings once its secrets are set.
 
 ### 6a. The PSU app (`microsoft`)

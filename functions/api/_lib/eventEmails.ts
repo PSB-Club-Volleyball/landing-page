@@ -51,7 +51,28 @@ function buildWaiverLink(env: Env): { url: string; label: string } {
 // width, since Outlook ignores max-width) and an explicit font stack. This
 // degrades gracefully everywhere else (Gmail, Apple Mail, etc. all render
 // tables and divs the same way for a layout this simple).
-function wrapHtml(heading: string, bodyLines: string[], detailLines: string[], links: { url: string; label: string }[] = []): string {
+// Every value interpolated below is plain text — signup names, event titles,
+// an admin's announcement — so it is escaped here, once, for both element
+// text and the href attribute. Callers never pass markup.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function wrapHtml(
+  rawHeading: string,
+  rawBodyLines: string[],
+  rawDetailLines: string[],
+  rawLinks: { url: string; label: string }[] = []
+): string {
+  const heading = escapeHtml(rawHeading)
+  const bodyLines = rawBodyLines.map(escapeHtml)
+  const detailLines = rawDetailLines.map(escapeHtml)
+  const links = rawLinks.map((l) => ({ url: escapeHtml(l.url), label: escapeHtml(l.label) }))
   const FONT = 'Arial, Helvetica, sans-serif'
   const details = detailLines
     .map((l) => `<p style="margin:0 0 4px;font-family:${FONT};font-size:14px;line-height:20px;color:#1a1a1a;">${l}</p>`)

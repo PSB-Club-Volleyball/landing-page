@@ -9,6 +9,9 @@ export const AUTH_ERROR_MESSAGES: Record<string, string> = {
   missing_profile_fields: 'That account is missing an email address, which we need to sign you in.',
   account_exists:
     'An account with that email already exists under a different sign-in provider. Use the provider you signed up with.',
+  email_unverified: "Google hasn't verified that account's email address. Verify it with Google, then try again.",
+  personal_accounts_only:
+    'This option is for personal Microsoft accounts (Outlook, Hotmail, Live) only. Work or school accounts cannot sign in here; Penn State accounts use the PSU Microsoft option.',
 }
 
 export function authErrorMessage(code: string | null | undefined): string | null {

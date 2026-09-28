@@ -6,7 +6,14 @@ export function parseCookies(header: string | null): Record<string, string> {
     if (idx === -1) continue
     const key = part.slice(0, idx).trim()
     const value = part.slice(idx + 1).trim()
-    if (key) out[key] = decodeURIComponent(value)
+    if (!key) continue
+    // A malformed %-escape (from some other site script or extension) would
+    // otherwise throw and 500 every endpoint for this browser; skip that pair.
+    try {
+      out[key] = decodeURIComponent(value)
+    } catch {
+      console.warn(`Skipping undecodable cookie ${key}`)
+    }
   }
   return out
 }

@@ -39,9 +39,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
         .bind(id)
         .first<{ jersey_number: number | null; class_year: string | null }>()
 
-  const results = await getPlayerResults(env, user)
+  const results = await getPlayerResults(env, user, sessionUser.role)
   const summary = getPlayerSummary(results)
-  const stripes = await getMemberStripes(env, user.id)
+  const stripes = await getMemberStripes(env, user.id, sessionUser.role)
 
   return json({
     member: {
