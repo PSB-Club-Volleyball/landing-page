@@ -9,6 +9,7 @@ import type {
   LoginSettings,
   MediaItem,
   MediaType,
+  MergePreview,
   AdminUser,
   Player,
   MatchesResponse,
@@ -162,9 +163,23 @@ export const adminApi = {
         waiver_signed?: boolean
         dues_paid?: boolean
         rsvp_restricted?: boolean
+        primary_email?: string
       }
     ) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: number) => request<{ ok: true }>(`/api/admin/users/${id}`, { method: 'DELETE' }),
+    create: (input: { name: string; email: string; role: Exclude<UserRole, 'owner'>; waiver_signed: boolean }) =>
+      request<{ ok: true; id: number }>('/api/admin/users', { method: 'POST', body: JSON.stringify(input) }),
+    addEmail: (id: number, email: string) =>
+      request<{ ok: true }>(`/api/admin/users/${id}/emails`, { method: 'POST', body: JSON.stringify({ email }) }),
+    removeEmail: (id: number, email: string) =>
+      request<{ ok: true }>(`/api/admin/users/${id}/emails/${encodeURIComponent(email)}`, { method: 'DELETE' }),
+    mergePreview: (intoId: number, fromId: number) =>
+      request<MergePreview>(`/api/admin/users/${intoId}/merge?from_id=${fromId}`),
+    merge: (intoId: number, fromId: number) =>
+      request<{ ok: true }>(`/api/admin/users/${intoId}/merge`, {
+        method: 'POST',
+        body: JSON.stringify({ from_id: fromId }),
+      }),
     transferOwnership: (toUserId: number) =>
       request<{ ok: true }>('/api/admin/owner/transfer', {
         method: 'POST',
