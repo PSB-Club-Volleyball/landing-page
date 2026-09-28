@@ -23,6 +23,13 @@ import type {
   UserRole,
 } from '../types'
 
+interface FormInput {
+  name: string
+  fields: FormFieldInput[]
+  max_responses: number | null
+  confirmation_message: string | null
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     credentials: 'include',
@@ -80,7 +87,7 @@ export const adminApi = {
         method: 'POST',
       }),
     announce: (eventId: number, input: { subject: string; message: string }) =>
-      request<{ ok: true; recipient_count: number }>(`/api/admin/events/${eventId}/announce`, {
+      request<{ ok: true; recipient_count: number; sent_count: number; failed_count: number }>(`/api/admin/events/${eventId}/announce`, {
         method: 'POST',
         body: JSON.stringify(input),
       }),
@@ -116,9 +123,9 @@ export const adminApi = {
   forms: {
     list: () => request<{ forms: FormTemplate[] }>('/api/admin/forms'),
     get: (id: number) => request<{ form: FormWithFields }>(`/api/admin/forms/${id}`),
-    create: (input: { name: string; fields: FormFieldInput[] }) =>
+    create: (input: FormInput) =>
       request<{ id: number }>('/api/admin/forms', { method: 'POST', body: JSON.stringify(input) }),
-    update: (id: number, input: { name: string; fields: FormFieldInput[] }) =>
+    update: (id: number, input: FormInput) =>
       request<{ ok: true }>(`/api/admin/forms/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
     remove: (id: number) => request<{ ok: true }>(`/api/admin/forms/${id}`, { method: 'DELETE' }),
   },

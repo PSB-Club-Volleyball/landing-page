@@ -69,7 +69,8 @@ function UserRow({
   const [lockSaving, setLockSaving] = useState(false)
   const [dismissSaving, setDismissSaving] = useState(false)
 
-  const currentYear = new Date().getFullYear()
+  // UTC, matching the server's getUTCFullYear() when it stamps the year.
+  const currentYear = new Date().getUTCFullYear()
   const waiverCurrent = user.waiver_signed_year === currentYear
   const duesCurrent = user.dues_paid_year === currentYear
 
@@ -162,7 +163,10 @@ function UserRow({
         ...(trimmedName !== (user.name ?? '') ? { name: trimmedName } : {}),
         position: position || null,
         team: team || null,
-        skill_level: skillLevel || null,
+        // Only when changed: the server treats any skill_level write as
+        // resolving a pending change request, so resending the current value
+        // alongside a name edit would silently drop the member's request.
+        ...(skillLevel !== (user.skill_level ?? '') ? { skill_level: skillLevel || null } : {}),
       })
       onSaved()
     } catch (e) {
@@ -358,22 +362,30 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
       return
     try {
       await adminApi.users.remove(id)
+      if (selection.isSelected(id)) selection.toggle(id)
       refresh()
     } catch (e) {
       setError((e as Error).message)
     }
   }
 
-  async function runSelectedBulk(verb: string, fn: (id: number) => Promise<unknown>) {
+  // Only the checked rows the admin can currently see (search hides the
+  // rest); a non-owner can't re-role an admin, so those rows are skipped up
+  // front instead of each failing server-side.
+  async function applyBulkRole() {
+    const skipped = isOwner ? [] : selectedVisible.filter((u) => u.role === 'admin')
+    const targets = selectedVisible.filter((u) => !skipped.includes(u))
     setBulkBusy(true)
-    const result = await runBulk([...selection.selected], fn)
-    setError(summarizeBulk(result, verb))
+    const result = await runBulk(targets, (u) => adminApi.users.update(u.id, { role: bulkRole }))
+    const skipNote =
+      skipped.length > 0
+        ? `Skipped ${skipped.length} admin${skipped.length === 1 ? '' : 's'} — only the owner can change an admin's role.`
+        : null
+    setError([summarizeBulk(result, 'Bulk role change'), skipNote].filter(Boolean).join(' ') || null)
     selection.clear()
     refresh()
     setBulkBusy(false)
   }
-
-  const applyBulkRole = () => runSelectedBulk('Bulk role change', (id) => adminApi.users.update(id, { role: bulkRole }))
 
   async function transferOwnership() {
     const target = users.find((u) => u.id === Number(transferTo))
@@ -399,6 +411,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
     members: others.filter((u) => u.role === role),
   })).filter((g) => g.members.length > 0)
   const transferCandidates = users.filter((u) => u.role !== 'owner')
+  const selectedVisible = others.filter((u) => selection.isSelected(u.id))
 
   return (
     <>
@@ -438,7 +451,7 @@ function UsersAdmin({ currentUser }: { currentUser: AuthUser }) {
         />
       )}
 
-      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+      <BulkActionBar count={selectedVisible.length} onClear={selection.clear}>
         <select value={bulkRole} onChange={(e) => setBulkRole(e.target.value as Exclude<UserRole, 'owner'>)}>
           <option value="outsider">Outsider</option>
           <option value="club_member">Club member</option>

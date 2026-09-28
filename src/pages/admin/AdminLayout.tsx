@@ -43,23 +43,25 @@ function ConsoleTab({
   user,
   isOwner,
   onGoTo,
+  onDirtyChange,
 }: {
   tab: Tab
   user: AuthUser
   isOwner: boolean
   onGoTo: (tab: Tab) => void
+  onDirtyChange: (dirty: boolean) => void
 }) {
   switch (tab) {
     case 'dashboard':
       return <DashboardAdmin onGoTo={onGoTo} />
     case 'roster':
-      return <RosterAdmin />
+      return <RosterAdmin onDirtyChange={onDirtyChange} />
     case 'board':
-      return <BoardAdmin isOwner={isOwner} />
+      return <BoardAdmin isOwner={isOwner} onDirtyChange={onDirtyChange} />
     case 'events':
-      return <EventsAdmin isOwner={isOwner} />
+      return <EventsAdmin isOwner={isOwner} onDirtyChange={onDirtyChange} />
     case 'forms':
-      return <FormsAdmin isOwner={isOwner} />
+      return <FormsAdmin isOwner={isOwner} onDirtyChange={onDirtyChange} />
     case 'media':
       return <MediaAdmin />
     case 'users':
@@ -77,6 +79,10 @@ function AdminLayout({ user }: { user: AuthUser }) {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('dashboard')
   const [navOpen, setNavOpen] = useState(false)
+  // Set by whichever editor is mounted (console tab or event page) while it
+  // holds unsaved input — switching tabs unmounts it and loses that input.
+  const [dirty, setDirty] = useState(false)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
 
   // The console's own screens are on the /admin index; a routed sub-page
   // (e.g. an event) lives at its own path. The sidebar always returns to the
@@ -84,6 +90,11 @@ function AdminLayout({ user }: { user: AuthUser }) {
   const onConsole = location.pathname === '/admin' || location.pathname === '/admin/'
 
   function pickTab(next: Tab) {
+    if (onConsole && next === tab) {
+      setNavOpen(false)
+      return
+    }
+    if (dirty && !confirm('You have unsaved changes. Leave this page and discard them?')) return
     setTab(next)
     setNavOpen(false)
     if (!onConsole) navigate('/admin')
@@ -113,13 +124,24 @@ function AdminLayout({ user }: { user: AuthUser }) {
             type="button"
             className="signout"
             onClick={() => {
-              logout().finally(() => window.location.assign('/admin'))
+              setSignOutError(null)
+              logout()
+                .then(() => window.location.assign('/admin'))
+                .catch((e: Error) => {
+                  console.error('Sign out failed', e)
+                  setSignOutError(`Sign out failed — you're still signed in. ${e.message}`)
+                })
             }}
           >
             Sign out
           </button>
         </span>
       </div>
+      {signOutError && (
+        <p className="admin-error" role="alert">
+          {signOutError}
+        </p>
+      )}
       <div className="admin-body">
         <nav id="admin-sidebar" className={navOpen ? 'admin-sidebar open' : 'admin-sidebar'}>
           {TABS.filter((t) => !t.ownerOnly || isOwner).map((t) => (
@@ -138,10 +160,10 @@ function AdminLayout({ user }: { user: AuthUser }) {
             <Route
               index
               element={
-                <ConsoleTab tab={tab} user={user} isOwner={isOwner} onGoTo={pickTab} />
+                <ConsoleTab tab={tab} user={user} isOwner={isOwner} onGoTo={pickTab} onDirtyChange={setDirty} />
               }
             />
-            <Route path="events/:eventId" element={<AdminEventPage isOwner={isOwner} />} />
+            <Route path="events/:eventId" element={<AdminEventPage isOwner={isOwner} onDirtyChange={setDirty} />} />
           </Routes>
         </div>
       </div>

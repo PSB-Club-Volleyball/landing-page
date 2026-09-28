@@ -1,9 +1,11 @@
-import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { useTopmostEscape } from './modalStack'
 
 // Generic popup shell for admin create/edit forms — reuses the same
 // overlay/card look as the public signup modal (see App.css's
 // .signup-overlay/.signup-modal) so the two visual languages stay in sync.
+// Escape, the backdrop, and the close button all call `onClose`; a caller
+// holding unsaved input should pass a close handler that confirms first.
 function AdminModal({
   title,
   onClose,
@@ -15,13 +17,7 @@ function AdminModal({
   children: ReactNode
   wide?: boolean
 }) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useTopmostEscape(onClose)
 
   return (
     <div className="signup-overlay" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>

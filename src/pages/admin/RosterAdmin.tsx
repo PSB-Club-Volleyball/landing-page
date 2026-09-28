@@ -41,12 +41,21 @@ const emptyDraft = {
 }
 type Draft = typeof emptyDraft
 
+// Blank means no number; anything but a whole number ("12a", "7.5") is an
+// error rather than being silently saved as blank.
+function parseJersey(raw: string): number | null {
+  const v = raw.trim()
+  if (v === '') return null
+  if (!/^\d+$/.test(v)) throw new Error(`Jersey number must be a whole number (got "${raw}").`)
+  return Number(v)
+}
+
 function toInput(draft: Draft) {
   return {
     season: draft.season,
     first_name: draft.first_name,
     last_name: draft.last_name,
-    jersey_number: draft.jersey_number ? Number(draft.jersey_number) : null,
+    jersey_number: parseJersey(draft.jersey_number),
     position: draft.position || null,
     class_year: draft.class_year || null,
   }
@@ -63,7 +72,7 @@ function playerToDraft(p: Player): Draft {
   }
 }
 
-function RosterAdmin() {
+function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void }) {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -75,6 +84,7 @@ function RosterAdmin() {
   const [bulkSeason, setBulkSeason] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function refresh() {
@@ -88,7 +98,18 @@ function RosterAdmin() {
 
   useEffect(refresh, [])
 
+  const editingPlayer = editingId === null ? undefined : players.find((p) => p.id === editingId)
+  const dirty =
+    (creating && JSON.stringify(createDraft) !== JSON.stringify(emptyDraft)) ||
+    (editingPlayer !== undefined && JSON.stringify(editDraft) !== JSON.stringify(playerToDraft(editingPlayer)))
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+    return () => onDirtyChange?.(false)
+  }, [dirty, onDirtyChange])
+
   async function handleCreate() {
+    if (saving) return
+    setSaving(true)
     try {
       await adminApi.roster.create(toInput(createDraft))
       setCreating(false)
@@ -96,16 +117,22 @@ function RosterAdmin() {
       refresh()
     } catch (e) {
       setError((e as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
   async function handleSave(id: number) {
+    if (saving) return
+    setSaving(true)
     try {
       await adminApi.roster.update(id, toInput(editDraft))
       setEditingId(null)
       refresh()
     } catch (e) {
       setError((e as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -113,17 +140,21 @@ function RosterAdmin() {
     if (!confirm('Remove this player?')) return
     try {
       await adminApi.roster.remove(id)
+      if (selection.isSelected(id)) selection.toggle(id)
       refresh()
     } catch (e) {
       setError((e as Error).message)
     }
   }
 
+  // Bulk actions only touch checked rows that are still in the list — never
+  // an id left over from a player deleted since it was checked.
+  const selectedPlayers = players.filter((p) => selection.isSelected(p.id))
+
   async function applyBulkSeason() {
     if (!bulkSeason.trim()) return
     setBulkBusy(true)
-    const targets = players.filter((p) => selection.isSelected(p.id))
-    const result = await runBulk(targets, (p) => adminApi.roster.update(p.id, { season: bulkSeason.trim() }))
+    const result = await runBulk(selectedPlayers, (p) => adminApi.roster.update(p.id, { season: bulkSeason.trim() }))
     setError(summarizeBulk(result, 'Bulk season update'))
     selection.clear()
     refresh()
@@ -131,9 +162,9 @@ function RosterAdmin() {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Remove ${selection.selected.size} player(s)? This can't be undone.`)) return
+    if (!confirm(`Remove ${selectedPlayers.length} player(s)? This can't be undone.`)) return
     setBulkBusy(true)
-    const result = await runBulk([...selection.selected], (id) => adminApi.roster.remove(id))
+    const result = await runBulk(selectedPlayers, (p) => adminApi.roster.remove(p.id))
     setError(summarizeBulk(result, 'Bulk delete'))
     selection.clear()
     refresh()
@@ -151,12 +182,23 @@ function RosterAdmin() {
         setError('No rows with a season, first name, and last name were found in that file.')
         return
       }
+      // Reject the whole file up front on a bad jersey number rather than
+      // importing the rest and leaving a half-applied roster.
+      const badJersey = toImport.filter((r) => r.jersey_number && !/^\d+$/.test(r.jersey_number))
+      if (badJersey.length > 0) {
+        setError(
+          `Import cancelled — jersey numbers must be whole numbers: ${badJersey
+            .map((r) => `${r.first_name} ${r.last_name} ("${r.jersey_number}")`)
+            .join(', ')}. Nothing was imported.`
+        )
+        return
+      }
       const result = await runBulk(toImport, (r) =>
         adminApi.roster.create({
           season: r.season,
           first_name: r.first_name,
           last_name: r.last_name,
-          jersey_number: r.jersey_number ? Number(r.jersey_number) : null,
+          jersey_number: parseJersey(r.jersey_number ?? ''),
           position: r.position || null,
           class_year: r.class_year || null,
         })
@@ -244,12 +286,12 @@ function RosterAdmin() {
             value={createDraft.class_year}
             onChange={(e) => setCreateDraft({ ...createDraft, class_year: e.target.value })}
           />
-          <button className="approve-btn" type="button" onClick={handleCreate}>
-            Save
+          <button className="approve-btn" type="button" disabled={saving} onClick={handleCreate}>
+            {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
       )}
-      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+      <BulkActionBar count={selectedPlayers.length} onClear={selection.clear}>
         <input
           placeholder="Season (2025-2026)"
           value={bulkSeason}
@@ -341,8 +383,8 @@ function RosterAdmin() {
                   </td>
                   <td>
                     <span className="row-actions">
-                      <button type="button" onClick={() => handleSave(p.id)}>
-                        Save
+                      <button type="button" disabled={saving} onClick={() => handleSave(p.id)}>
+                        {saving ? 'Saving…' : 'Save'}
                       </button>
                       <button type="button" onClick={() => setEditingId(null)}>
                         Cancel

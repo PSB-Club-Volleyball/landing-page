@@ -20,7 +20,15 @@ const SCORED_FORMATS = new Set(['round_robin', 'pool_bracket', 'single_elim', 'd
 // The routed admin page for one event at /admin/events/:eventId — replaces
 // the old "Edit event" modal and the inline expanding signups row. Details
 // holds the edit form; Signups holds the attendee roster.
-export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
+export default function AdminEventPage({
+  isOwner,
+  onDirtyChange,
+}: {
+  isOwner: boolean
+  // Reports unsaved edits (Details draft, or the open Teams/Schedule editor)
+  // so the sidebar can confirm before navigating away.
+  onDirtyChange?: (dirty: boolean) => void
+}) {
   const { eventId } = useParams<{ eventId: string }>()
   const id = Number(eventId)
   const navigate = useNavigate()
@@ -38,6 +46,12 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [savedNote, setSavedNote] = useState(false)
+  // Background failures (forms list, post-save refetch) that don't tear the
+  // page down but would otherwise leave stale or missing data unexplained.
+  const [bgError, setBgError] = useState<string | null>(null)
+  // Unsaved changes in the Teams or Schedule editor — both unmount on a tab
+  // switch, so leaving loses them.
+  const [subDirty, setSubDirty] = useState(false)
 
   // Initial load: on failure the whole page becomes the error view.
   function loadInitial() {
@@ -71,7 +85,10 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
         setEvent(res.event)
         if (resetDraft) setDraft(eventToDraft(res.event))
       })
-      .catch((err: Error) => console.error('Failed to refresh event', err))
+      .catch((err: Error) => {
+        console.error('Failed to refresh event', err)
+        setBgError(`Couldn't refresh this event: ${err.message}`)
+      })
   }
 
   useEffect(loadInitial, [id])
@@ -79,10 +96,28 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
     adminApi.forms
       .list()
       .then((res) => setForms(res.forms))
-      .catch((err: Error) => console.error('Failed to load forms', err))
+      .catch((err: Error) => {
+        console.error('Failed to load forms', err)
+        setBgError(`Couldn't load forms for the signup picker: ${err.message}`)
+      })
   }, [])
 
+  const detailsDirty = event !== null && JSON.stringify(draft) !== JSON.stringify(eventToDraft(event))
+  const dirty = detailsDirty || subDirty
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+    return () => onDirtyChange?.(false)
+  }, [dirty, onDirtyChange])
+
+  function confirmLeave(): boolean {
+    return !dirty || confirm('You have unsaved changes on this event. Leave without saving?')
+  }
+
   function setTab(next: Tab) {
+    if (next === tab) return
+    // Details' draft lives here and survives a tab switch; Teams/Schedule
+    // unmount and lose theirs.
+    if (subDirty && !confirm('You have unsaved changes on this tab. Switch tabs and discard them?')) return
     setSearchParams(
       (prev) => {
         const p = new URLSearchParams(prev)
@@ -145,7 +180,13 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
 
   return (
     <div className="admin-event-page">
-      <Link className="admin-back-link" to="/admin">
+      <Link
+        className="admin-back-link"
+        to="/admin"
+        onClick={(ev) => {
+          if (!confirmLeave()) ev.preventDefault()
+        }}
+      >
         &larr; All events
       </Link>
       <div className="admin-main-head">
@@ -161,6 +202,8 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
           </p>
         </div>
       </div>
+
+      {bgError && <p className="admin-error">{bgError}</p>}
 
       <div className="admin-subtabs" role="tablist">
         <button
@@ -224,7 +267,7 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
               </button>
             )}
             <span className="form-actions-spacer" />
-            <button className="btn btn-outline" type="button" onClick={() => navigate('/admin')}>
+            <button className="btn btn-outline" type="button" onClick={() => confirmLeave() && navigate('/admin')}>
               Back
             </button>
             <button className="btn btn-ace" type="submit" disabled={saving}>
@@ -238,10 +281,12 @@ export default function AdminEventPage({ isOwner }: { isOwner: boolean }) {
         <SignupsPanel eventId={id} eventTitle={e.title} capacity={e.capacity} onChanged={() => refetch(false)} />
       )}
 
-      {tab === 'teams' && TEAM_TYPES.has(e.event_type) && <TeamsAdmin eventId={id} onFormatChange={() => refetch(false)} />}
+      {tab === 'teams' && TEAM_TYPES.has(e.event_type) && (
+        <TeamsAdmin eventId={id} onFormatChange={() => refetch(false)} onDirtyChange={setSubDirty} />
+      )}
 
       {tab === 'scores' && e.play_format != null && SCORED_FORMATS.has(e.play_format) && (
-        <ScheduleAdmin eventId={id} playFormat={e.play_format} />
+        <ScheduleAdmin eventId={id} playFormat={e.play_format} onDirtyChange={setSubDirty} />
       )}
     </div>
   )

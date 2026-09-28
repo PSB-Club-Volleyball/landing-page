@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { adminApi } from '../../lib/adminApi'
+import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { downloadCsv, downloadEmailList, toCsv } from '../../lib/csv'
+import { parseDbTimestamp } from '../../lib/dbTime'
+import { useSelection } from '../../lib/useSelection'
 import { linkifyText } from '../../lib/markdown'
 import type { EventSignup, SignupStatus } from '../../types'
 
@@ -22,7 +25,7 @@ function exportFullCsv(eventTitle: string, signups: EventSignup[]) {
       answersText(s, '; '),
       s.status,
       s.checked_in_at ? new Date(s.checked_in_at).toLocaleString() : '',
-      new Date(s.created_at).toLocaleString(),
+      parseDbTimestamp(s.created_at).toLocaleString(),
     ])
   )
   downloadCsv(`${eventSlug(eventTitle)}-signups.csv`, csv)
@@ -79,7 +82,7 @@ export default function SignupsPanel({
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<SignupStatus | 'all'>('all')
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'created', dir: 'asc' })
-  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const selection = useSelection()
   const [bulkBusy, setBulkBusy] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [checkinMode, setCheckinMode] = useState(false)
@@ -134,26 +137,24 @@ export default function SignupsPanel({
     }
   }
 
-  async function runBulk(action: 'approved' | 'waitlist' | 'denied' | 'remove') {
-    const ids = [...selected]
+  // Acts on the checked rows still visible under the current filter/search.
+  // Every item is attempted (a failure doesn't stop the rest) and the list
+  // always refreshes, so what's shown matches what actually changed.
+  async function handleBulk(action: 'approved' | 'waitlist' | 'denied' | 'remove') {
+    const ids = selectedVisible.map((s) => s.id)
     if (ids.length === 0) return
     const verb = action === 'remove' ? 'Remove' : action === 'approved' ? 'Approve' : action === 'waitlist' ? 'Waitlist' : 'Deny'
     if (!confirm(`${verb} ${ids.length} selected ${ids.length === 1 ? 'person' : 'people'}?`)) return
     setBulkBusy(true)
     setError(null)
-    try {
-      for (const id of ids) {
-        if (action === 'remove') await adminApi.events.removeSignup(eventId, id)
-        else await adminApi.events.decideSignup(eventId, id, action)
-      }
-      setSelected(new Set())
-      refresh()
-      onChanged()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBulkBusy(false)
-    }
+    const result = await runBulk(ids, (id) =>
+      action === 'remove' ? adminApi.events.removeSignup(eventId, id) : adminApi.events.decideSignup(eventId, id, action)
+    )
+    setError(summarizeBulk(result, verb))
+    selection.clear()
+    refresh()
+    onChanged()
+    setBulkBusy(false)
   }
 
   async function handleRelease() {
@@ -177,7 +178,13 @@ export default function SignupsPanel({
     setAnnounceNote(null)
     try {
       const res = await adminApi.events.announce(eventId, { subject: announceSubject, message: announceMessage })
-      setAnnounceNote(`Emailed ${res.recipient_count} ${res.recipient_count === 1 ? 'person' : 'people'}.`)
+      // A partial failure still closes the form: resending would re-email
+      // everyone who already got it.
+      setAnnounceNote(
+        res.failed_count > 0
+          ? `Emailed ${res.sent_count} of ${res.recipient_count}; ${res.failed_count} failed. Don't resend — it would go to everyone again.`
+          : `Emailed ${res.sent_count} ${res.sent_count === 1 ? 'person' : 'people'}.`
+      )
       setAnnounceSubject('')
       setAnnounceMessage('')
       setAnnounceOpen(false)
@@ -229,25 +236,8 @@ export default function SignupsPanel({
     return <span className="sort-arrow">{sort.dir === 'asc' ? ' ↑' : ' ↓'}</span>
   }
 
-  function toggleSelect(id: number) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-  const allVisibleSelected = visible.length > 0 && visible.every((s) => selected.has(s.id))
-  function toggleSelectAll() {
-    setSelected((prev) => {
-      if (allVisibleSelected) {
-        const next = new Set(prev)
-        visible.forEach((s) => next.delete(s.id))
-        return next
-      }
-      return new Set([...prev, ...visible.map((s) => s.id)])
-    })
-  }
+  const selectedVisible = visible.filter((s) => selection.isSelected(s.id))
+  const allVisibleSelected = visible.length > 0 && selectedVisible.length === visible.length
 
   if (error && !signups) return <p className="admin-error">{error}</p>
   if (!signups) return <p className="admin-note">Loading&hellip;</p>
@@ -314,7 +304,7 @@ export default function SignupsPanel({
             className={checkinMode ? 'btn btn-ace btn-sm' : 'btn btn-outline btn-sm'}
             onClick={() => {
               setCheckinMode((v) => !v)
-              setSelected(new Set())
+              selection.clear()
             }}
           >
             {checkinMode ? 'Exit check-in mode' : 'Check-in mode'}
@@ -389,15 +379,15 @@ export default function SignupsPanel({
         </form>
       )}
 
-      {!checkinMode && selected.size > 0 && (
+      {!checkinMode && selectedVisible.length > 0 && (
         <div className="bulk-action-bar">
-          <span className="bulk-count">{selected.size} selected</span>
+          <span className="bulk-count">{selectedVisible.length} selected</span>
           <div className="bulk-actions">
-            <button className="btn btn-ace btn-sm" type="button" disabled={bulkBusy} onClick={() => runBulk('approved')}>Approve</button>
-            <button className="btn btn-outline btn-sm" type="button" disabled={bulkBusy} onClick={() => runBulk('waitlist')}>Waitlist</button>
-            <button className="btn btn-outline btn-sm" type="button" disabled={bulkBusy} onClick={() => runBulk('denied')}>Deny</button>
-            <button className="btn btn-outline btn-sm danger" type="button" disabled={bulkBusy} onClick={() => runBulk('remove')}>Remove</button>
-            <button className="link-btn" type="button" onClick={() => setSelected(new Set())}>Clear</button>
+            <button className="btn btn-ace btn-sm" type="button" disabled={bulkBusy} onClick={() => handleBulk('approved')}>Approve</button>
+            <button className="btn btn-outline btn-sm" type="button" disabled={bulkBusy} onClick={() => handleBulk('waitlist')}>Waitlist</button>
+            <button className="btn btn-outline btn-sm" type="button" disabled={bulkBusy} onClick={() => handleBulk('denied')}>Deny</button>
+            <button className="btn btn-outline btn-sm danger" type="button" disabled={bulkBusy} onClick={() => handleBulk('remove')}>Remove</button>
+            <button className="link-btn" type="button" onClick={selection.clear}>Clear</button>
           </div>
         </div>
       )}
@@ -430,7 +420,7 @@ export default function SignupsPanel({
             <thead>
               <tr>
                 <th className="select-col">
-                  <input type="checkbox" aria-label="Select all" checked={allVisibleSelected} onChange={toggleSelectAll} />
+                  <input type="checkbox" aria-label="Select all" checked={allVisibleSelected} onChange={() => selection.toggleAll(visible.map((s) => s.id))} />
                 </th>
                 <th><button type="button" className="th-sort" onClick={() => toggleSort('name')}>Name{sortArrow('name')}</button></th>
                 <th><button type="button" className="th-sort" onClick={() => toggleSort('status')}>Status{sortArrow('status')}</button></th>
@@ -442,9 +432,9 @@ export default function SignupsPanel({
             </thead>
             <tbody>
               {visible.map((s) => (
-                <tr key={s.id} className={selected.has(s.id) ? 'row-selected' : undefined}>
+                <tr key={s.id} className={selection.isSelected(s.id) ? 'row-selected' : undefined}>
                   <td className="select-col">
-                    <input type="checkbox" aria-label={`Select ${s.name}`} checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
+                    <input type="checkbox" aria-label={`Select ${s.name}`} checked={selection.isSelected(s.id)} onChange={() => selection.toggle(s.id)} />
                   </td>
                   <td>
                     <span className="signups-name">
@@ -478,7 +468,7 @@ export default function SignupsPanel({
                       </button>
                     )}
                   </td>
-                  <td>{new Date(s.created_at).toLocaleDateString()}</td>
+                  <td>{parseDbTimestamp(s.created_at).toLocaleDateString()}</td>
                   <td>
                     <span className="row-actions">
                       {s.status === 'pending' && (

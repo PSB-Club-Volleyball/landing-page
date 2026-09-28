@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { adminApi } from '../../lib/adminApi'
+import { parseDbTimestamp } from '../../lib/dbTime'
 import type { AuditEntry } from '../../types'
 
 function describe(entry: AuditEntry) {
@@ -47,7 +48,7 @@ function AuditLogAdmin() {
               )}
               {entries.map((e) => (
                 <tr key={e.id}>
-                  <td>{new Date(e.created_at).toLocaleString()}</td>
+                  <td>{parseDbTimestamp(e.created_at).toLocaleString()}</td>
                   <td>{e.actor_email ?? '—'}</td>
                   <td>{describe(e)}</td>
                   <td>{e.details ?? '—'}</td>

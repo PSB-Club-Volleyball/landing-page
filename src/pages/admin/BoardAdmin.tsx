@@ -84,6 +84,7 @@ function RoleSlot({
   assigned,
   people,
   isOwner,
+  busy,
   onAssign,
   onUnassign,
 }: {
@@ -92,6 +93,7 @@ function RoleSlot({
   assigned: BoardMember | null
   people: Person[]
   isOwner: boolean
+  busy: boolean
   onAssign: (person: Person) => void
   onUnassign: (id: number) => void
 }) {
@@ -133,6 +135,7 @@ function RoleSlot({
                     type="button"
                     key={`${p.source}:${p.id}`}
                     className="board-role-suggestion"
+                    disabled={busy}
                     onClick={() => {
                       onAssign(p)
                       setQuery('')
@@ -150,7 +153,7 @@ function RoleSlot({
   )
 }
 
-function BoardAdmin({ isOwner }: { isOwner: boolean }) {
+function BoardAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChange?: (dirty: boolean) => void }) {
   const [members, setMembers] = useState<BoardMember[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -161,8 +164,10 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   // The role-slot section always assigns into whatever season is set as
   // current (Settings tab) — no separate season picker here to keep in sync.
   const [season, setSeason] = useState<string | null>(null)
+  const [seasonError, setSeasonError] = useState(false)
   const selection = useSelection()
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   function refresh() {
     setLoading(true)
@@ -174,25 +179,41 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   }
 
   useEffect(refresh, [])
+  // The role-slot search and the current season come from other tabs' data;
+  // a failed fetch would otherwise look like "no matches" / "no season set".
   useEffect(() => {
     adminApi.users
       .list()
       .then((res) => setClubMembers(res.users))
-      .catch(() => {})
+      .catch((e: Error) => setError(`Couldn't load club members for the role search: ${e.message}`))
     adminApi.roster
       .list()
       .then((res) => setPlayers(res.players))
-      .catch(() => {})
+      .catch((e: Error) => setError(`Couldn't load roster players for the role search: ${e.message}`))
     adminApi.settings
       .get()
       .then((res) => setSeason(res.current_season))
-      .catch(() => {})
+      .catch((e: Error) => {
+        setSeasonError(true)
+        setError(`Couldn't load the current season: ${e.message}`)
+      })
   }, [])
+
+  const editingMember = editingId === null ? undefined : members.find((m) => m.id === editingId)
+  const dirty = editingMember !== undefined && JSON.stringify(editDraft) !== JSON.stringify(memberToDraft(editingMember))
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+    return () => onDirtyChange?.(false)
+  }, [dirty, onDirtyChange])
+
+  // Only checked rows still in the list — never an id deleted since.
+  const selectedMembers = members.filter((m) => selection.isSelected(m.id))
 
   const people: Person[] = [...clubMembers.map(userToPerson), ...players.map(playerToPerson)]
 
   async function assignRole(role: string, person: Person) {
-    if (!season) return
+    if (!season || saving) return
+    setSaving(true)
     try {
       await adminApi.board.create({
         season,
@@ -204,16 +225,22 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
       refresh()
     } catch (e) {
       setError((e as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
   async function handleSave(id: number) {
+    if (saving) return
+    setSaving(true)
     try {
       await adminApi.board.update(id, toInput(editDraft))
       setEditingId(null)
       refresh()
     } catch (e) {
       setError((e as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -221,6 +248,7 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
     if (!confirm('Remove this board member?')) return
     try {
       await adminApi.board.remove(id)
+      if (selection.isSelected(id)) selection.toggle(id)
       refresh()
     } catch (e) {
       setError((e as Error).message)
@@ -228,9 +256,9 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
   }
 
   async function handleBulkDelete() {
-    if (!confirm(`Remove ${selection.selected.size} board member(s)?`)) return
+    if (!confirm(`Remove ${selectedMembers.length} board member(s)?`)) return
     setBulkBusy(true)
-    const result = await runBulk([...selection.selected], (id) => adminApi.board.remove(id))
+    const result = await runBulk(selectedMembers, (m) => adminApi.board.remove(m.id))
     setError(summarizeBulk(result, 'Bulk delete'))
     selection.clear()
     refresh()
@@ -243,7 +271,7 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
         <h2>Board</h2>
       </div>
       {error && <p className="admin-error">{error}</p>}
-      {!season && (
+      {!season && !seasonError && (
         <p className="admin-note">
           No current season is set — an owner can set one in Settings before role slots can be assigned.
         </p>
@@ -257,28 +285,33 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
             assigned={members.find((m) => m.season === season && m.role === role) ?? null}
             people={people}
             isOwner={isOwner}
+            busy={saving}
             onAssign={(person) => assignRole(role, person)}
             onUnassign={handleDelete}
           />
         ))}
       </div>
-      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
-        {isOwner && (
+      {/* Delete is the only bulk action and it's owner-only, so non-owners get
+          neither the bar nor the checkboxes. */}
+      {isOwner && (
+        <BulkActionBar count={selectedMembers.length} onClear={selection.clear}>
           <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
             Delete selected
           </button>
-        )}
-      </BulkActionBar>
+        </BulkActionBar>
+      )}
       <div className="data-table">
         <table>
           <thead>
             <tr>
               <th className="select-col">
-                <input
-                  type="checkbox"
-                  checked={members.length > 0 && members.every((m) => selection.isSelected(m.id))}
-                  onChange={() => selection.toggleAll(members.map((m) => m.id))}
-                />
+                {isOwner && (
+                  <input
+                    type="checkbox"
+                    checked={members.length > 0 && members.every((m) => selection.isSelected(m.id))}
+                    onChange={() => selection.toggleAll(members.map((m) => m.id))}
+                  />
+                )}
               </th>
               <th>Role</th>
               <th>Name</th>
@@ -302,7 +335,9 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
               editingId === m.id ? (
                 <tr key={m.id}>
                   <td className="select-col">
-                    <input type="checkbox" checked={selection.isSelected(m.id)} onChange={() => selection.toggle(m.id)} />
+                    {isOwner && (
+                      <input type="checkbox" checked={selection.isSelected(m.id)} onChange={() => selection.toggle(m.id)} />
+                    )}
                   </td>
                   <td>
                     <input
@@ -339,8 +374,8 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
                   </td>
                   <td>
                     <span className="row-actions">
-                      <button type="button" onClick={() => handleSave(m.id)}>
-                        Save
+                      <button type="button" disabled={saving} onClick={() => handleSave(m.id)}>
+                        {saving ? 'Saving…' : 'Save'}
                       </button>
                       <button type="button" onClick={() => setEditingId(null)}>
                         Cancel
@@ -351,7 +386,9 @@ function BoardAdmin({ isOwner }: { isOwner: boolean }) {
               ) : (
                 <tr key={m.id}>
                   <td className="select-col">
-                    <input type="checkbox" checked={selection.isSelected(m.id)} onChange={() => selection.toggle(m.id)} />
+                    {isOwner && (
+                      <input type="checkbox" checked={selection.isSelected(m.id)} onChange={() => selection.toggle(m.id)} />
+                    )}
                   </td>
                   <td>{m.role}</td>
                   <td>
