@@ -480,6 +480,7 @@
 }
 .team-member-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
   min-width: 0;
@@ -494,10 +495,17 @@
 .team-member-row.dragging {
   opacity: 0.4;
 }
-.team-member-name {
-  flex: 1 1 auto;
+/* Name takes the rest of the first line (row minus the drag handle and
+   gap) so the Move-to select and actions wrap onto a second line instead
+   of squeezing the name to a letter or two. */
+.team-member-name,
+.player-chip-name {
+  flex: 1 1 calc(100% - 1.4rem);
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+.team-member-row .move-to-select {
+  margin-left: 1.4rem;
 }
 .team-member-name.captain {
   font-weight: 700;
@@ -1998,6 +2006,7 @@
 }
 .player-chip {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.3rem;
   background: var(--page-bg);
@@ -2017,10 +2026,6 @@
 }
 .player-chip.dragging {
   opacity: 0.4;
-}
-.player-chip-name {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 .player-chip .walk-in-tag {
   margin-left: auto;
