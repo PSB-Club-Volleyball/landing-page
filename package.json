@@ -17,6 +17,7 @@
     "secrets:push:staging": "wrangler pages secret bulk .prod.secrets --project-name=behrend-club-volleyball-staging --env production"
   },
   "dependencies": {
+    "heic-to": "^1.5.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.2"
