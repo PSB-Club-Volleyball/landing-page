@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import './App.css'
 import './admin.css'
@@ -15,7 +16,17 @@ import Profile from './pages/Profile'
 import People from './pages/People'
 import Leaderboard from './pages/Leaderboard'
 import MemberProfile from './pages/MemberProfile'
-import AdminGate from './pages/admin/AdminGate'
+
+// The admin console is most of the JS and only admins ever load it, so it
+// ships as its own chunk. admin.css stays global: public pages reuse some of
+// its classes (admin-error, data-table, oauth-*).
+const AdminGate = lazy(() => import('./pages/admin/AdminGate'))
+
+const adminLoading = (
+  <div className="admin-lock-wrap">
+    <p className="admin-loading">Loading&hellip;</p>
+  </div>
+)
 
 function App() {
   const location = useLocation()
@@ -42,7 +53,14 @@ function App() {
         <Route path="/photos" element={<Photos />} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
-        <Route path="/admin/*" element={<AdminGate />} />
+        <Route
+          path="/admin/*"
+          element={
+            <Suspense fallback={adminLoading}>
+              <AdminGate />
+            </Suspense>
+          }
+        />
       </Routes>
       {!isAdmin && <Footer />}
     </>
