@@ -42,8 +42,15 @@ export const onRequestDelete: PagesFunction<Env, 'id' | 'signupId'> = async ({ r
 
   if (!tokenMatches && !emailMatches) return forbidden("This isn't your signup to cancel")
 
-  await env.DB.prepare(`DELETE FROM event_signups WHERE id = ?1`).bind(signupId).run()
-  if (signup.status === 'approved') await promoteFromWaitlist(env, eventId)
+  // RETURNING tells us whether this request is the one that actually freed
+  // the seat — two cancels of the same signup racing each other must not
+  // both promote someone. promoteFromWaitlist itself skips cancelled and
+  // finished events.
+  const deleted = await env.DB.prepare(`DELETE FROM event_signups WHERE id = ?1 RETURNING status`)
+    .bind(signupId)
+    .first<{ status: string }>()
+  if (!deleted) return notFound('Signup not found')
+  if (deleted.status === 'approved') await promoteFromWaitlist(env, eventId)
 
   await sendCancellationConfirmationEmail(env, signup.email, signup.name, {
     title: signup.title,

@@ -47,6 +47,8 @@ export async function fetchFormFields(env: Env, formId: number) {
   return (rows.results ?? []).map(toFormField)
 }
 
+export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export type PublicFormField = ReturnType<typeof toFormField>
 
 // Server-side mirror of the client-side checks the signup form already
@@ -86,15 +88,19 @@ export function validateAnswer(field: PublicFormField, raw: string | undefined):
   }
 
   if (field.pattern) {
+    let pattern: RegExp
     try {
-      if (!new RegExp(field.pattern).test(value)) return `"${field.label}" isn't in the expected format`
-    } catch {
-      // an invalid stored pattern shouldn't block every submission
+      pattern = new RegExp(field.pattern)
+    } catch (e) {
+      // A broken stored pattern is an admin-side data problem — log it so it
+      // gets fixed, and fail the field rather than quietly skipping the check.
+      console.error(`validateAnswer: invalid pattern on form field ${field.id}`, e)
+      return `"${field.label}" can't be validated right now — please contact an organizer`
     }
+    if (!pattern.test(value)) return `"${field.label}" isn't in the expected format`
   }
 
   if (field.field_type === 'email') {
-    const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!EMAIL_PATTERN.test(value)) return `"${field.label}" must be a valid email`
   }
 
