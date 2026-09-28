@@ -195,7 +195,9 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 // audit_log actor, event_signups.decided_by) are nulled so the delete
 // doesn't fail an FK and doesn't erase unrelated history. A signup's own
 // identity keys off email, not user id, so event_signups rows are untouched;
-// team members linked to the account are unlinked but kept.
+// team members linked to the account are unlinked but kept. Stripes the
+// account awarded stay on their receivers' profiles with the giver nulled
+// (migration 0032); stripes it received are deleted with it.
 export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env, params, data }) => {
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')

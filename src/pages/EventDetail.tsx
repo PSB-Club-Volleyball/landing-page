@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import SignupModal from '../components/SignupModal'
 import EventTeams from '../components/EventTeams'
+import EventStripes from '../components/EventStripes'
 import EventScores from '../components/EventScores'
 import EventBracket from '../components/EventBracket'
 import EventPools from '../components/EventPools'
@@ -141,7 +142,10 @@ function EventDetail() {
   const hasScores = isPool ? bracketStarted : matches.length > 0
   const isBracket = isPool ? bracketStarted : matches.some((m) => m.bracket !== 'pool')
   const scoresLabel = isBracket ? 'Bracket' : timedOnly ? 'Schedule' : 'Scores'
-  type PageTab = 'details' | 'teams' | 'pools' | 'scores'
+  // Stripes are awarded between teammates, so the tab rides along with
+  // published teams.
+  const hasStripes = teams.length > 0 && !isCancelled
+  type PageTab = 'details' | 'teams' | 'pools' | 'scores' | 'stripes'
   const requested = searchParams.get('tab')
   const tab: PageTab =
     requested === 'teams' && teams.length > 0
@@ -150,7 +154,9 @@ function EventDetail() {
         ? 'pools'
         : requested === 'scores' && hasScores
           ? 'scores'
-          : 'details'
+          : requested === 'stripes' && hasStripes
+            ? 'stripes'
+            : 'details'
   const setTab = (next: PageTab) =>
     setSearchParams(
       (prev) => {
@@ -364,11 +370,24 @@ function EventDetail() {
                 {scoresLabel}
               </button>
             )}
+            {hasStripes && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'stripes'}
+                className={tab === 'stripes' ? 'active' : undefined}
+                onClick={() => setTab('stripes')}
+              >
+                Stripes
+              </button>
+            )}
           </div>
         )}
 
         {tab === 'teams' ? (
           <EventTeams teams={teams} />
+        ) : tab === 'stripes' ? (
+          <EventStripes eventId={e.id} />
         ) : tab === 'pools' ? (
           <EventPools pools={pools} matches={matches} />
         ) : tab === 'scores' ? (

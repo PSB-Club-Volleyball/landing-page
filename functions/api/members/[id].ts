@@ -2,6 +2,7 @@ import type { Env } from '../_lib/env'
 import { badRequest, json, notFound, unauthorized } from '../_lib/http'
 import { getSessionUser } from '../_lib/session'
 import { getPlayerResults, getPlayerSummary } from '../_lib/playerResults'
+import { getMemberStripes } from '../_lib/stripes'
 
 // GET /api/members/:id -> one account's public profile — name, public-safe
 // roster info (position/team/jersey/class year), and match record. Never
@@ -35,6 +36,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
 
   const results = await getPlayerResults(env, user)
   const summary = getPlayerSummary(results)
+  const stripes = await getMemberStripes(env, user.id)
 
   return json({
     member: {
@@ -47,6 +49,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env, params })
       jerseyNumber: rosterRow?.jersey_number ?? null,
       summary,
       results,
+      stripes,
     },
   })
 }
