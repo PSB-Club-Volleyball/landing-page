@@ -78,9 +78,29 @@ export const onRequestPatch: PagesFunction<Env, 'id' | 'matchId', AdminData> = a
     }>()
   if (!match) return notFound('Match not found')
   const setsPerMatch = readScheduleConfig(match.format_config).sets_per_match
+  // A bye (or a knockout match still waiting on a team) has nothing to score.
+  if (match.team_a_id == null || match.team_b_id == null) return badRequest('This match doesn’t have two teams yet')
+
+  // Pool results decide who's seeded into the knockout stage, so once that
+  // stage exists a changed pool result could leave a team in the bracket that
+  // no longer qualified. The admin has to regenerate the schedule instead.
+  if (match.bracket === 'pool') {
+    const knockout = await env.DB.prepare(`SELECT 1 FROM event_matches WHERE event_id = ?1 AND bracket != 'pool' LIMIT 1`)
+      .bind(eventId)
+      .first()
+    if (knockout) {
+      return json(
+        { error: 'The bracket has already started — regenerate the schedule before changing a pool result' },
+        { status: 409 }
+      )
+    }
+  }
 
   const parsed = validate(await request.json().catch(() => null))
   if (typeof parsed === 'string') return badRequest(parsed)
+  if (parsed.scores && parsed.scores.length > setsPerMatch) {
+    return badRequest(`a match has at most ${setsPerMatch} set${setsPerMatch === 1 ? '' : 's'}`)
+  }
 
   if (
     parsed.forfeit_team_id !== null &&
@@ -139,12 +159,16 @@ export const onRequestPatch: PagesFunction<Env, 'id' | 'matchId', AdminData> = a
     }
 
     // Push `teamId` (possibly null) into a target slot, clear that match's
-    // result, and keep clearing everything it in turn feeds.
+    // result, and keep clearing everything it in turn feeds. A side that
+    // already holds `teamId` (e.g. a re-saved result with the same winner)
+    // is left alone, and so is everything below it.
     const feed = (wire: { key: string; side: 0 | 1 } | null, teamId: number | null) => {
       if (!wire) return
       const child = byKey.get(wire.key)
       if (!child || child.id === matchId) return
       const entry = touched.get(child.id) ?? {}
+      const current = wire.side === 0 ? ('a' in entry ? entry.a : child.team_a_id) : 'b' in entry ? entry.b : child.team_b_id
+      if (current === teamId) return
       if (wire.side === 0) entry.a = teamId
       else entry.b = teamId
       touched.set(child.id, entry)
@@ -170,12 +194,15 @@ export const onRequestPatch: PagesFunction<Env, 'id' | 'matchId', AdminData> = a
       const reset = byKey.get(keyOf('final', 2, 0))
       if (reset) {
         const lbWon = winnerId != null && winnerId === match.team_b_id
-        touched.set(reset.id, {
-          a: lbWon ? match.team_a_id : null,
-          b: lbWon ? match.team_b_id : null,
-        })
-        feed(wireOf(reset, 'winner'), null)
-        feed(wireOf(reset, 'loser'), null)
+        const a = lbWon ? match.team_a_id : null
+        const b = lbWon ? match.team_b_id : null
+        // Same pairing as before (e.g. a score typo fix with the same winner):
+        // leave the reset game and its result alone.
+        if (reset.team_a_id !== a || reset.team_b_id !== b) {
+          touched.set(reset.id, { a, b })
+          feed(wireOf(reset, 'winner'), null)
+          feed(wireOf(reset, 'loser'), null)
+        }
       }
     } else {
       const self = byKey.get(keyOf(match.bracket, match.round, match.slot))

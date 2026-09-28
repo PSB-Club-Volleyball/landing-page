@@ -2,7 +2,7 @@ import type { Env } from '../../_lib/env'
 import { badRequest, json, notFound } from '../../_lib/http'
 import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
-import { fetchFormFields, validateFields, type FormFieldInput } from '../_lib/forms'
+import { CHOICE_FIELD_TYPES, fetchFormFields, type FormFieldInput, validateFields } from '../_lib/forms'
 import { requireOwner } from '../_lib/permissions'
 
 // GET /api/admin/forms/:id -> form + its fields, for the builder/edit view
@@ -56,7 +56,7 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     ).bind(body.name.trim(), body.max_responses ?? null, body.confirmation_message?.trim() || null, id),
     ...removedIds.map((fieldId) => env.DB.prepare(`DELETE FROM form_fields WHERE id = ?1 AND form_id = ?2`).bind(fieldId, id)),
     ...fields.map((f, i) => {
-      const hasOptions = f.field_type === 'select' || f.field_type === 'radio' || f.field_type === 'checkbox_group'
+      const hasOptions = CHOICE_FIELD_TYPES.includes(f.field_type)
       const options = hasOptions ? (f.options ?? null) : null
       const required = f.field_type === 'section' ? 0 : f.required ? 1 : 0
       const description = f.description?.trim() || null

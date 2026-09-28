@@ -4,6 +4,7 @@ import type { AdminData } from '../_lib/types'
 import { logAudit } from '../_lib/audit'
 import { requireOwner } from '../_lib/permissions'
 import { eventCutoff } from '../../_lib/time'
+import { validateEventInput } from '../_lib/events'
 
 // GET /api/admin/events/:id -> one event for the admin event page, shaped
 // exactly like a row from GET /api/admin/events (drafts included, plus
@@ -70,6 +71,9 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   const updates = FIELDS.filter((field) => field in body)
   if (updates.length === 0) return badRequest('No recognized fields to update')
 
+  const inputError = await validateEventInput(env, body)
+  if (inputError) return badRequest(inputError)
+
   const setClause = updates.map((field, i) => `${field} = ?${i + 1}`).join(', ')
   const values = updates.map((field) =>
     field === 'signup_enabled' || field === 'rsvp_gated' || field === 'released_early'
@@ -83,16 +87,25 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     .bind(...values, id)
     .run()
 
-  if (result.meta.changes === 0) {
-    const exists = await env.DB.prepare(`SELECT 1 FROM events WHERE id = ?1`).bind(id).first()
-    if (!exists) return notFound('Event not found')
-  }
+  // SQLite counts matched rows (and updated_at always changes), so 0 means no such event.
+  if (result.meta.changes === 0) return notFound('Event not found')
 
   await logAudit(env, data.user.id, 'update', 'events', id, body)
   return json({ ok: true })
 }
 
-// DELETE /api/admin/events/:id -> owner only
+// DELETE /api/admin/events/:id -> owner only. event_signups.event_id,
+// media.event_id and events.series_id reference events(id) with no ON DELETE
+// action, and D1 enforces foreign keys, so those rows are dealt with first in
+// the same batch (one transaction):
+//  - signups are the event's own, so they go (team members, matches and
+//    stripes cascade on their own);
+//  - photos belong to the media library, not the event, so they stay and
+//    just lose their album link;
+//  - deleting a series' root (series_id = its own id) would orphan the other
+//    occurrences' series_id, so they're re-pointed to the earliest remaining
+//    occurrence, which becomes the new root — they keep showing as one
+//    series, exactly as if the deleted row had never been first.
 export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env, params, data }) => {
   const denied = requireOwner(data)
   if (denied) return denied
@@ -100,8 +113,28 @@ export const onRequestDelete: PagesFunction<Env, 'id', AdminData> = async ({ env
   const id = Number(params.id)
   if (!Number.isInteger(id)) return badRequest('Invalid id')
 
-  const result = await env.DB.prepare(`DELETE FROM events WHERE id = ?1`).bind(id).run()
-  if (result.meta.changes === 0) return notFound('Event not found')
+  const event = await env.DB.prepare(`SELECT series_id FROM events WHERE id = ?1`)
+    .bind(id)
+    .first<{ series_id: number | null }>()
+  if (!event) return notFound('Event not found')
+
+  const statements = [
+    env.DB.prepare(`DELETE FROM event_signups WHERE event_id = ?1`).bind(id),
+    env.DB.prepare(`UPDATE media SET event_id = NULL WHERE event_id = ?1`).bind(id),
+  ]
+  if (event.series_id === id) {
+    // Picked inside the batch so a concurrent delete of the next occurrence
+    // can't leave the others pointing at a row that's gone.
+    statements.push(
+      env.DB.prepare(
+        `UPDATE events SET series_id = (SELECT MIN(id) FROM events WHERE series_id = ?1 AND id != ?1)
+         WHERE series_id = ?1 AND id != ?1`
+      ).bind(id)
+    )
+  }
+  statements.push(env.DB.prepare(`DELETE FROM events WHERE id = ?1`).bind(id))
+  const results = await env.DB.batch(statements)
+  if (results[results.length - 1].meta.changes === 0) return notFound('Event not found')
 
   await logAudit(env, data.user.id, 'delete', 'events', id)
   return json({ ok: true })

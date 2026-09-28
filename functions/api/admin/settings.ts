@@ -45,9 +45,15 @@ export const onRequestPut: PagesFunction<Env, string, AdminData> = async ({ requ
   if (!body.google_enabled && !body.microsoft_enabled && !body.microsoft_other_enabled) {
     return badRequest('At least one sign-in provider must stay enabled')
   }
+  // Both are always sent by the Settings tab (it PUTs the whole settings
+  // object); a missing value would otherwise silently reset them.
+  if (typeof body.roster_visible !== 'boolean') return badRequest('roster_visible is a required boolean')
+  if (body.current_season !== null && typeof body.current_season !== 'string') {
+    return badRequest('current_season must be a string or null')
+  }
 
   const season = body.current_season?.trim() || null
-  const rosterVisible = body.roster_visible ?? true
+  const rosterVisible = body.roster_visible
 
   await env.DB.prepare(
     `UPDATE login_settings SET google_enabled = ?1, microsoft_enabled = ?2, microsoft_other_enabled = ?3, current_season = ?4, roster_visible = ?5 WHERE id = 1`

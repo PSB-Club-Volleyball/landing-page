@@ -42,7 +42,9 @@ function addDays(dateStr: string, n: number): string {
 // independent event row (own signups) rather than a single virtual series.
 // start_time/end_time are naive local wall-clock strings (see
 // migrations/0002_seed_open_gyms.sql); only their date part changes per
-// occurrence, so the time-of-day/duration is reused as-is for every week.
+// occurrence, so the time-of-day/duration is reused as-is for every week —
+// including an end that falls on a later day than the start (an overnight
+// event), whose day gap is carried over to every occurrence.
 export function expandOccurrences(
   startTime: string,
   endTime: string | null,
@@ -54,6 +56,9 @@ export function expandOccurrences(
 
   const timePart = startTime.slice(10)
   const endTimePart = endTime ? endTime.slice(10) : null
+  const endDayOffset = endTime
+    ? Math.round((Date.parse(`${endTime.slice(0, 10)}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000)
+    : 0
   const dayNums = new Set(days.split(',').map(Number))
 
   const occurrences: { start_time: string; end_time: string | null }[] = []
@@ -62,7 +67,7 @@ export function expandOccurrences(
     if (!dayNums.has(weekday)) continue
     occurrences.push({
       start_time: `${cursor}${timePart}`,
-      end_time: endTimePart ? `${cursor}${endTimePart}` : null,
+      end_time: endTimePart ? `${addDays(cursor, endDayOffset)}${endTimePart}` : null,
     })
     if (occurrences.length > MAX_OCCURRENCES) return null
   }

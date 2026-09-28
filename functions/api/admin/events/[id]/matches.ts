@@ -156,6 +156,8 @@ function validateSchedule(body: unknown, teamIds: Set<number>): ScheduleInput | 
   if (typeof c.courts !== 'number' || c.courts < 1) return 'courts must be at least 1'
   if (c.sets_per_match !== 1 && c.sets_per_match !== 3 && c.sets_per_match !== 5) return 'sets_per_match must be 1, 3, or 5'
   if (typeof c.total_minutes !== 'number' || c.total_minutes < 1) return 'total_minutes must be at least 1'
+  if (typeof c.pools !== 'number' || c.pools < 1) return 'pools must be at least 1'
+  if (typeof c.advance_per_pool !== 'number' || c.advance_per_pool < 1) return 'advance_per_pool must be at least 1'
   if (c.bracket_stage != null && c.bracket_stage !== 'single' && c.bracket_stage !== 'double')
     return 'bracket_stage must be "single" or "double"'
   const err = validateBracketMatches(b.matches, teamIds)
@@ -193,8 +195,8 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
     total_minutes: Math.floor(parsed.config.total_minutes),
     timed_only: Boolean(parsed.config.timed_only),
     double_round_robin: Boolean(parsed.config.double_round_robin),
-    pools: Math.max(1, Math.floor(parsed.config.pools || 2)),
-    advance_per_pool: Math.max(1, Math.floor(parsed.config.advance_per_pool || 2)),
+    pools: Math.floor(parsed.config.pools),
+    advance_per_pool: Math.floor(parsed.config.advance_per_pool),
     bracket_stage: parsed.config.bracket_stage === 'double' ? 'double' : 'single',
   }
 
@@ -240,6 +242,9 @@ export const onRequestPatch: PagesFunction<Env, 'id', AdminData> = async ({ requ
     return badRequest('sets_per_match must be 1, 3, or 5')
   if (c.total_minutes != null && (typeof c.total_minutes !== 'number' || c.total_minutes < 1))
     return badRequest('total_minutes must be at least 1')
+  if (c.pools != null && (typeof c.pools !== 'number' || c.pools < 1)) return badRequest('pools must be at least 1')
+  if (c.advance_per_pool != null && (typeof c.advance_per_pool !== 'number' || c.advance_per_pool < 1))
+    return badRequest('advance_per_pool must be at least 1')
   if (c.bracket_stage != null && c.bracket_stage !== 'single' && c.bracket_stage !== 'double')
     return badRequest('bracket_stage must be "single" or "double"')
 
@@ -252,8 +257,8 @@ export const onRequestPatch: PagesFunction<Env, 'id', AdminData> = async ({ requ
     ...(c.total_minutes != null ? { total_minutes: Math.floor(c.total_minutes) } : {}),
     ...(c.timed_only != null ? { timed_only: Boolean(c.timed_only) } : {}),
     ...(c.double_round_robin != null ? { double_round_robin: Boolean(c.double_round_robin) } : {}),
-    ...(c.pools != null ? { pools: Math.max(1, Math.floor(c.pools)) } : {}),
-    ...(c.advance_per_pool != null ? { advance_per_pool: Math.max(1, Math.floor(c.advance_per_pool)) } : {}),
+    ...(c.pools != null ? { pools: Math.floor(c.pools) } : {}),
+    ...(c.advance_per_pool != null ? { advance_per_pool: Math.floor(c.advance_per_pool) } : {}),
     ...(c.bracket_stage != null ? { bracket_stage: c.bracket_stage === 'double' ? 'double' : 'single' } : {}),
   }
   await env.DB.prepare(`UPDATE events SET format_config = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2`)

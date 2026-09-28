@@ -12,10 +12,12 @@ interface SendEmailInput {
 }
 
 // A missed or failed confirmation email should never block the RSVP action
-// that triggered it, so failures are logged rather than thrown. Uses Resend
-// (https://resend.com) since it's a plain HTTPS API with no SDK/runtime
-// dependency needed from a Workers-compatible fetch.
-export async function sendEmail(env: Env, input: SendEmailInput): Promise<void> {
+// that triggered it, so failures are logged rather than thrown. Returns true
+// only when Resend accepted the message, so a caller that reports delivery
+// (the admin announcement) can count real sends instead of attempts. Uses
+// Resend (https://resend.com) since it's a plain HTTPS API with no
+// SDK/runtime dependency needed from a Workers-compatible fetch.
+export async function sendEmail(env: Env, input: SendEmailInput): Promise<boolean> {
   // Trimmed defensively: a secret pasted via `wrangler pages secret put`
   // (or the dashboard) can pick up a trailing newline/space, which makes
   // the Authorization header invalid and fails the fetch below silently
@@ -23,7 +25,7 @@ export async function sendEmail(env: Env, input: SendEmailInput): Promise<void> 
   const apiKey = env.RESEND_API_KEY?.trim()
   if (!apiKey) {
     console.error('sendEmail skipped: RESEND_API_KEY is not configured')
-    return
+    return false
   }
 
   const fromAddress = (env.EVENTS_EMAIL_FROM || 'events@behrendclubvolleyball.org').trim()
@@ -61,8 +63,11 @@ export async function sendEmail(env: Env, input: SendEmailInput): Promise<void> 
     })
     if (!res.ok) {
       console.error('sendEmail failed', res.status, await res.text().catch(() => ''))
+      return false
     }
+    return true
   } catch (e) {
     console.error('sendEmail threw', e)
+    return false
   }
 }

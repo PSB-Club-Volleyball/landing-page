@@ -26,6 +26,21 @@ export interface FormFieldInput {
 export function validateFields(fields: unknown): string | null {
   if (!Array.isArray(fields) || fields.length === 0) return 'A form needs at least one field'
 
+  // JSON types first: the checks below call .trim() on options and compare
+  // min/max, so a wrongly-typed field would throw instead of getting a 400.
+  for (const f of fields as Record<string, unknown>[]) {
+    if (!f || typeof f !== 'object' || typeof f.label !== 'string') continue // reported below
+    const label = f.label
+    if (f.id !== undefined && !Number.isInteger(f.id)) return `"${label}" has an invalid id`
+    if (f.required != null && typeof f.required !== 'boolean') return `"${label}" required must be true or false`
+    for (const key of ['options', 'description', 'pattern'] as const) {
+      if (f[key] != null && typeof f[key] !== 'string') return `"${label}" ${key} must be a string`
+    }
+    for (const key of ['min_value', 'max_value'] as const) {
+      if (f[key] != null && !Number.isFinite(f[key])) return `"${label}" ${key} must be a number`
+    }
+  }
+
   for (const f of fields as FormFieldInput[]) {
     if (!f || typeof f.label !== 'string' || !f.label.trim()) return 'Every field needs a label'
     if (!FIELD_TYPES.includes(f.field_type)) return `Invalid field_type: ${f.field_type}`

@@ -37,25 +37,25 @@ export const onRequestPost: PagesFunction<Env, 'id', AdminData> = async ({ env, 
   }
 
   const eventInfo = { title: event.title, start_time: event.start_time, location_name: event.location_name }
-  let approved = 0
-  let waitlisted = 0
+  const decided = requests.map((req, i) => ({ ...req, newStatus: i < openSlots ? 'approved' : 'waitlist' }))
+  const approved = decided.filter((d) => d.newStatus === 'approved').length
+  const waitlisted = decided.length - approved
 
-  for (const req of requests) {
-    const newStatus = approved < openSlots ? 'approved' : 'waitlist'
-    await env.DB.prepare(
-      `UPDATE event_signups SET status = ?1, decided_at = CURRENT_TIMESTAMP, decided_by = ?2 WHERE id = ?3`
+  // Every decision lands in one batch before any email goes out, so a failure
+  // can't leave the release half-applied.
+  await env.DB.batch(
+    decided.map((d) =>
+      env.DB.prepare(
+        `UPDATE event_signups SET status = ?1, decided_at = CURRENT_TIMESTAMP, decided_by = ?2 WHERE id = ?3`
+      ).bind(d.newStatus, data.user.id, d.id)
     )
-      .bind(newStatus, data.user.id, req.id)
-      .run()
+  )
 
-    if (newStatus === 'approved') approved++
-    else waitlisted++
-
-    if (req.cancel_token) {
-      const cancelUrl = buildCancelUrl(env, eventId, req.id, req.cancel_token)
-      if (newStatus === 'approved') await sendRsvpApprovedEmail(env, req.email, req.name, eventInfo, cancelUrl)
-      else await sendWaitlistEmail(env, req.email, req.name, eventInfo, cancelUrl)
-    }
+  for (const d of decided) {
+    if (!d.cancel_token) continue
+    const cancelUrl = buildCancelUrl(env, eventId, d.id, d.cancel_token)
+    if (d.newStatus === 'approved') await sendRsvpApprovedEmail(env, d.email, d.name, eventInfo, cancelUrl)
+    else await sendWaitlistEmail(env, d.email, d.name, eventInfo, cancelUrl)
   }
 
   await logAudit(env, data.user.id, 'update', 'events', eventId, { action: 'release', approved, waitlisted })

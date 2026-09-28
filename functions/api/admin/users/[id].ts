@@ -83,6 +83,7 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   }
 
   if (body.name !== undefined) {
+    if (typeof body.name !== 'string') return badRequest('name must be a string')
     const name = body.name.trim()
     if (!name) return badRequest('name cannot be empty')
     values.push(name)
@@ -91,6 +92,7 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
   }
 
   if (body.position !== undefined) {
+    if (body.position !== null && typeof body.position !== 'string') return badRequest('position must be a string or null')
     values.push(body.position || null)
     setClauses.push(`position = ?${values.length}`)
     auditDetails.position = body.position

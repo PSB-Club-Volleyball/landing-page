@@ -29,12 +29,9 @@ export const DEFAULT_SCHEDULE_CONFIG: ScheduleConfig = {
 // row that only stored per-slot `slot_minutes` be converted to the exact
 // same wall-clock spacing it had before: total = slot_minutes * slotCount.
 export function readScheduleConfig(rawJson: string | null, slotCount?: number): ScheduleConfig {
-  let cfg: Record<string, unknown> = {}
-  try {
-    cfg = rawJson ? (JSON.parse(rawJson) as Record<string, unknown>) : {}
-  } catch {
-    cfg = {}
-  }
+  // Corrupt JSON throws, same as every other format_config reader — it's a
+  // bug to surface, not a reason to quietly show default settings.
+  const cfg = rawJson ? (JSON.parse(rawJson) as Record<string, unknown>) : {}
   const spm = cfg.sets_per_match
   const legacySlot =
     typeof cfg.slot_minutes === 'number' && cfg.slot_minutes >= 1 ? Math.floor(cfg.slot_minutes) : null
