@@ -3065,11 +3065,19 @@ footer {
     padding-top: 0.6rem;
     border-top: 1px solid var(--hairline);
   }
+  /* Keep the pill its desktop size; an invisible overlay extends the tap
+     target to 44px so the visible badge doesn't balloon. */
   .nav-panel .nav-admin-link {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    min-height: 44px;
-    padding: 0 1rem;
+  }
+  .nav-panel .nav-admin-link::after {
+    content: '';
+    position: absolute;
+    inset: 50% -0.25rem auto;
+    height: 44px;
+    transform: translateY(-50%);
   }
   .nav-panel .nav-profile-link {
     display: flex;
