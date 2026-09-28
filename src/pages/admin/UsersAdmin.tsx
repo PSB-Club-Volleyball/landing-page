@@ -375,6 +375,102 @@ function UserEditor({
   )
 }
 
+type UpdateBody = Parameters<typeof adminApi.users.update>[1]
+
+// One entry per choice in the bulk "Set" menu. `done` marks rows already in
+// that state (left alone, so e.g. a waiver's signed date isn't restamped);
+// `skip` gives the reason a row can't take the change at all.
+interface BulkAction {
+  label: string
+  body: UpdateBody
+  done: (u: AdminUser) => boolean
+  skip?: (u: AdminUser) => string | null
+  // Clearing a waiver or dues drops its recorded date, so it asks first.
+  confirm?: boolean
+}
+
+function bulkActions(isOwner: boolean): { group: string; actions: Record<string, BulkAction> }[] {
+  const year = currentYear()
+  const roleSkip = (u: AdminUser) =>
+    !isOwner && u.role === 'admin' ? "only the owner can change an admin's role" : null
+  const role = (r: Exclude<UserRole, 'owner'>): BulkAction => ({
+    label: `Role: ${ROLE_LABELS[r]}`,
+    body: { role: r },
+    done: (u) => u.role === r,
+    skip: roleSkip,
+  })
+  const duesSkip = (u: AdminUser) => (paysDues(u.role) ? null : "outsiders don't pay dues")
+  return [
+    {
+      group: 'Role',
+      actions: {
+        'role:outsider': role('outsider'),
+        'role:club_member': role('club_member'),
+        ...(isOwner ? { 'role:admin': role('admin') } : {}),
+      },
+    },
+    {
+      group: 'Paperwork',
+      actions: {
+        'waiver:on': {
+          label: `Waiver signed (${year})`,
+          body: { waiver_signed: true },
+          done: (u) => u.waiver_signed_year === year,
+        },
+        'waiver:off': {
+          label: 'Waiver not signed',
+          body: { waiver_signed: false },
+          done: (u) => u.waiver_signed_year !== year,
+          confirm: true,
+        },
+        'dues:on': {
+          label: `Dues paid (${year})`,
+          body: { dues_paid: true },
+          done: (u) => u.dues_paid_year === year,
+          skip: duesSkip,
+        },
+        'dues:off': {
+          label: 'Dues not paid',
+          body: { dues_paid: false },
+          done: (u) => u.dues_paid_year !== year,
+          skip: duesSkip,
+          confirm: true,
+        },
+      },
+    },
+    {
+      group: 'RSVPs',
+      actions: {
+        'rsvp:on': {
+          label: 'Approve each RSVP by hand',
+          body: { rsvp_restricted: true },
+          done: (u) => u.rsvp_restricted,
+        },
+        'rsvp:off': {
+          label: 'Stop approving RSVPs by hand',
+          body: { rsvp_restricted: false },
+          done: (u) => !u.rsvp_restricted,
+        },
+      },
+    },
+    {
+      group: 'Skill level',
+      actions: {
+        'lock:on': {
+          label: 'Lock skill level',
+          body: { skill_level_locked: true },
+          done: (u) => u.skill_level_locked,
+        },
+        'lock:off': {
+          label: 'Unlock skill level',
+          body: { skill_level_locked: false },
+          done: (u) => !u.skill_level_locked,
+        },
+      },
+    },
+  ]
+}
+
 // Rows are ordered by role, admins first, so e.g. all club members sit
 // together.
 const ROLE_ORDER: UserRole[] = ['admin', 'club_member', 'outsider']
@@ -403,8 +499,13 @@ function UsersAdmin({
     return () => onDirtyChange(false)
   }, [editorDirty, onDirtyChange])
   const selection = useSelection()
-  const [bulkRole, setBulkRole] = useState<Exclude<UserRole, 'owner'>>('club_member')
+  const [bulkKey, setBulkKey] = useState('waiver:on')
   const [bulkBusy, setBulkBusy] = useState(false)
+  // What the last bulk run did (updated / already set / skipped). Failures
+  // go to `error` instead.
+  const [bulkNote, setBulkNote] = useState<string | null>(null)
+  const bulkGroups = bulkActions(isOwner)
+  const bulkAction = bulkGroups.map((g) => g.actions[bulkKey]).find(Boolean)
 
   function refresh() {
     setLoading(true)
@@ -431,18 +532,36 @@ function UsersAdmin({
   }
 
   // Only the checked rows the admin can currently see (search and filters
-  // hide the rest); a non-owner can't re-role an admin, so those rows are
-  // skipped up front instead of each failing server-side.
-  async function applyBulkRole() {
-    const skipped = isOwner ? [] : selectedVisible.filter((u) => u.role === 'admin')
-    const targets = selectedVisible.filter((u) => !skipped.includes(u))
+  // hide the rest). Rows that can't take the change (a non-owner re-roling an
+  // admin, dues on an outsider) are skipped up front instead of each failing
+  // server-side, and rows already in that state are left alone.
+  async function applyBulk() {
+    if (!bulkAction) throw new Error(`Unknown bulk action ${bulkKey}`)
+    const skipped = new Map<string, number>()
+    let already = 0
+    const targets: AdminUser[] = []
+    for (const u of selectedVisible) {
+      const reason = bulkAction.skip?.(u) ?? null
+      if (reason) skipped.set(reason, (skipped.get(reason) ?? 0) + 1)
+      else if (bulkAction.done(u)) already++
+      else targets.push(u)
+    }
+    if (
+      bulkAction.confirm &&
+      targets.length > 0 &&
+      !confirm(`${bulkAction.label} for ${targets.length} user${targets.length === 1 ? '' : 's'}? This clears their recorded date.`)
+    )
+      return
     setBulkBusy(true)
-    const result = await runBulk(targets, (u) => adminApi.users.update(u.id, { role: bulkRole }))
-    const skipNote =
-      skipped.length > 0
-        ? `Skipped ${skipped.length} admin${skipped.length === 1 ? '' : 's'} — only the owner can change an admin's role.`
-        : null
-    setError([summarizeBulk(result, 'Bulk role change'), skipNote].filter(Boolean).join(' ') || null)
+    setBulkNote(null)
+    const result = await runBulk(targets, (u) => adminApi.users.update(u.id, bulkAction.body))
+    // Failures go to the error banner; the note only reports what worked,
+    // so a run where everything failed shows no success note.
+    const parts = [`${bulkAction.label}. Updated ${result.ok}.`]
+    if (already > 0) parts.push(`${already} already set.`)
+    for (const [reason, n] of skipped) parts.push(`Skipped ${n} (${reason}).`)
+    setBulkNote(result.ok === 0 && result.failed > 0 ? null : parts.join(' '))
+    setError(summarizeBulk(result, bulkAction.label))
     selection.clear()
     refresh()
     setBulkBusy(false)
@@ -487,6 +606,12 @@ function UsersAdmin({
   const transferCandidates = users.filter((u) => u.role !== 'owner')
   const selectedVisible = others.filter((u) => selection.isSelected(u.id))
 
+  // The last bulk run's note describes that run only, so it goes as soon
+  // as the admin starts something else.
+  useEffect(() => {
+    if (selectedVisible.length > 0 || editingId !== null) setBulkNote(null)
+  }, [selectedVisible.length, editingId])
+
   const filters: { key: Filter; label: string }[] = [
     { key: 'everyone', label: 'Everyone' },
     { key: 'waiver-missing', label: 'Waiver missing' },
@@ -519,6 +644,11 @@ function UsersAdmin({
         </span>
       </div>
       {error && <p className="admin-error">{error}</p>}
+      {bulkNote && (
+        <p className="admin-bulk-note" role="status">
+          {bulkNote}
+        </p>
+      )}
       {loading && users.length === 0 && <p className="admin-loading">Loading&hellip;</p>}
 
       {users.length > 0 && (
@@ -551,13 +681,22 @@ function UsersAdmin({
       )}
 
       <BulkActionBar count={selectedVisible.length} onClear={selection.clear}>
-        <select value={bulkRole} onChange={(e) => setBulkRole(e.target.value as Exclude<UserRole, 'owner'>)}>
-          <option value="outsider">Outsider</option>
-          <option value="club_member">Club member</option>
-          {isOwner && <option value="admin">Admin</option>}
-        </select>
-        <button type="button" disabled={bulkBusy} onClick={applyBulkRole}>
-          Set role
+        <label className="bulk-set">
+          Set
+          <select value={bulkKey} onChange={(e) => setBulkKey(e.target.value)}>
+            {bulkGroups.map((g) => (
+              <optgroup key={g.group} label={g.group}>
+                {Object.entries(g.actions).map(([key, a]) => (
+                  <option key={key} value={key}>
+                    {a.label.replace(/^Role: /, '')}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        <button type="button" className="bulk-apply" disabled={bulkBusy} onClick={applyBulk}>
+          {bulkBusy ? 'Applying…' : `Apply to ${selectedVisible.length}`}
         </button>
       </BulkActionBar>
 
