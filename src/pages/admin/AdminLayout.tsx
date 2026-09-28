@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import type { AuthUser } from '../../types'
-import { logout } from '../../lib/adminApi'
+import { logout } from '../../lib/api'
 import MenuIcon from '../../components/MenuIcon'
 import DashboardAdmin from './DashboardAdmin'
 import RosterAdmin from './RosterAdmin'

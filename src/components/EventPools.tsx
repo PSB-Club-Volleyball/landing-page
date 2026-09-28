@@ -1,16 +1,6 @@
-import { formatSigned } from '../lib/eventFormat'
+import { scoreLine, slotTime } from '../lib/matchFormat'
 import type { EventMatch, PoolStanding } from '../types'
-
-const timeFmt = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
-function slotTime(iso: string | null) {
-  return iso ? timeFmt.format(new Date(iso)) : ''
-}
-
-function scoreLine(m: EventMatch): string | null {
-  if (m.forfeit_team_id != null) return 'Forfeit'
-  if (!m.scores || m.scores.length === 0) return null
-  return m.scores.map(([a, b]) => `${a}–${b}`).join(', ')
-}
+import StandingsTable from './StandingsTable'
 
 // Read-only pool standings + pool match lists on the public event page's Pools
 // tab. Once the knockout stage starts it moves to its own Bracket tab.
@@ -26,36 +16,7 @@ export default function EventPools({ pools, matches }: { pools: PoolStanding[]; 
         return (
           <section className="public-pool" key={pool.label}>
             <h2>Pool {pool.label}</h2>
-            {played && (
-              <div className="data-table public-standings">
-                <table>
-                  <thead>
-                    <tr>
-                      <th className="num">#</th>
-                      <th>Team</th>
-                      <th className="num">W</th>
-                      <th className="num">L</th>
-                      <th className="num">Sets</th>
-                      <th className="num" aria-label="Point differential">+/&minus;</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pool.standings.map((r, i) => (
-                      <tr key={r.team_id}>
-                        <td className="num">{i + 1}</td>
-                        <td>{r.name}</td>
-                        <td className="num">{r.wins}</td>
-                        <td className="num">{r.losses}</td>
-                        <td className="num">
-                          {r.sets_won}&ndash;{r.sets_lost}
-                        </td>
-                        <td className="num">{formatSigned(r.points_for - r.points_against)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            {played && <StandingsTable standings={pool.standings} />}
             <ul className="public-match-list">
               {pm.map((m) => {
                 const score = scoreLine(m)

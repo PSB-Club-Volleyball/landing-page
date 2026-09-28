@@ -28,6 +28,8 @@ import {
   formatTimeRange,
   getSignupState,
   playFormatLabel,
+  signupButtonLabel,
+  signupStatusLabel,
   SKILL_LEVEL_LABELS,
 } from '../lib/eventFormat'
 import { renderMarkdown } from '../lib/markdown'
@@ -150,7 +152,8 @@ function EventDetail() {
   }
 
   const e = event as PublicClubEvent
-  const { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb } = getSignupState(e)
+  const signupState = getSignupState(e)
+  const { spotsLeft, isFull, joinsWaitlist, blocksSignup, deadlinePassed, verb } = signupState
   const tags = e.tags ? e.tags.split(',').map((t) => t.trim()).filter(Boolean) : []
   const isCancelled = e.status === 'cancelled'
   const teams = e.teams ?? []
@@ -442,13 +445,7 @@ function EventDetail() {
                   ) : (
                     <ClockIcon />
                   )}
-                  {e.my_signup_status === 'pending'
-                    ? 'Request pending'
-                    : e.my_signup_status === 'denied'
-                      ? 'Not approved'
-                      : e.my_signup_status === 'waitlist'
-                        ? 'On the waitlist'
-                        : "You’re going"}
+                  {signupStatusLabel(e.my_signup_status)}
                 </p>
                 <button
                   className="btn btn-outline"
@@ -480,13 +477,7 @@ function EventDetail() {
                   disabled={deadlinePassed || blocksSignup}
                   onClick={() => setSignupOpen(true)}
                 >
-                  {deadlinePassed
-                    ? 'Registration closed'
-                    : joinsWaitlist
-                      ? 'Join waitlist'
-                      : blocksSignup
-                        ? 'Full'
-                        : verb}
+                  {signupButtonLabel(signupState, 'Registration closed')}
                 </button>
                 {!deadlinePassed && e.signup_deadline && (
                   <p className="event-signup-deadline">
@@ -525,20 +516,14 @@ function EventDetail() {
             disabled={deadlinePassed || blocksSignup}
             onClick={() => setSignupOpen(true)}
           >
-            {deadlinePassed ? 'Closed' : joinsWaitlist ? 'Join waitlist' : blocksSignup ? 'Full' : verb}
+            {signupButtonLabel(signupState, 'Closed')}
           </button>
         </div>
       )}
       {!isCancelled && e.signup_enabled && e.my_signup_id && tab === 'details' && (
         <div className="event-signup-bar">
           <span className="event-signup-bar-status">
-            {e.my_signup_status === 'pending'
-              ? 'Request pending'
-              : e.my_signup_status === 'waitlist'
-                ? 'On the waitlist'
-                : e.my_signup_status === 'denied'
-                  ? 'Not approved'
-                  : "You’re going"}
+            {signupStatusLabel(e.my_signup_status)}
           </span>
           <button
             className="btn btn-outline"

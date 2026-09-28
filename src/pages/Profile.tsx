@@ -1,11 +1,24 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError, cancelSignup, getProfile, updateSkillLevel } from '../lib/api'
-import { logout } from '../lib/adminApi'
+import ResultsTable from '../components/ResultsTable'
+import { ApiError, cancelSignup, getProfile, logout, updateSkillLevel } from '../lib/api'
 import { formatEventDate, SKILL_LEVEL_LABELS } from '../lib/eventFormat'
 import type { MyProfile, SkillLevel } from '../types'
 
 type Tab = 'info' | 'rsvps' | 'results' | 'admin'
+
+function SkillLevelOptions() {
+  return (
+    <>
+      <option value="">Not set</option>
+      {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
+        <option key={level} value={level}>
+          {SKILL_LEVEL_LABELS[level]}
+        </option>
+      ))}
+    </>
+  )
+}
 
 function Profile() {
   const [profile, setProfile] = useState<MyProfile | null>(null)
@@ -254,24 +267,14 @@ function Profile() {
             {status.skillLevelLocked ? (
               <div className="skill-field-row">
                 <select className="skill-select" disabled value={status.skillLevel ?? ''}>
-                  <option value="">Not set</option>
-                  {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
-                    <option key={level} value={level}>
-                      {SKILL_LEVEL_LABELS[level]}
-                    </option>
-                  ))}
+                  <SkillLevelOptions />
                 </select>
                 <span className="locked-note">An admin has locked your skill level — contact the club to change it.</span>
               </div>
             ) : status.skillLevelChangeRequested ? (
               <div className="skill-field-row">
                 <select className="skill-select" disabled value={status.skillLevel ?? ''}>
-                  <option value="">Not set</option>
-                  {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
-                    <option key={level} value={level}>
-                      {SKILL_LEVEL_LABELS[level]}
-                    </option>
-                  ))}
+                  <SkillLevelOptions />
                 </select>
                 <span className="locked-note">
                   Change requested: {SKILL_LEVEL_LABELS[status.skillLevelChangeRequested]} — pending admin approval.
@@ -287,12 +290,7 @@ function Profile() {
                   value={skillDraft}
                   onChange={(e) => setSkillDraft(e.target.value as SkillLevel | '')}
                 >
-                  <option value="">Not set</option>
-                  {(Object.keys(SKILL_LEVEL_LABELS) as SkillLevel[]).map((level) => (
-                    <option key={level} value={level}>
-                      {SKILL_LEVEL_LABELS[level]}
-                    </option>
-                  ))}
+                  <SkillLevelOptions />
                 </select>
                 <button
                   type="button"
@@ -359,34 +357,7 @@ function Profile() {
             {results.length === 0 ? (
               <p className="placeholder-note">No results yet from events you&rsquo;ve played in.</p>
             ) : (
-              <div className="data-table public-standings">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Event</th>
-                      <th>Team</th>
-                      <th className="num">W</th>
-                      <th className="num">L</th>
-                      <th className="num">Sets</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map((r) => (
-                      <tr key={r.eventId}>
-                        <td>
-                          <Link to={`/events/${r.eventId}`}>{r.title}</Link>
-                        </td>
-                        <td className="nowrap">{r.teamName}</td>
-                        <td className="num">{r.wins}</td>
-                        <td className="num">{r.losses}</td>
-                        <td className="num">
-                          {r.setsWon}&ndash;{r.setsLost}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <ResultsTable results={results} />
             )}
             <p className="directory-link-row">
               See how everyone&rsquo;s doing &rarr; <Link to="/leaderboard">Leaderboard</Link>
