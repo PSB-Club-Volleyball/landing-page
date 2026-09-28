@@ -9,19 +9,33 @@ function icsLocal(wallClock: string): string {
   return `${date.replace(/-/g, '')}T${time.replace(/:/g, '')}00`
 }
 
+// DTSTAMP must be UTC (RFC 5545 3.8.7.2), unlike the floating event times.
+function icsUtcNow(): string {
+  return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+}
+
+const utf8 = new TextEncoder()
+
 function fold(line: string): string {
-  // RFC 5545 lines wrap at 75 octets; continuations start with a space.
-  if (line.length <= 74) return line
+  // RFC 5545 lines wrap at 75 octets (UTF-8, not UTF-16 units); a
+  // continuation starts with a space, which counts toward its 75. Walk code
+  // points so a multi-byte character (emoji, accents) is never split.
   const out: string[] = []
-  let rest = line
-  out.push(rest.slice(0, 74))
-  rest = rest.slice(74)
-  while (rest.length > 73) {
-    out.push(' ' + rest.slice(0, 73))
-    rest = rest.slice(73)
+  let current = ''
+  let octets = 0
+  for (const ch of Array.from(line)) {
+    const size = utf8.encode(ch).length
+    const limit = out.length === 0 ? 75 : 74
+    if (octets + size > limit) {
+      out.push(current)
+      current = ''
+      octets = 0
+    }
+    current += ch
+    octets += size
   }
-  out.push(' ' + rest)
-  return out.join('\r\n')
+  out.push(current)
+  return out.join('\r\n ')
 }
 
 function esc(text: string): string {
@@ -51,7 +65,7 @@ export function downloadEventIcs(event: PublicClubEvent) {
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
     `UID:event-${event.id}@behrendclubvolleyball.org`,
-    `DTSTAMP:${icsLocal(new Date().toISOString().slice(0, 16))}`,
+    `DTSTAMP:${icsUtcNow()}`,
     `DTSTART:${start}`,
     `DTEND:${end}`,
     fold(`SUMMARY:${esc(event.title)}`),

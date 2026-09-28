@@ -11,18 +11,30 @@ function MemberProfile() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    // A stripe giver links to another /members/:id, which reuses this
+    // component: clear the previous member and error, and drop a response
+    // that lands after the id has already changed again.
+    let cancelled = false
+    setMember(null)
+    setError(null)
     const memberId = Number(id)
     if (!Number.isInteger(memberId)) {
       setError('Member not found.')
       return
     }
     getMemberProfile(memberId)
-      .then((res) => setMember(res.member))
+      .then((res) => {
+        if (!cancelled) setMember(res.member)
+      })
       .catch((e: Error) => {
+        if (cancelled) return
         if (e instanceof ApiError && e.status === 401) setError('Sign in to view member results.')
         else if (e instanceof ApiError && e.status === 404) setError('Member not found.')
         else setError(e.message)
       })
+    return () => {
+      cancelled = true
+    }
   }, [id])
 
   return (

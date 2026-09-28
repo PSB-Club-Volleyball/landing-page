@@ -16,7 +16,7 @@ import {
   ShareIcon,
   UsersIcon,
 } from '../components/EventIcons'
-import { WAIVER_URL } from '../constants'
+import { GROUPME_URL, WAIVER_URL } from '../constants'
 import { ApiError, getEvent } from '../lib/api'
 import { authErrorMessage } from '../lib/authErrors'
 import { downloadEventIcs } from '../lib/calendar'
@@ -79,14 +79,13 @@ function EventDetail() {
   // fresh signup form.
   useEffect(() => {
     if (state !== 'ready') return
-    const params = new URLSearchParams(window.location.search)
-    if (params.get('signup') !== String(id)) return
+    if (searchParams.get('signup') !== String(id)) return
     const e = event as PublicClubEvent
 
     // The OAuth callback appends ?error=<code> when sign-in failed (e.g. the
     // email is already tied to a different provider). Surface it instead of
     // silently reopening the form as an anonymous guest.
-    const err = authErrorMessage(params.get('error'))
+    const err = authErrorMessage(searchParams.get('error'))
     if (err) {
       setAuthError(err)
     } else if (e.my_signup_id) {
@@ -94,11 +93,19 @@ function EventDetail() {
     } else {
       setSignupOpen(true)
     }
-    params.delete('signup')
-    params.delete('error')
-    const rest = params.toString()
-    window.history.replaceState(null, '', rest ? `?${rest}` : window.location.pathname)
-  }, [state, id, event])
+    // Strip them through the router, not window.history: the router keeps its
+    // own copy of the query, and a later setSearchParams (tab switch) would
+    // otherwise write ?signup= back and reopen the modal / leak into Share.
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        p.delete('signup')
+        p.delete('error')
+        return p
+      },
+      { replace: true }
+    )
+  }, [state, id, event, searchParams, setSearchParams])
 
   if (state === 'loading') {
     return (
@@ -121,7 +128,15 @@ function EventDetail() {
           <p className="placeholder-note">
             {state === 'notfound'
               ? 'This event may have been removed, or the link is wrong.'
-              : 'Try refreshing, or check our GroupMe below.'}
+              : (
+                  <>
+                    Try refreshing, or check our{' '}
+                    <a className="inline-link" href={GROUPME_URL} target="_blank" rel="noreferrer">
+                      GroupMe
+                    </a>
+                    .
+                  </>
+                )}
           </p>
         </div>
       </main>

@@ -2,14 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ApiError, cancelSignup, getProfile, updateSkillLevel } from '../lib/api'
 import { logout } from '../lib/adminApi'
-import { formatEventDate } from '../lib/eventFormat'
+import { formatEventDate, SKILL_LEVEL_LABELS } from '../lib/eventFormat'
 import type { MyProfile, SkillLevel } from '../types'
-
-const SKILL_LEVEL_LABELS: Record<SkillLevel, string> = {
-  beginner: 'Beginner',
-  intermediate: 'Intermediate',
-  advanced: 'Advanced',
-}
 
 type Tab = 'info' | 'rsvps' | 'results' | 'admin'
 
@@ -18,6 +12,8 @@ function Profile() {
   const [error, setError] = useState<string | null>(null)
   const [signedOut, setSignedOut] = useState(false)
   const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [rsvpError, setRsvpError] = useState<string | null>(null)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('info')
   const [skillDraft, setSkillDraft] = useState<SkillLevel | ''>('')
   const [skillSaving, setSkillSaving] = useState(false)
@@ -41,13 +37,27 @@ function Profile() {
   async function cancelRsvp(eventId: number, signupId: number, title: string) {
     if (!confirm(`Cancel your RSVP for ${title}?`)) return
     setCancellingId(signupId)
+    setRsvpError(null)
     try {
       await cancelSignup(eventId, signupId)
       refresh()
     } catch (e) {
-      setError((e as Error).message)
+      // Inline, not the page-level error: a failed cancel shouldn't replace
+      // the whole profile.
+      setRsvpError((e as Error).message)
     } finally {
       setCancellingId(null)
+    }
+  }
+
+  async function signOut() {
+    setSignOutError(null)
+    try {
+      await logout()
+      window.location.reload()
+    } catch (e) {
+      console.error('Sign out failed', e)
+      setSignOutError(`Couldn’t sign out: ${(e as Error).message}`)
     }
   }
 
@@ -84,15 +94,14 @@ function Profile() {
         <div className="board legal-page">
           <p className="placeholder-note">{error}</p>
           {!signedOut && (
-            <button
-              type="button"
-              className="nav-signout"
-              onClick={() => {
-                logout().then(() => window.location.reload())
-              }}
-            >
+            <button type="button" className="nav-signout" onClick={signOut}>
               Sign out
             </button>
+          )}
+          {signOutError && (
+            <p className="admin-error" role="alert">
+              {signOutError}
+            </p>
           )}
         </div>
       </main>
@@ -121,16 +130,15 @@ function Profile() {
             <h1>{account.name || account.email}</h1>
             <p className="admin-note">{account.email}</p>
           </div>
-          <button
-            type="button"
-            className="nav-signout"
-            onClick={() => {
-              logout().then(() => window.location.reload())
-            }}
-          >
+          <button type="button" className="nav-signout" onClick={signOut}>
             Sign out
           </button>
         </div>
+        {signOutError && (
+          <p className="admin-error" role="alert">
+            {signOutError}
+          </p>
+        )}
 
         <div className="profile-tabs" role="tablist" aria-label="Profile sections">
           <button
@@ -309,6 +317,11 @@ function Profile() {
         {tab === 'rsvps' && (
           <div role="tabpanel">
             <h2>Upcoming RSVPs</h2>
+            {rsvpError && (
+              <p className="admin-error" role="alert">
+                {rsvpError}
+              </p>
+            )}
             {upcomingRsvps.length === 0 ? (
               <p className="placeholder-note">No upcoming RSVPs.</p>
             ) : (

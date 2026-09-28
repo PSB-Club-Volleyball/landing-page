@@ -16,6 +16,7 @@ import Profile from './pages/Profile'
 import People from './pages/People'
 import Leaderboard from './pages/Leaderboard'
 import MemberProfile from './pages/MemberProfile'
+import NotFound from './pages/NotFound'
 
 // The admin console is most of the JS and only admins ever load it, so it
 // ships as its own chunk. admin.css stays global: public pages reuse some of
@@ -61,6 +62,7 @@ function App() {
             </Suspense>
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       {!isAdmin && <Footer />}
     </>

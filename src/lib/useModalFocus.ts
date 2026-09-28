@@ -3,11 +3,23 @@ import { useEffect, useRef } from 'react'
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
 
-function focusableIn(node: HTMLElement): HTMLElement[] {
+// A closed <details> keeps its content laid out in Chrome (offsetParent is
+// set) but not tabbable; only its own <summary> can take focus.
+function inClosedDetails(el: HTMLElement): boolean {
+  for (let d = el.closest('details'); d; d = d.parentElement?.closest('details') ?? null) {
+    if (!d.open && !(el.tagName === 'SUMMARY' && el.parentElement === d)) return true
+  }
+  return false
+}
+
+// Tabbable descendants of `node` that are actually reachable: skips
+// display:none, aria-hidden subtrees, and the inside of a closed <details>.
+export function focusableIn(node: HTMLElement): HTMLElement[] {
   return Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(
     (el) =>
       el.tabIndex !== -1 &&
       !el.closest('[aria-hidden="true"]') &&
+      !inClosedDetails(el) &&
       (el.offsetParent !== null || el === document.activeElement),
   )
 }
