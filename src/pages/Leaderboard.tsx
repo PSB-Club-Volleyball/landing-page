@@ -9,10 +9,6 @@ import type { MemberSummary } from '../types'
 const STRIPE_LEADERS_PER_SKILL = 3
 
 const pct = (m: MemberSummary) => m.winPct.toFixed(3).replace(/^0/, '')
-const setDiff = (m: MemberSummary) => {
-  const d = m.setsWon - m.setsLost
-  return d > 0 ? `+${d}` : d < 0 ? `−${-d}` : '0'
-}
 
 // The Leaderboard is the competition: a dark scoreboard with the ranked
 // record table, plus the top stripe earners per skill. Who someone is lives
@@ -163,7 +159,6 @@ function Leaderboard() {
                       <th scope="col">Player</th>
                       <th scope="col">W&ndash;L</th>
                       <th scope="col">Win %</th>
-                      <th scope="col">Set diff</th>
                       <th scope="col">Streak</th>
                     </tr>
                   </thead>
@@ -178,7 +173,6 @@ function Leaderboard() {
                           {m.wins}&ndash;{m.losses}
                         </td>
                         <td className="lb-pct">{pct(m)}</td>
-                        <td>{setDiff(m)}</td>
                         <td className="lb-streak">{m.currentStreak >= 2 ? `${m.currentStreak}W` : ''}</td>
                       </tr>
                     ))}

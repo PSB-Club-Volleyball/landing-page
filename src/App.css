@@ -1122,6 +1122,16 @@ main {
   align-items: center;
   gap: 0.75rem;
 }
+/* The heading block takes the free width and wraps its subtitle, so the
+   Stripe leaders subtitle (longer than Record's) can't push the toggle onto
+   its own line when switching views. */
+.lb-page .directory-head {
+  align-items: flex-start;
+}
+.lb-page .directory-head > div:first-child {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
 .lb-view {
   display: flex;
   border: 1px solid color-mix(in srgb, var(--page-fg) 25%, transparent);
