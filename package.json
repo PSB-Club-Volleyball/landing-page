@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "node --import ./test/register.mjs --test 'test/**/*.test.ts'",
     "preview": "vite preview",
     "pages:dev": "npm run build && wrangler pages dev dist --d1 DB=e2b27718-eb68-40d2-a94e-9909066be0b5 --r2 MEDIA_BUCKET=behrend-club-volleyball-preview",
     "db:migrate:local": "wrangler d1 migrations apply behrend-club-volleyball-preview --local --env preview",
