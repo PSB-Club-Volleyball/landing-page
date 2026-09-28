@@ -1,7 +1,7 @@
 import type { Env } from './_lib/env'
 import { json, unauthorized } from './_lib/http'
 import { getSessionUser } from './_lib/session'
-import { getPlayerResults, getPlayerSummary } from './_lib/playerResults'
+import { getPlayerResultsByUser, getPlayerSummary } from './_lib/playerResults'
 
 // GET /api/members -> every signed-in account (club member or outsider),
 // with results if they've played a match, ranked by win rate. Backs both
@@ -20,9 +20,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     avatar_url: string | null
   }>()
 
+  const users = userRows.results ?? []
+  const resultsByUser = await getPlayerResultsByUser(env, users)
+
   const members = []
-  for (const u of userRows.results ?? []) {
-    const results = await getPlayerResults(env, u)
+  for (const u of users) {
+    const results = resultsByUser.get(u.id)
+    if (!results) throw new Error(`No results computed for user ${u.id}`)
     const summary = getPlayerSummary(results)
     members.push({
       id: u.id,
