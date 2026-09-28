@@ -1896,6 +1896,17 @@ main {
 .public-team li.captain .public-team-player {
   font-weight: 700;
 }
+/* A name that links to the member's profile (team rosters, admin signups):
+   body-colored text with an Ace underline. */
+.profile-link {
+  color: var(--page-fg);
+  text-decoration: underline;
+  text-decoration-color: var(--ace-fg);
+  text-underline-offset: 3px;
+}
+.profile-link:hover {
+  color: var(--ace-fg);
+}
 .captain-tag {
   display: inline-flex;
   align-items: center;

@@ -1743,6 +1743,12 @@
   font-size: 0.72rem;
   color: var(--muted);
 }
+.guest-tag {
+  margin-left: 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted);
+}
 
 .checkin-list {
   list-style: none;

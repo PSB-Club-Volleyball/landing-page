@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { adminApi } from '../../lib/adminApi'
 import { downloadCsv, downloadEmailList, toCsv } from '../../lib/csv'
 import { linkifyText } from '../../lib/markdown'
@@ -446,7 +447,17 @@ export default function SignupsPanel({
                     <input type="checkbox" aria-label={`Select ${s.name}`} checked={selected.has(s.id)} onChange={() => toggleSelect(s.id)} />
                   </td>
                   <td>
-                    <span className="signups-name">{s.name}</span>
+                    <span className="signups-name">
+                      {s.user_id != null ? (
+                        <Link className="profile-link" to={`/members/${s.user_id}`}>
+                          {s.name}
+                        </Link>
+                      ) : (
+                        <>
+                          {s.name} <span className="guest-tag">guest</span>
+                        </>
+                      )}
+                    </span>
                     <span className="signups-email">{s.email}</span>
                   </td>
                   <td>

@@ -1,7 +1,9 @@
+import { Link } from 'react-router-dom'
 import type { PublicEventTeam } from '../types'
 
 // Read-only team rosters on the public event page's Teams tab. Captains are
-// marked (C).
+// marked (C). Members linked to an account link to their profile; walk-ins
+// stay plain text.
 export default function EventTeams({ teams }: { teams: PublicEventTeam[] }) {
   if (teams.length === 0) return null
   return (
@@ -20,7 +22,15 @@ export default function EventTeams({ teams }: { teams: PublicEventTeam[] }) {
               {team.members.map((m, i) => (
                 <li key={i} className={m.is_captain ? 'captain' : undefined}>
                   <span className="public-team-num">{i + 1}</span>
-                  <span className="public-team-player">{m.name}</span>
+                  <span className="public-team-player">
+                    {m.user_id != null ? (
+                      <Link className="profile-link" to={`/members/${m.user_id}`}>
+                        {m.name}
+                      </Link>
+                    ) : (
+                      m.name
+                    )}
+                  </span>
                   {m.is_captain && <span className="captain-tag">C</span>}
                 </li>
               ))}
