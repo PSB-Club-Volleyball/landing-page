@@ -2,9 +2,14 @@
 // tabular data (names, emails, numbers), so this only needs to get quoting
 // right, not full spreadsheet-CSV dialect support.
 
+// Spreadsheet apps run a cell that starts with =, +, -, or @ (and some strip a
+// leading tab/CR first) as a formula, so user-supplied text like a signup name
+// could execute on open. Prefix those with ' so they read as text. A plain
+// number ("-3") can't be a formula and keeps its value.
 function escapeCsvField(value: string): string {
-  if (/[",\n]/.test(value)) return `"${value.replace(/"/g, '""')}"`
-  return value
+  const safe = /^[=+\-@\t\r]/.test(value) && !/^-\d+(\.\d+)?$/.test(value) ? `'${value}` : value
+  if (/[",\r\n]/.test(safe)) return `"${safe.replace(/"/g, '""')}"`
+  return safe
 }
 
 export function toCsv(headers: string[], rows: (string | number | null | undefined)[][]): string {
@@ -46,7 +51,7 @@ export function downloadEmailList(filename: string, emails: (string | null | und
     seen.add(key)
     list.push(email)
   }
-  triggerDownload(filename, new Blob([list.join('\r\n')], { type: 'text/csv;charset=utf-8;' }))
+  triggerDownload(filename, new Blob([list.map(escapeCsvField).join('\r\n')], { type: 'text/csv;charset=utf-8;' }))
 }
 
 // Parses CSV text into rows of string cells. Handles quoted fields (commas,

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { buildPages, FieldInput } from '../../lib/formFields'
 import type { PreviewableField } from '../../lib/formFields'
 import { linkifyText } from '../../lib/markdown'
+import { useTopmostEscape } from './modalStack'
 
 // Renders a form builder draft exactly the way SignupModal renders a real
 // one — same field components, same section-per-page pagination — so an
@@ -21,6 +22,7 @@ function FormPreviewModal({
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [pageIndex, setPageIndex] = useState(0)
   const [submitted, setSubmitted] = useState(false)
+  useTopmostEscape(onClose)
 
   const pages = useMemo(() => buildPages(fields), [fields])
   const onLastPage = pageIndex >= pages.length - 1

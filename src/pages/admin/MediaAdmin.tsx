@@ -30,7 +30,10 @@ function MediaAdmin() {
 
   useEffect(refresh, [])
   useEffect(() => {
-    adminApi.events.list().then((res) => setEvents(res.events)).catch(() => {})
+    adminApi.events
+      .list()
+      .then((res) => setEvents(res.events))
+      .catch((e: Error) => setError(`Couldn't load events for the album picker: ${e.message}`))
   }, [])
 
   async function handleFiles(files: File[]) {
@@ -75,16 +78,20 @@ function MediaAdmin() {
     if (!confirm("Delete this photo/video? This can't be undone.")) return
     try {
       await adminApi.media.remove(id)
+      if (selection.isSelected(id)) selection.toggle(id)
       refresh()
     } catch (e) {
       setError((e as Error).message)
     }
   }
 
+  // Only checked items still in the grid — never an id deleted since.
+  const selectedItems = media.filter((m) => selection.isSelected(m.id))
+
   async function handleBulkDelete() {
-    if (!confirm(`Delete ${selection.selected.size} item(s)? This can't be undone.`)) return
+    if (!confirm(`Delete ${selectedItems.length} item(s)? This can't be undone.`)) return
     setBulkBusy(true)
-    const result = await runBulk([...selection.selected], (id) => adminApi.media.remove(id))
+    const result = await runBulk(selectedItems, (m) => adminApi.media.remove(m.id))
     setError(summarizeBulk(result, 'Bulk delete'))
     selection.clear()
     refresh()
@@ -150,7 +157,7 @@ function MediaAdmin() {
           {media.every((m) => selection.isSelected(m.id)) ? 'Deselect all' : 'Select all'}
         </button>
       )}
-      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+      <BulkActionBar count={selectedItems.length} onClear={selection.clear}>
         <button type="button" className="danger" disabled={bulkBusy} onClick={handleBulkDelete}>
           Delete selected
         </button>

@@ -12,22 +12,34 @@ function slotTime(iso: string | null) {
 }
 
 // Per-match editable result: one [a, b] string pair per set, plus an optional
-// forfeit.
+// forfeit. `edited` marks a draft the admin has typed into since it was last
+// loaded, so a reload after saving some *other* match keeps it.
 interface ResultDraft {
   sets: [string, string][]
   forfeit: number | null
+  edited: boolean
 }
 
 function toDraft(m: EventMatch, setsPerMatch: number): ResultDraft {
   const sets: [string, string][] = (m.scores ?? []).map(([a, b]) => [String(a), String(b)])
   while (sets.length < setsPerMatch) sets.push(['', ''])
-  return { sets: sets.slice(0, Math.max(setsPerMatch, sets.length)), forfeit: m.forfeit_team_id }
+  return { sets, forfeit: m.forfeit_team_id, edited: false }
 }
 
+// Blank sets are skipped; a set with only one side filled in (or anything but
+// a whole number) is rejected rather than recorded as 0.
 function draftToScores(d: ResultDraft): [number, number][] {
-  return d.sets
-    .filter(([a, b]) => a.trim() !== '' || b.trim() !== '')
-    .map(([a, b]) => [Number(a) || 0, Number(b) || 0] as [number, number])
+  const scores: [number, number][] = []
+  d.sets.forEach(([a, b], i) => {
+    const sa = a.trim()
+    const sb = b.trim()
+    if (sa === '' && sb === '') return
+    if (!/^\d+$/.test(sa) || !/^\d+$/.test(sb)) {
+      throw new Error(`Set ${i + 1}: enter a whole-number score for both teams, or leave both blank.`)
+    }
+    scores.push([Number(sa), Number(sb)])
+  })
+  return scores
 }
 
 function StandingsTable({ rows }: { rows: StandingRow[] }) {
@@ -127,7 +139,17 @@ function ScoreEntry({
   )
 }
 
-export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number; playFormat: PlayFormat }) {
+export default function ScheduleAdmin({
+  eventId,
+  playFormat,
+  onDirtyChange,
+}: {
+  eventId: number
+  playFormat: PlayFormat
+  // Reports typed-but-unsaved scores so the parent can confirm before a tab
+  // switch unmounts this editor.
+  onDirtyChange?: (dirty: boolean) => void
+}) {
   const mode: 'rr' | 'bracket' | 'double' | 'pool' | 'unsupported' =
     playFormat === 'round_robin'
       ? 'rr'
@@ -152,20 +174,28 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
 
-  function hydrate(res: MatchesResponse) {
+  // `keepEdited`: preserve drafts the admin has typed into (a reload after
+  // saving one match or the settings must not wipe scores typed into the
+  // others). Off when the match set itself was rebuilt.
+  function hydrate(res: MatchesResponse, keepEdited: boolean) {
     setData(res)
     setConfig(res.config)
     setCourtsText(String(res.config.courts))
     setTotalText(String(res.config.total_minutes))
-    const d: Record<number, ResultDraft> = {}
-    for (const m of res.matches) d[m.id] = toDraft(m, res.config.sets_per_match)
-    setDrafts(d)
+    setDrafts((prev) => {
+      const d: Record<number, ResultDraft> = {}
+      for (const m of res.matches) {
+        const kept = prev[m.id]
+        d[m.id] = keepEdited && kept?.edited ? kept : toDraft(m, res.config.sets_per_match)
+      }
+      return d
+    })
   }
 
   function load() {
     adminApi.events
       .matches(eventId)
-      .then(hydrate)
+      .then((res) => hydrate(res, true))
       .catch((e: Error) => {
         console.error('Failed to load schedule', e)
         setLoadError(e.message)
@@ -173,6 +203,12 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   }
 
   useEffect(load, [eventId])
+
+  const dirty = Object.values(drafts).some((d) => d.edited)
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+    return () => onDirtyChange?.(false)
+  }, [dirty, onDirtyChange])
 
   // Reflow each match's set-input rows when "sets per match" changes, keeping
   // whatever's already typed.
@@ -219,7 +255,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
     setError(null)
     setNote(null)
     try {
-      hydrate(await adminApi.events.saveScheduleConfig(eventId, config))
+      hydrate(await adminApi.events.saveScheduleConfig(eventId, config), true)
       setNote('Settings saved.')
     } catch (e) {
       setError((e as Error).message)
@@ -251,7 +287,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
             : mode === 'pool'
               ? buildPoolSchedule(poolGroups, config.courts)
               : buildRoundRobinSchedule(teamIds, config.courts, config.double_round_robin)
-      hydrate(await adminApi.events.saveSchedule(eventId, { config, matches }))
+      hydrate(await adminApi.events.saveSchedule(eventId, { config, matches }), false)
       setNote(`${noun[0].toUpperCase()}${noun.slice(1)} generated.`)
     } catch (e) {
       setError((e as Error).message)
@@ -266,6 +302,12 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
       setError('Enter every pool result before starting the bracket.')
       return
     }
+    // Pool scores lock once the bracket exists, so an unsaved edit would be
+    // stranded (hidden, but still counted as unsaved).
+    if (dirty) {
+      setError('Save or undo your edited scores before starting the bracket.')
+      return
+    }
     if (!confirm('Start the knockout bracket from the pool standings?')) return
     setBusy(true)
     setError(null)
@@ -273,7 +315,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
     try {
       const seeds = seedFromPools(data.pools, config.advance_per_pool)
       const built = config.bracket_stage === 'double' ? buildDoubleElimBracket(seeds) : buildSingleElimBracket(seeds)
-      hydrate(await adminApi.events.startBracket(eventId, built))
+      hydrate(await adminApi.events.startBracket(eventId, built), true)
       setNote('Bracket started.')
     } catch (e) {
       setError((e as Error).message)
@@ -292,6 +334,8 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
         scores: d.forfeit != null ? null : draftToScores(d),
         forfeit_team_id: d.forfeit,
       })
+      // Saved: this draft now matches the server, so let the reload replace it.
+      setDrafts((prev) => ({ ...prev, [match.id]: { ...prev[match.id], edited: false } }))
       load()
       setNote(`Saved result for ${match.team_a_name} v ${match.team_b_name}.`)
     } catch (e) {
@@ -302,7 +346,7 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
   }
 
   function setDraft(id: number, next: ResultDraft) {
-    setDrafts((prev) => ({ ...prev, [id]: next }))
+    setDrafts((prev) => ({ ...prev, [id]: { ...next, edited: true } }))
   }
 
   const pending = (text: string) => {
@@ -450,7 +494,9 @@ export default function ScheduleAdmin({ eventId, playFormat }: { eventId: number
                             {m.team_b_name}
                           </span>
                         </span>
-                        {d && (
+                        {/* The server refuses pool changes once the bracket
+                            exists (it would leave the wrong teams seeded). */}
+                        {d && !bracketStarted && (
                           <ScoreEntry
                             match={m}
                             draft={d}

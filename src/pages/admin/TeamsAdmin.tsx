@@ -44,11 +44,15 @@ function walkInToMember(name: string): DraftMember {
 export default function TeamsAdmin({
   eventId,
   onFormatChange,
+  onDirtyChange,
 }: {
   eventId: number
   // Called after a successful save so the parent can refetch the event and
   // show/hide the "Schedule & scores" tab when the format changes.
   onFormatChange?: () => void
+  // Reports unsaved draft changes so the parent can confirm before a tab
+  // switch unmounts this editor.
+  onDirtyChange?: (dirty: boolean) => void
 }) {
   const [resp, setResp] = useState<TeamsResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -73,6 +77,11 @@ export default function TeamsAdmin({
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [savedSnapshot, setSavedSnapshot] = useState('')
+  // Set by hydrate(); the next render's snapshot becomes the saved baseline.
+  // Baselining from the reloaded state (not the pre-save draft) keeps
+  // server-normalized values (trimmed names, clamped counts) from reading as
+  // unsaved changes forever.
+  const [rebaseline, setRebaseline] = useState(false)
 
   const drag = useRef<{ from: Loc; key: string } | null>(null)
   const [dropTarget, setDropTarget] = useState<Loc | null>(null)
@@ -108,6 +117,7 @@ export default function TeamsAdmin({
     setPoolCount(String(typeof cfg.pools === 'number' ? cfg.pools : 2))
     setAdvanceCount(String(typeof cfg.advance_per_pool === 'number' ? cfg.advance_per_pool : 2))
     setBracketStage(cfg.bracket_stage === 'double' ? 'double' : 'single')
+    setRebaseline(true)
   }
 
   function load() {
@@ -144,10 +154,16 @@ export default function TeamsAdmin({
       }),
     [format, teamCount, poolCount, advanceCount, bracketStage, published, teams]
   )
-  const dirty = savedSnapshot !== '' && snapshot !== savedSnapshot
+  const dirty = !rebaseline && savedSnapshot !== '' && snapshot !== savedSnapshot
   useEffect(() => {
-    if (resp && savedSnapshot === '') setSavedSnapshot(snapshot)
-  }, [resp, snapshot, savedSnapshot])
+    if (!rebaseline) return
+    setSavedSnapshot(snapshot)
+    setRebaseline(false)
+  }, [rebaseline, snapshot])
+  useEffect(() => {
+    onDirtyChange?.(dirty)
+    return () => onDirtyChange?.(false)
+  }, [dirty, onDirtyChange])
 
   function locMembers(loc: Loc): DraftMember[] {
     return loc === 'bench' ? bench : teams[loc]?.members ?? []
@@ -245,6 +261,13 @@ export default function TeamsAdmin({
       setError('Every team needs at least one player before you can publish. Fill or remove the empty team.')
       return
     }
+    // The server rebuilds the teams from scratch on every save, which deletes
+    // every match and recorded score for the event.
+    if (
+      hasSchedule &&
+      !confirm('Saving teams deletes the current schedule and every recorded score for this event. Save anyway?')
+    )
+      return
     setSaving(true)
     setError(null)
     setNote(null)
@@ -272,6 +295,8 @@ export default function TeamsAdmin({
         })),
       })
       setNote('Saved.')
+      // Provisional baseline so the bar doesn't flash "Unsaved" while the
+      // reload is in flight; hydrate() re-baselines from the server's copy.
       setSavedSnapshot(snapshot)
       load()
       onFormatChange?.()
@@ -663,8 +688,8 @@ export default function TeamsAdmin({
 
         {hasSchedule && (
           <p className="field-hint">
-            Saving these teams clears the current schedule &mdash; you&rsquo;ll regenerate it on the Schedule &amp;
-            scores tab.
+            Saving these teams deletes the current schedule and every recorded score &mdash; you&rsquo;ll
+            regenerate it on the Schedule &amp; scores tab.
           </p>
         )}
         {error && <p className="admin-error">{error}</p>}
@@ -679,7 +704,7 @@ export default function TeamsAdmin({
           <button type="button" className="btn btn-outline btn-sm" disabled={saving || !dirty} onClick={load}>
             Discard
           </button>
-          <button type="button" className="btn btn-ace btn-sm" disabled={saving || teams.length === 0} onClick={save}>
+          <button type="button" className="btn btn-ace btn-sm" disabled={saving || !dirty || teams.length === 0} onClick={save}>
             {saving ? 'Saving…' : 'Save teams'}
           </button>
         </div>

@@ -312,7 +312,7 @@ function BulkEditForm({
   )
 }
 
-function EventsAdmin({ isOwner }: { isOwner: boolean }) {
+function EventsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChange?: (dirty: boolean) => void }) {
   const navigate = useNavigate()
   const [events, setEvents] = useState<AdminEventRow[]>([])
   const [forms, setForms] = useState<FormTemplate[]>([])
@@ -320,6 +320,11 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [createDraft, setCreateDraft] = useState<Draft>(emptyDraft)
+  // The draft as the modal opened (blank, or a duplicate's copy) — closing
+  // with anything beyond that asks first.
+  const [createBaseline, setCreateBaseline] = useState<Draft>(emptyDraft)
+  const [createSaving, setCreateSaving] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
   const selection = useSelection()
   const [bulkEditOpen, setBulkEditOpen] = useState(false)
   const [bulkDraft, setBulkDraft] = useState<BulkDraft>(emptyBulkDraft)
@@ -344,11 +349,36 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
 
   useEffect(refresh, [])
   useEffect(() => {
-    adminApi.forms.list().then((res) => setForms(res.forms)).catch(() => {})
+    adminApi.forms
+      .list()
+      .then((res) => setForms(res.forms))
+      .catch((e: Error) => setError(`Couldn't load forms for the signup picker: ${e.message}`))
   }, [])
 
+  const createDirty = creating && JSON.stringify(createDraft) !== JSON.stringify(createBaseline)
+  useEffect(() => {
+    onDirtyChange?.(createDirty)
+    return () => onDirtyChange?.(false)
+  }, [createDirty, onDirtyChange])
+
+  function openCreate(draft: Draft) {
+    setCreateDraft(draft)
+    setCreateBaseline(draft)
+    setCreateError(null)
+    setShowMoreOptions(false)
+    setCreating(true)
+  }
+
+  function cancelCreate() {
+    if (createSaving) return
+    if (createDirty && !confirm('Discard this new event? What you entered will be lost.')) return
+    setCreating(false)
+  }
+
   async function runSelectedBulk(verb: string, fn: (ev: AdminEventRow) => Promise<unknown>) {
-    const targets = events.filter((e) => selection.isSelected(e.id))
+    // Only rows on screen: selections made with "Show past" on don't carry
+    // over to hidden rows.
+    const targets = visibleEvents.filter((e) => selection.isSelected(e.id))
     setBulkBusy(true)
     const result = await runBulk(targets, fn)
     setError(summarizeBulk(result, verb))
@@ -377,26 +407,31 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
   }
 
   const applyBulkDelete = () => {
-    if (!confirm(`Delete ${selection.selected.size} event(s)? This can't be undone.`)) return
+    if (!confirm(`Delete ${selectedCount} event(s)? This can't be undone.`)) return
     return runSelectedBulk('Bulk delete', (ev) => adminApi.events.remove(ev.id)).then(() => setBulkEditOpen(false))
   }
 
   function startDuplicate(ev: AdminEventRow) {
-    setCreateDraft({ ...eventToDraft(ev), start_time: '', end_time: '', status: 'draft' })
-    setShowMoreOptions(false)
-    setCreating(true)
+    openCreate({ ...eventToDraft(ev), start_time: '', end_time: '', status: 'draft' })
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    // A recurring create inserts the whole series in one request; a second
+    // click while it's in flight would insert it twice.
+    if (createSaving) return
+    setCreateSaving(true)
+    setCreateError(null)
     try {
       await adminApi.events.create(toInput(createDraft))
       setCreating(false)
       setCreateDraft(emptyDraft)
       refresh()
     } catch (err) {
-      setError((err as Error).message)
+      setCreateError((err as Error).message)
+    } finally {
+      setCreateSaving(false)
     }
   }
 
@@ -426,6 +461,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
 
   const pastCount = events.filter((e) => e.is_past).length
   const visibleEvents = showPast ? events : events.filter((e) => !e.is_past)
+  const selectedCount = visibleEvents.filter((e) => selection.isSelected(e.id)).length
 
   return (
     <>
@@ -440,10 +476,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
           <button
             className="add-btn"
             type="button"
-            onClick={() => {
-              setShowMoreOptions(false)
-              setCreating(true)
-            }}
+            onClick={() => openCreate(emptyDraft)}
           >
             + Add event
           </button>
@@ -451,7 +484,7 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
       </div>
       {error && <p className="admin-error">{error}</p>}
       {creating && (
-        <AdminModal title="New event" onClose={() => setCreating(false)} wide>
+        <AdminModal title="New event" onClose={cancelCreate} wide>
           <form className="event-form" onSubmit={handleCreate}>
             <EventFormFields
               draft={createDraft}
@@ -461,18 +494,19 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
               onToggleMoreOptions={() => setShowMoreOptions((v) => !v)}
               includeRecurrence
             />
+            {createError && <p className="admin-error">{createError}</p>}
             <div className="form-actions">
-              <button className="btn btn-outline" type="button" onClick={() => setCreating(false)}>
+              <button className="btn btn-outline" type="button" disabled={createSaving} onClick={cancelCreate}>
                 Cancel
               </button>
-              <button className="btn btn-ace" type="submit">
-                Save event
+              <button className="btn btn-ace" type="submit" disabled={createSaving}>
+                {createSaving ? 'Saving…' : 'Save event'}
               </button>
             </div>
           </form>
         </AdminModal>
       )}
-      <BulkActionBar count={selection.selected.size} onClear={selection.clear}>
+      <BulkActionBar count={selectedCount} onClear={selection.clear}>
         <button type="button" disabled={bulkBusy} onClick={() => setBulkEditOpen(true)}>
           Edit selected&hellip;
         </button>
@@ -483,12 +517,14 @@ function EventsAdmin({ isOwner }: { isOwner: boolean }) {
         )}
       </BulkActionBar>
       {bulkEditOpen && (
-        <AdminModal title={`Edit ${selection.selected.size} event${selection.selected.size === 1 ? '' : 's'}`} onClose={() => setBulkEditOpen(false)} wide>
+        <AdminModal title={`Edit ${selectedCount} event${selectedCount === 1 ? '' : 's'}`} onClose={() => setBulkEditOpen(false)} wide>
+          {/* Bulk results land in the page banner, which sits behind this overlay. */}
+          {error && <p className="admin-error">{error}</p>}
           <BulkEditForm
             draft={bulkDraft}
             onChange={setBulkDraft}
             forms={forms}
-            count={selection.selected.size}
+            count={selectedCount}
             busy={bulkBusy}
             onCancel={() => setBulkEditOpen(false)}
             onApply={applyBulkEdit}

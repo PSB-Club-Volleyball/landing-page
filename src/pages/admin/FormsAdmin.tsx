@@ -386,12 +386,17 @@ function FieldRow({
   )
 }
 
-function FormsAdmin({ isOwner }: { isOwner: boolean }) {
+function FormsAdmin({ isOwner, onDirtyChange }: { isOwner: boolean; onDirtyChange?: (dirty: boolean) => void }) {
   const [forms, setForms] = useState<FormTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<number | 'new' | null>(null)
   const [draft, setDraft] = useState<Draft>(emptyDraft())
+  // The draft as the builder opened, serialized — closing with anything else
+  // asks first.
+  const [draftBaseline, setDraftBaseline] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [previewing, setPreviewing] = useState(false)
   // Only one field card is expanded at a time (Google Forms-style) — index
   // into draft.fields, or null when every card is collapsed.
@@ -413,31 +418,48 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
 
   useEffect(refresh, [])
 
+  const builderDirty = editingId !== null && JSON.stringify(draft) !== draftBaseline
+  useEffect(() => {
+    onDirtyChange?.(builderDirty)
+    return () => onDirtyChange?.(false)
+  }, [builderDirty, onDirtyChange])
+
+  function openBuilder(id: number | 'new', next: Draft) {
+    setDraft(next)
+    setDraftBaseline(JSON.stringify(next))
+    setSaveError(null)
+    setPreviewing(false)
+    setEditingId(id)
+  }
+
   function closeBuilder() {
     setEditingId(null)
     setPreviewing(false)
   }
 
+  // Escape, the backdrop, the close button, and Cancel all land here.
+  function cancelBuilder() {
+    if (saving) return
+    if (builderDirty && !confirm('Discard your changes to this form?')) return
+    closeBuilder()
+  }
+
   function startCreate() {
-    setDraft(emptyDraft())
-    setPreviewing(false)
     setExpandedIndex(0)
-    setEditingId('new')
+    openBuilder('new', emptyDraft())
   }
 
   async function startEdit(id: number) {
     setError(null)
     try {
       const { form } = await adminApi.forms.get(id)
-      setDraft({
+      setExpandedIndex(null)
+      openBuilder(id, {
         name: form.name,
         fields: form.fields.map((f) => ({ ...f })),
         max_responses: form.max_responses !== null ? String(form.max_responses) : '',
         confirmation_message: form.confirmation_message ?? '',
       })
-      setPreviewing(false)
-      setExpandedIndex(null)
-      setEditingId(id)
     } catch (e) {
       setError((e as Error).message)
     }
@@ -486,7 +508,9 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
+    if (saving) return
+    setSaving(true)
+    setSaveError(null)
     const payload = {
       name: draft.name,
       fields: draft.fields.map((f, i) => ({
@@ -506,14 +530,22 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
       closeBuilder()
       refresh()
     } catch (err) {
-      setError((err as Error).message)
+      setSaveError((err as Error).message)
+    } finally {
+      setSaving(false)
     }
   }
 
-  async function handleDelete(id: number) {
-    if (!confirm('Delete this form? Events using it will need a new one.')) return
+  // The server refuses to delete a form any event still uses, so say so up
+  // front instead of offering a delete that will fail.
+  async function handleDelete(f: FormTemplate) {
+    if (f.used_count > 0) {
+      setError(`"${f.name}" is attached to ${f.used_count} event${f.used_count === 1 ? '' : 's'} — detach it first.`)
+      return
+    }
+    if (!confirm("Delete this form? This can't be undone.")) return
     try {
-      await adminApi.forms.remove(id)
+      await adminApi.forms.remove(f.id)
       refresh()
     } catch (e) {
       setError((e as Error).message)
@@ -532,7 +564,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
       {error && <p className="admin-error">{error}</p>}
 
       {editingId !== null && (
-        <AdminModal title={editingId === 'new' ? 'New form' : 'Edit form'} onClose={closeBuilder} wide>
+        <AdminModal title={editingId === 'new' ? 'New form' : 'Edit form'} onClose={cancelBuilder} wide>
           <form className="builder-card" onSubmit={handleSave}>
             <label className="field">
               <span><span className="req">*</span> Form name</span>
@@ -612,16 +644,17 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
               </div>
             </fieldset>
 
+            {saveError && <p className="admin-error">{saveError}</p>}
             <div className="form-actions">
               <button className="btn btn-outline" type="button" onClick={() => setPreviewing(true)}>
                 Preview
               </button>
               <span className="form-actions-spacer" />
-              <button className="btn btn-outline" type="button" onClick={closeBuilder}>
+              <button className="btn btn-outline" type="button" disabled={saving} onClick={cancelBuilder}>
                 Cancel
               </button>
-              <button className="btn btn-ace" type="submit">
-                Save form
+              <button className="btn btn-ace" type="submit" disabled={saving}>
+                {saving ? 'Saving…' : 'Save form'}
               </button>
             </div>
           </form>
@@ -670,7 +703,7 @@ function FormsAdmin({ isOwner }: { isOwner: boolean }) {
                       Edit
                     </button>
                     {isOwner && (
-                      <button type="button" className="danger" onClick={() => handleDelete(f.id)}>
+                      <button type="button" className="danger" onClick={() => handleDelete(f)}>
                         Delete
                       </button>
                     )}
