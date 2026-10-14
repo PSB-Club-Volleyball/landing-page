@@ -1488,6 +1488,16 @@ main {
   min-width: 0;
   overflow-wrap: break-word;
 }
+.roster-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.roster-heading .count {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+}
 .roster-grid {
   list-style: none;
   margin: 0 0 3rem;

@@ -35,7 +35,10 @@ interface RosterInput {
   class_year?: string | null
   photo_key?: string | null
   sort_order?: number
+  division?: string | null
 }
+
+const DIVISIONS = ['men', 'women']
 
 // POST /api/admin/roster -> create a player
 export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ request, env, data }) => {
@@ -43,10 +46,13 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
   if (!body || !body.season || !body.first_name || !body.last_name) {
     return badRequest('season, first_name, and last_name are required')
   }
+  if (body.division != null && !DIVISIONS.includes(body.division)) {
+    return badRequest('division must be "men", "women", or null')
+  }
 
   const result = await env.DB.prepare(
-    `INSERT INTO roster (season, first_name, last_name, jersey_number, position, class_year, photo_key, sort_order)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`
+    `INSERT INTO roster (season, first_name, last_name, jersey_number, position, class_year, photo_key, sort_order, division)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
   )
     .bind(
       body.season,
@@ -56,7 +62,8 @@ export const onRequestPost: PagesFunction<Env, string, AdminData> = async ({ req
       body.position ?? null,
       body.class_year ?? null,
       body.photo_key ?? null,
-      body.sort_order ?? 0
+      body.sort_order ?? 0,
+      body.division ?? null
     )
     .run()
 

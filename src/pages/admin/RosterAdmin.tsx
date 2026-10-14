@@ -4,7 +4,7 @@ import BulkActionBar from '../../components/admin/BulkActionBar'
 import { runBulk, summarizeBulk } from '../../lib/bulk'
 import { csvRowsToObjects, downloadCsv, downloadEmailList, parseCsv, toCsv } from '../../lib/csv'
 import { useSelection } from '../../lib/useSelection'
-import type { Player } from '../../types'
+import type { Division, Player } from '../../types'
 
 const ROSTER_CSV_COLUMNS: Record<string, string> = {
   season: 'season',
@@ -17,6 +17,8 @@ const ROSTER_CSV_COLUMNS: Record<string, string> = {
   jersey: 'jersey_number',
   jersey_number: 'jersey_number',
   'jersey #': 'jersey_number',
+  team: 'division',
+  division: 'division',
   position: 'position',
   class: 'class_year',
   'class year': 'class_year',
@@ -25,8 +27,8 @@ const ROSTER_CSV_COLUMNS: Record<string, string> = {
 
 function exportRosterCsv(players: Player[]) {
   const csv = toCsv(
-    ['Season', 'First name', 'Last name', 'Jersey #', 'Position', 'Class'],
-    players.map((p) => [p.season, p.first_name, p.last_name, p.jersey_number, p.position, p.class_year])
+    ['Season', 'First name', 'Last name', 'Jersey #', 'Team', 'Position', 'Class'],
+    players.map((p) => [p.season, p.first_name, p.last_name, p.jersey_number, p.division, p.position, p.class_year])
   )
   downloadCsv('roster.csv', csv)
 }
@@ -36,10 +38,23 @@ const emptyDraft = {
   first_name: '',
   last_name: '',
   jersey_number: '',
+  division: '' as Division | '',
   position: '',
   class_year: '',
 }
 type Draft = typeof emptyDraft
+
+const DIVISION_LABELS: Record<Division, string> = { women: "Women's", men: "Men's" }
+
+function DivisionSelect({ value, onChange }: { value: Division | ''; onChange: (v: Division | '') => void }) {
+  return (
+    <select aria-label="Team" value={value} onChange={(e) => onChange(e.target.value as Division | '')}>
+      <option value="">Team not set</option>
+      <option value="women">{DIVISION_LABELS.women}</option>
+      <option value="men">{DIVISION_LABELS.men}</option>
+    </select>
+  )
+}
 
 // Blank means no number; anything but a whole number ("12a", "7.5") is an
 // error rather than being silently saved as blank.
@@ -56,6 +71,7 @@ function toInput(draft: Draft) {
     first_name: draft.first_name,
     last_name: draft.last_name,
     jersey_number: parseJersey(draft.jersey_number),
+    division: draft.division || null,
     position: draft.position || null,
     class_year: draft.class_year || null,
   }
@@ -67,6 +83,7 @@ function playerToDraft(p: Player): Draft {
     first_name: p.first_name,
     last_name: p.last_name,
     jersey_number: p.jersey_number?.toString() ?? '',
+    division: p.division ?? '',
     position: p.position ?? '',
     class_year: p.class_year ?? '',
   }
@@ -193,12 +210,23 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
         )
         return
       }
+      // Same for a team that isn't blank, "men", or "women" (what the export writes).
+      const badDivision = toImport.filter((r) => r.division && r.division !== 'men' && r.division !== 'women')
+      if (badDivision.length > 0) {
+        setError(
+          `Import cancelled — team must be "men", "women", or blank: ${badDivision
+            .map((r) => `${r.first_name} ${r.last_name} ("${r.division}")`)
+            .join(', ')}. Nothing was imported.`
+        )
+        return
+      }
       const result = await runBulk(toImport, (r) =>
         adminApi.roster.create({
           season: r.season,
           first_name: r.first_name,
           last_name: r.last_name,
           jersey_number: parseJersey(r.jersey_number ?? ''),
+          division: (r.division || null) as Division | null,
           position: r.position || null,
           class_year: r.class_year || null,
         })
@@ -279,6 +307,7 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
             value={createDraft.jersey_number}
             onChange={(e) => setCreateDraft({ ...createDraft, jersey_number: e.target.value })}
           />
+          <DivisionSelect value={createDraft.division} onChange={(v) => setCreateDraft({ ...createDraft, division: v })} />
           <input
             placeholder="Position"
             value={createDraft.position}
@@ -321,6 +350,7 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
               </th>
               <th>#</th>
               <th>Name</th>
+              <th>Team</th>
               <th>Position</th>
               <th>Class</th>
               <th>Season</th>
@@ -330,12 +360,12 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7}>Loading&hellip;</td>
+                <td colSpan={8}>Loading&hellip;</td>
               </tr>
             )}
             {!loading && players.length === 0 && (
               <tr>
-                <td colSpan={7}>No players yet.</td>
+                <td colSpan={8}>No players yet.</td>
               </tr>
             )}
             {players.map((p) =>
@@ -362,6 +392,9 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
                       onChange={(e) => setEditDraft({ ...editDraft, last_name: e.target.value })}
                       style={{ width: '6rem' }}
                     />
+                  </td>
+                  <td>
+                    <DivisionSelect value={editDraft.division} onChange={(v) => setEditDraft({ ...editDraft, division: v })} />
                   </td>
                   <td>
                     <input
@@ -404,6 +437,7 @@ function RosterAdmin({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => vo
                   <td>
                     {p.first_name} {p.last_name}
                   </td>
+                  <td>{p.division ? DIVISION_LABELS[p.division] : '—'}</td>
                   <td>{p.position ?? '—'}</td>
                   <td>{p.class_year ?? '—'}</td>
                   <td className="nowrap">{p.season}</td>

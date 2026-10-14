@@ -17,7 +17,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const players = season
     ? await env.DB.prepare(
         `SELECT id, season, first_name, last_name, jersey_number, position,
-                class_year, photo_key, sort_order
+                class_year, photo_key, sort_order, division
          FROM roster WHERE season = ?1
          ORDER BY sort_order, last_name`
       )
@@ -25,7 +25,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         .all()
     : await env.DB.prepare(
         `SELECT id, season, first_name, last_name, jersey_number, position,
-                class_year, photo_key, sort_order
+                class_year, photo_key, sort_order, division
          FROM roster WHERE season = (SELECT MAX(season) FROM roster)
          ORDER BY sort_order, last_name`
       ).all()
