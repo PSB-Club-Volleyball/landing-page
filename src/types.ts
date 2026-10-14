@@ -1,3 +1,5 @@
+export type Division = 'men' | 'women'
+
 export interface Player {
   id: number
   season: string
@@ -8,6 +10,7 @@ export interface Player {
   class_year: string | null
   photo_key: string | null
   sort_order: number
+  division: Division | null
   user_id: number | null // set when this row was auto-added from an approved club member/admin account
   email?: string | null // admin roster only — from the linked account (user_id); absent from the public roster
 }

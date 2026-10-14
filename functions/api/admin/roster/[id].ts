@@ -12,7 +12,10 @@ const FIELDS = [
   'class_year',
   'photo_key',
   'sort_order',
+  'division',
 ] as const
+
+const DIVISIONS = ['men', 'women']
 
 // PUT /api/admin/roster/:id -> partial update, any subset of FIELDS
 export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ request, env, params, data }) => {
@@ -24,6 +27,9 @@ export const onRequestPut: PagesFunction<Env, 'id', AdminData> = async ({ reques
 
   const updates = FIELDS.filter((field) => field in body)
   if (updates.length === 0) return badRequest('No recognized fields to update')
+  if (body.division != null && !DIVISIONS.includes(body.division as string)) {
+    return badRequest('division must be "men", "women", or null')
+  }
 
   const setClause = updates.map((field, i) => `${field} = ?${i + 1}`).join(', ')
   const values = updates.map((field) => body[field])
